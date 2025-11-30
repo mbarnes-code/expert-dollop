@@ -1,0 +1,3 @@
+"""
+Spellbook project package.
+"""

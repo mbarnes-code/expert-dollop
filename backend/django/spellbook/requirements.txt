@@ -1,0 +1,35 @@
+# Commander Spellbook Backend Requirements
+# Following strangler fig pattern for gradual migration
+
+# Core Django
+Django>=4.2,<5.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.3.0
+django-filter>=23.5
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Cache
+redis>=5.0.0
+django-redis>=5.4.0
+
+# Async tasks
+celery>=5.3.0
+
+# HTTP client for external APIs (Scryfall, etc.)
+httpx>=0.26.0
+
+# Environment configuration
+python-dotenv>=1.0.0
+
+# API Documentation (optional, matches legacy)
+drf-spectacular>=0.27.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-django>=4.7.0
+pytest-cov>=4.1.0
+
+# Shared library (local)
+# Install with: pip install -e ../../libs/shared/python

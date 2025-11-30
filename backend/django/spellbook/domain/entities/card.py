@@ -12,7 +12,7 @@ from .base import AggregateRoot
 
 
 @dataclass
-class CardEntity(AggregateRoot):
+class CardEntity(AggregateRoot[int]):
     """
     Domain entity representing a Magic: The Gathering card.
     
