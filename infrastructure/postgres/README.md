@@ -13,7 +13,7 @@ The database is organized into 8 distinct schemas:
 5. **nemesis** - Nemesis game project data
 6. **main** - Core application data
 7. **ghostwriter** - Ghostwriter content data
-8. **nemsis** - NEMSIS medical data
+8. **nemesis** - NEMESIS data
 
 ## Usage
 
