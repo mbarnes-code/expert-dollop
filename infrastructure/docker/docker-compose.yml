@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: expert-dollop-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-expert_dollop}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/schemas:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: expert-dollop-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/configs/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop-network
+
+  # FastAPI Backend (optional - use when needed)
+  fastapi:
+    build:
+      context: ../backend/api/fastapi
+      dockerfile: ../../infrastructure/docker/Dockerfile.fastapi
+    container_name: expert-dollop-fastapi
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-expert_dollop}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop-network
+    profiles:
+      - fastapi
+
+  # Django MTG Backend (optional)
+  django-mtg:
+    build:
+      context: ../backend/django/mtg
+      dockerfile: ../../../infrastructure/docker/Dockerfile.django
+    container_name: expert-dollop-django-mtg
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-expert_dollop}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - REDIS_URL=redis://redis:6379/6
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop-network
+    profiles:
+      - django
+
+  # Django Nemesis Backend (optional)
+  django-nemesis:
+    build:
+      context: ../backend/django/nemesis
+      dockerfile: ../../../infrastructure/docker/Dockerfile.django
+    container_name: expert-dollop-django-nemesis
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-expert_dollop}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - REDIS_URL=redis://redis:6379/1
+    ports:
+      - "8002:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop-network
+    profiles:
+      - django
+
+  # Django Security Backend (optional)
+  django-security:
+    build:
+      context: ../backend/django/security
+      dockerfile: ../../../infrastructure/docker/Dockerfile.django
+    container_name: expert-dollop-django-security
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-expert_dollop}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - REDIS_URL=redis://redis:6379/5
+    ports:
+      - "8003:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop-network
+    profiles:
+      - django
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  expert-dollop-network:
+    driver: bridge

@@ -1,0 +1,18 @@
+{
+  "name": "security-feature",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/security/feature/src",
+  "projectType": "library",
+  "tags": ["scope:security", "type:feature"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/security/feature/jest.config.ts"
+      }
+    }
+  }
+}

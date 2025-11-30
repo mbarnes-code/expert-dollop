@@ -1,0 +1,32 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "bundler",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@expert-dollop/shared/ui": ["libs/shared/ui/src/index.ts"],
+      "@expert-dollop/shared/utils": ["libs/shared/utils/src/index.ts"],
+      "@expert-dollop/shared/data-access": ["libs/shared/data-access/src/index.ts"],
+      "@expert-dollop/security/feature": ["libs/security/feature/src/index.ts"],
+      "@expert-dollop/security/data-access": ["libs/security/data-access/src/index.ts"],
+      "@expert-dollop/productivity/feature": ["libs/productivity/feature/src/index.ts"],
+      "@expert-dollop/productivity/data-access": ["libs/productivity/data-access/src/index.ts"],
+      "@expert-dollop/ai/feature": ["libs/ai/feature/src/index.ts"],
+      "@expert-dollop/ai/data-access": ["libs/ai/data-access/src/index.ts"],
+      "@expert-dollop/tcg/feature": ["libs/tcg/feature/src/index.ts"],
+      "@expert-dollop/tcg/data-access": ["libs/tcg/data-access/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}
