@@ -1,0 +1,26 @@
+# DAPR State Store Component: Dispatch
+# Bounded Context: Dispatch and routing operations
+# Schema Isolation: Each module owns its data via schema restriction
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-dispatch
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres user=postgres password=postgres port=5432 dbname=expert_dollop sslmode=disable options='-c search_path=dispatch'"
+    - name: tableName
+      value: "dapr_state"
+    - name: keyPrefix
+      value: "dispatch"
+    - name: actorStateStore
+      value: "true"
+scopes:
+  - fastapi
+  - django-mtg
+  - django-nemesis
+  - django-security

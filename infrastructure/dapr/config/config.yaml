@@ -1,0 +1,40 @@
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: expert-dollop-config
+  namespace: default
+spec:
+  tracing:
+    samplingRate: "1"
+    zipkin:
+      endpointAddress: "http://zipkin:9411/api/v2/spans"
+  
+  metric:
+    enabled: true
+  
+  # API access control for DDD enforcement
+  accessControl:
+    defaultAction: deny
+    trustDomain: "expert-dollop"
+    policies:
+      # Allow modules to use state API (abstraction layer)
+      - appId: "*"
+        defaultAction: allow
+        operations:
+          - name: "/v1.0/state/*"
+            httpVerb: ["GET", "POST", "DELETE"]
+            action: allow
+          - name: "/v1.0/publish/*"
+            httpVerb: ["POST"]
+            action: allow
+          - name: "/v1.0/subscribe"
+            httpVerb: ["GET"]
+            action: allow
+  
+  # Middleware for cross-cutting concerns
+  httpPipeline:
+    handlers:
+      - name: rate-limiter
+        type: middleware.http.ratelimit
+      - name: oauth2
+        type: middleware.http.oauth2
