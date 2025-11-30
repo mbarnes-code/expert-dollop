@@ -555,6 +555,31 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  apps/tcg/spellbook:
+    dependencies:
+      next:
+        specifier: ^14.2.0
+        version: 14.2.33(@babel/core@7.28.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.94.2)
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.0
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.25
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.27
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.27)
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   apps/tcg/tournaments:
     dependencies:
       next:
