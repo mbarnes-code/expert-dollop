@@ -1,0 +1,34 @@
+{
+  "name": "tcg-spellbook",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/tcg/spellbook/src",
+  "projectType": "application",
+  "tags": ["scope:tcg", "type:app"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/.next"],
+      "options": {
+        "cwd": "apps/tcg/spellbook",
+        "command": "next build"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/tcg/spellbook",
+        "command": "next dev"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/tcg/spellbook",
+        "command": "next start"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+.outerModalContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000000000; /* Higher than mediavine's adhesion */
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity ease-in-out 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.visible {
+  opacity: 1;
+}
+
+.modal {
+  width: 90%;
+  max-width: 40rem;
+  max-height: 95vh;
+  z-index: 1001;
+  margin-top: -50%;
+  transition: margin-top ease-in-out 0.2s;
+  overflow: auto;
+  position: relative;
+  @apply bg-white dark:bg-dark;
+}
+
+.inPosition {
+  margin-top: 0;
+}
+
+.content {
+  padding: 2em;
+}
+
+.footer {
+  width: 100%;
+  padding: 1em 2em;
+  border-top: 1px solid #c5c5c5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.small {
+  max-width: 30rem;
+}
+.medium {
+  max-width: 50rem;
+}
+.large {
+  max-width: 100rem;
+}
+
+.closeIcon {
+  top: 5px;
+  position: sticky;
+  cursor: pointer;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: 5px;
+  padding-right: 10px;
+  height: 0;
+  font-size: 1.25em;
+  color: #424242;
+}
