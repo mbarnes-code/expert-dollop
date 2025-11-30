@@ -1,0 +1,36 @@
+.cardTooltip {
+  pointer-events: none;
+  position: fixed;
+  z-index: 9000;
+  display: none;
+  flex-direction: row;
+}
+
+.cardTooltip img {
+  height: 340px;
+  width: 244px;
+  min-width: 244px;
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.cardBack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.25s ease-in-out;
+}
+
+.card {
+  transition: opacity 0.25s ease-in-out;
+}
+
+.loader {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}

@@ -7,6 +7,23 @@ const nextConfig = {
     '@expert-dollop/tcg-feature',
     '@expert-dollop/tcg-data-access'
   ],
+  // Enable SCSS support
+  sassOptions: {
+    includePaths: ['./src/styles'],
+  },
+  // Image optimization configuration
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cards.scryfall.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'c1.scryfall.com',
+      },
+    ],
+  },
   // Strangler fig pattern: proxy requests to the original commander-spellbook-site
   async rewrites() {
     // Use environment variable for API URL, fallback to default for development
