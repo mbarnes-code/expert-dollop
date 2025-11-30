@@ -37,6 +37,10 @@ export interface SpellbookSearchResult {
  * Configuration for the Spellbook API service
  */
 export interface SpellbookApiConfig {
+  /** 
+   * Base path for the API. 
+   * In production, configure via NEXT_PUBLIC_SPELLBOOK_API_URL environment variable.
+   */
   basePath?: string;
   cacheTTL?: number;
 }
@@ -44,12 +48,20 @@ export interface SpellbookApiConfig {
 /**
  * Spellbook API Service for Commander Spellbook integration.
  * Implements the strangler fig pattern to gradually ingest external API.
+ * 
+ * Note: JavaScript/TypeScript is single-threaded in Node.js context,
+ * so the singleton pattern with in-memory cache is safe for this use case.
+ * For distributed environments, consider using Redis or similar.
  */
 export class SpellbookApiService extends BaseApiService {
   private static instance: SpellbookApiService | null = null;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private readonly cacheTTL: number;
 
+  /**
+   * Default base path - should be overridden via config or environment variable
+   * in production deployments
+   */
   private static readonly DEFAULT_BASE_PATH = 'https://json.commanderspellbook.com';
   private static readonly DEFAULT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 

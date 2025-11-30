@@ -9,11 +9,13 @@ const nextConfig = {
   ],
   // Strangler fig pattern: proxy requests to the original commander-spellbook-site
   async rewrites() {
+    // Use environment variable for API URL, fallback to default for development
+    const spellbookApiUrl = process.env.SPELLBOOK_LEGACY_API_URL || 'https://json.commanderspellbook.com';
     return [
       // Proxy API requests to the original spellbook backend when not handled locally
       {
         source: '/api/legacy/:path*',
-        destination: 'https://json.commanderspellbook.com/:path*',
+        destination: `${spellbookApiUrl}/:path*`,
       },
     ];
   },

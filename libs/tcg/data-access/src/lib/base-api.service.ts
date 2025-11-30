@@ -23,13 +23,14 @@ export abstract class BaseApiService {
    * Make a GET request to the API
    */
   protected async get<T>(endpoint: string, headers?: Record<string, string>): Promise<T> {
-    const response = await fetch(`${this.basePath}${endpoint}`, {
+    const url = `${this.basePath}${endpoint}`;
+    const response = await fetch(url, {
       method: 'GET',
       headers: this.buildHeaders(headers),
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(`GET request to ${url} failed: ${response.status} ${response.statusText}`);
     }
 
     return response.json() as Promise<T>;
@@ -39,14 +40,15 @@ export abstract class BaseApiService {
    * Make a POST request to the API
    */
   protected async post<T, R>(endpoint: string, data: T, headers?: Record<string, string>): Promise<R> {
-    const response = await fetch(`${this.basePath}${endpoint}`, {
+    const url = `${this.basePath}${endpoint}`;
+    const response = await fetch(url, {
       method: 'POST',
       headers: this.buildHeaders(headers),
       body: JSON.stringify(data),
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(`POST request to ${url} failed: ${response.status} ${response.statusText}`);
     }
 
     return response.json() as Promise<R>;
