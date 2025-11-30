@@ -2,17 +2,16 @@
 Base domain entity classes for Commander Spellbook.
 
 Re-exports shared DDD base classes and provides Spellbook-specific extensions.
+
+Note: The shared library should be installed with:
+    pip install -e libs/shared/python
+    
+If running without installation, the domain package auto-configures the path.
 """
 
-import sys
-from pathlib import Path
+# Import utilities ensure shared libs are available
+from .. import _imports  # noqa: F401
 
-# Add shared libs to path for imports
-libs_path = Path(__file__).resolve().parents[6] / 'libs' / 'shared' / 'python'
-if str(libs_path) not in sys.path:
-    sys.path.insert(0, str(libs_path))
-
-# Re-export from shared library
 from ddd.entities.base import Entity, AggregateRoot, ValueObject, DomainEvent
 
 __all__ = [

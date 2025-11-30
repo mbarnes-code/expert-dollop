@@ -13,7 +13,7 @@ Includes:
 
 from .entities import Entity, AggregateRoot, ValueObject
 from .repositories import Repository, ReadOnlyRepository
-from .services import DomainService, ApplicationService
+from .services import DomainService, ApplicationService, QueryService, CommandHandler
 
 __all__ = [
     # Entities
@@ -26,4 +26,6 @@ __all__ = [
     # Services
     'DomainService',
     'ApplicationService',
+    'QueryService',
+    'CommandHandler',
 ]

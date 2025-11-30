@@ -4,20 +4,15 @@ Find My Combos use case.
 Application service for finding combos based on user's card collection.
 """
 
-import sys
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import List, Optional
 
-# Add shared libs to path for imports
-libs_path = Path(__file__).resolve().parents[6] / 'libs' / 'shared' / 'python'
-if str(libs_path) not in sys.path:
-    sys.path.insert(0, str(libs_path))
-
-from ddd.services import ApplicationService
+# Domain imports (handles shared lib path setup)
 from ...domain.entities import VariantEntity
 from ...domain.repositories import CardRepository, VariantRepository
 from ...domain.services import ComboFinderService
+
+from ddd.services import ApplicationService
 
 
 @dataclass

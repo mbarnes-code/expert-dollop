@@ -66,6 +66,8 @@ WSGI_APPLICATION = 'spellbook_project.wsgi.application'
 # Database configuration
 # Strangler fig pattern: Can connect to existing spellbook database
 # or use a new schema within the shared database
+SPELLBOOK_DB_SCHEMA = os.environ.get('SPELLBOOK_DB_SCHEMA', 'spellbook')
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -75,7 +77,7 @@ DATABASES = {
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
         'OPTIONS': {
-            'options': '-c search_path=spellbook,public'
+            'options': f'-c search_path={SPELLBOOK_DB_SCHEMA},public'
         }
     },
     # Legacy database connection for strangler fig pattern

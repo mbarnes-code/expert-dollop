@@ -12,13 +12,26 @@ class SpellbookRouter:
     
     During migration, reads can be routed to the legacy database
     while writes go to the new database structure.
+    
+    Usage:
+        To migrate a model, add its lowercase name to the appropriate set:
+        
+        # Fully migrated - reads and writes from new database
+        MIGRATED_MODELS = {'card', 'feature'}
+        
+        # Being migrated - writes to both, reads from new
+        MIGRATING_MODELS = {'combo', 'variant'}
+        
+        # Not listed - defaults to new database
     """
     
     # Models that have been fully migrated to the new system
-    MIGRATED_MODELS = set()
+    # Example: {'card', 'feature', 'template'}
+    MIGRATED_MODELS: set = set()
     
-    # Models being migrated (dual-write)
-    MIGRATING_MODELS = set()
+    # Models being migrated (dual-write phase)
+    # Example: {'combo', 'variant'}
+    MIGRATING_MODELS: set = set()
     
     def db_for_read(self, model, **hints):
         """

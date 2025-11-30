@@ -4,16 +4,12 @@ Combo finder domain service.
 Provides domain logic for finding combos based on available cards.
 """
 
-import sys
 from abc import abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
 from typing import List, Optional
 
-# Add shared libs to path for imports
-libs_path = Path(__file__).resolve().parents[6] / 'libs' / 'shared' / 'python'
-if str(libs_path) not in sys.path:
-    sys.path.insert(0, str(libs_path))
+# Import utilities ensure shared libs are available
+from .. import _imports  # noqa: F401
 
 from ddd.services import DomainService
 from ..entities import VariantEntity

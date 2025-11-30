@@ -5,12 +5,6 @@ Provides API endpoints following the strangler fig pattern,
 allowing gradual migration from the legacy Commander Spellbook backend.
 """
 
-import sys
-import os
-
-# Add dapr_client to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
