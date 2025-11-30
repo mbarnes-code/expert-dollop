@@ -1,0 +1,18 @@
+{
+  "name": "security-data-access",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/security/data-access/src",
+  "projectType": "library",
+  "tags": ["scope:security", "type:data-access"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/security/data-access/jest.config.ts"
+      }
+    }
+  }
+}

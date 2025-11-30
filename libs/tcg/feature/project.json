@@ -1,0 +1,18 @@
+{
+  "name": "tcg-feature",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/tcg/feature/src",
+  "projectType": "library",
+  "tags": ["scope:tcg", "type:feature"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "libs/tcg/feature/jest.config.ts"
+      }
+    }
+  }
+}

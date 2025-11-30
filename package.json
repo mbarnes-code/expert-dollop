@@ -1,0 +1,22 @@
+{
+  "name": "@expert-dollop/source",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "nx run-many --target=dev",
+    "build": "nx run-many --target=build",
+    "lint": "nx run-many --target=lint",
+    "test": "nx run-many --target=test",
+    "nx": "nx"
+  },
+  "private": true,
+  "devDependencies": {
+    "@nx/js": "22.1.3",
+    "@nx/next": "^22.1.3",
+    "@nx/react": "^22.1.3",
+    "@nx/workspace": "22.1.3",
+    "eslint": "^9.39.1",
+    "nx": "22.1.3",
+    "typescript": "^5.9.3"
+  }
+}
