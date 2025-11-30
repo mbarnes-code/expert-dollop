@@ -10,7 +10,8 @@ Follows DDD principles:
 - Database Agnostic: Can swap backends without code changes
 """
 
-from fastapi import FastAPI, Request, Response
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Dict, List
 import os
@@ -20,30 +21,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from core.dapr import DaprClient, StateStore, Topic
-
-# Create the main FastAPI application
-app = FastAPI(
-    title="Expert-Dollop API",
-    description="Domain-based monorepo API with DAPR service mesh for DDD compliance",
-    version="0.1.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
-)
-
-# Configure CORS
-origins = os.environ.get(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000"
-).split(",")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # DAPR Client instance
 dapr_client: DaprClient | None = None
@@ -71,19 +48,42 @@ _subscriptions: List[Dict[str, Any]] = [
 ]
 
 
-@app.on_event("startup")
-async def startup():
-    """Initialize DAPR client on startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown."""
     global dapr_client
+    # Startup
     dapr_client = DaprClient(app_id="fastapi")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Close DAPR client on shutdown."""
-    global dapr_client
+    yield
+    # Shutdown
     if dapr_client:
         await dapr_client.close()
+
+
+# Create the main FastAPI application
+app = FastAPI(
+    title="Expert-Dollop API",
+    description="Domain-based monorepo API with DAPR service mesh for DDD compliance",
+    version="0.1.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
+
+# Configure CORS
+origins = os.environ.get(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -156,7 +156,7 @@ async def get_state(store: str, key: str):
         value = await dapr_client.get_state(state_store, key)
         return {"key": key, "value": value, "store": store}
     except ValueError:
-        return {"error": f"Invalid store: {store}"}, 400
+        raise HTTPException(status_code=400, detail=f"Invalid store: {store}")
 
 
 @app.post("/api/v1/state/{store}/{key}")
@@ -171,7 +171,7 @@ async def save_state(store: str, key: str, request: Request):
         await dapr_client.save_state(state_store, key, data)
         return {"success": True, "key": key, "store": store}
     except ValueError:
-        return {"error": f"Invalid store: {store}"}, 400
+        raise HTTPException(status_code=400, detail=f"Invalid store: {store}")
 
 
 @app.delete("/api/v1/state/{store}/{key}")
@@ -185,7 +185,7 @@ async def delete_state(store: str, key: str):
         await dapr_client.delete_state(state_store, key)
         return {"success": True, "key": key, "store": store}
     except ValueError:
-        return {"error": f"Invalid store: {store}"}, 400
+        raise HTTPException(status_code=400, detail=f"Invalid store: {store}")
 
 
 # ==================== Pub/Sub Event Handlers ====================
