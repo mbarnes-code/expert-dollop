@@ -1,0 +1,29 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-google-cloud-iam
+_pkgname=google-cloud-iam
+pkgver=2.19.1
+pkgrel=1
+pkgdesc='IAM Service Account Credentials API client library.'
+arch=('any')
+url='https://pypi.org/project/google-cloud-iam/#files'
+license=('Apache')
+depends=('python')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('61723bcaecfd5afd8df6ce9f17ad0855eb3c6f362b172cea3968deeddeb75d68ac6150d114df8e95ac9e14762e1a55197103a9cede886bfde5b32d0d3891f056')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --prefix=/usr --root="$pkgdir" --optimize=1 \
+    --skip-build
+}
+

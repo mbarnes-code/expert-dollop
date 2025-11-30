@@ -1,0 +1,36 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+
+# testing
+coverage
+test-results
+playwright-report
+
+# production
+build
+build-electron
+build-stats
+stats.json
+
+# generated service worker
+service-worker/
+
+# misc
+.DS_Store
+.env
+npm-debug.log
+.swc
+
+*kcab.*
+public/kcab
+public/data
+public/data-file-index.txt
+public/*.wasm
+
+# translations
+locale/
+
+# service worker build output
+dev-dist

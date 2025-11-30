@@ -1,0 +1,110 @@
+{
+    "folders": [
+        {
+            "path": "..",
+            "name": "Nemesis"
+        },
+        {
+            "path": "../docs",
+            "name": "docs"
+        },
+        {
+            "path": "../infra",
+            "name": "infra"
+        },
+        {
+            "path": "../libs/chromium",
+            "name": "libs → chromium"
+        },
+        {
+            "path": "../libs/common",
+            "name": "libs → common"
+        },
+        {
+            "path": "../libs/file_enrichment_modules",
+            "name": "libs → file_enrichment_modules",
+        },
+        {
+            "path": "../libs/file_linking",
+            "name": "libs → file_linking"
+        },
+        {
+            "path": "../libs/nemesis_dpapi",
+            "name": "libs → nemesis_dpapi"
+        },
+        {
+            "path": "../projects/agents",
+            "name": "projects → agents"
+        },
+        {
+            "path": "../projects/alerting",
+            "name": "projects → alerting"
+        },
+        {
+            "path": "../projects/cli",
+            "name": "projects → cli"
+        },
+        {
+            "path": "../projects/document_conversion",
+            "name": "projects → document_conversion"
+        },
+        {
+            "path": "../projects/dotnet_service",
+            "name": "projects → dotnet_service"
+        },
+        {
+            "path": "../projects/file_enrichment",
+            "name": "projects → file_enrichment"
+        },
+        {
+            "path": "../projects/frontend",
+            "name": "projects → frontend"
+        },
+        {
+            "path": "../projects/housekeeping",
+            "name": "projects → housekeeping"
+        },
+        {
+            "path": "../projects/noseyparker_scanner",
+            "name": "projects → noseyparker_scanner"
+        },
+        {
+            "path": "../projects/web_api",
+            "name": "projects → web_api"
+        },
+        {
+            "path": "../tools",
+            "name": "tools"
+        },
+    ],
+    "settings": {
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.benchmarks": true,
+            "**/.ruff_cache": true,
+            "**/.DS_Store": true,
+            "**/.git": true,
+            "**/.hg": true,
+            "**/.mypy_cache": true,
+            "**/.pytest_cache": true,
+            "**/.svn": true,
+            "**/.venv": true,
+            "**/CVS": true,
+            "**/Thumbs.db": true,
+            "projects/frontend/node_modules": true,
+            "projects/frontend/dist": true
+        },
+        "cSpell.words": [
+            "Dapr",
+            "dpapi",
+            "Gotenberg",
+            "purgeable"
+        ],
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "charliermarsh.ruff",
+        ]
+    }
+}

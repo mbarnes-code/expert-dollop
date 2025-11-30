@@ -1,0 +1,137 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=neo4j-community
+_pkgname=neo4j
+pkgver=5.26.0
+_neo4j_browser_ver=5.24.0
+pkgrel=1
+pkgdesc='A fully transactional graph database implemented in Java.'
+arch=('any')
+url='https://neo4j.com/'
+license=('GPL-3.0-only')
+_java_version=17
+depends=("java-runtime=$_java_version")
+makedepends=("java-environment=$_java_version" 'maven')
+conflicts=('neo4j-enterprise')
+backup=('etc/neo4j/neo4j-admin.conf'
+        'etc/neo4j/neo4j.conf'
+        'etc/neo4j/server-logs.xml'
+        'etc/neo4j/user-logs.xml')
+options=(!strip)
+# Crashes at runtime when using the pre-built distribution "https://dist.neo4j.org/$pkgname-$pkgver-unix.tar.gz"
+source=("https://github.com/$_pkgname/$_pkgname/archive/$pkgver.tar.gz"
+        'neo4j.executable-template'
+        'neo4j.service'
+        'neo4j.sysusers'
+        'neo4j.tmpfiles'
+        "https://repo.maven.apache.org/maven2/org/neo4j/client/neo4j-browser/$_neo4j_browser_ver/neo4j-browser-$_neo4j_browser_ver.jar")
+sha512sums=('dc026d51d01ac7c383c8bafed23c99600998406903e75f0a8d081b906a538474055e23314c385045514cb4fd2c911130b35610993734dde5998fe8d8c8a7c70c'
+            '1aee5f3f977720fd1a31a4404403a3241467257380dd4db8c6a3f949a7e2d16d127c02eb64b2d9801decbef034e91a3de98977101b7511f23197f7fb02b3b989'
+            '3b4ec61ce42df80dc42f16cd7c2e2d1f54b2e71325b6a21060bd9961ddf277aa451fe8d94194f631114f82ff44c5802c28deff802c639b265fe5cf76ec770c97'
+            '1a8f4fd2cc64c3e3e472448512d7d5ed4b123628a39fb440b29523a5fc849667a1ef54dfdd0fb1328f2398b2adcad149e5ea5fed0e5105c5a81fa2ea135b5413'
+            'b2bcfaded870902124e80637a81f9c0f90963a70ba46fdf3dbc1a530463b2a1355d06ac6edb41bde19c2771b2e377a3c88e742b4c880cce6691b3fb9ce1abd8f'
+            '10b759888e80175849382fac26a899982df56541a3c93520935523e6482a4ce3fdd181715b91cf5d0e503b0284f04c5b65637ece26003e64df1868f4fc0c8da3')
+
+prepare() {
+  cd "$_pkgname-$pkgver"
+
+  # Set version
+  mvn versions:set -DnewVersion="$pkgver"
+
+  # Download dependencies
+  mvn \
+    -Dmaven.repo.local="$srcdir/repo" \
+    dependency:go-offline
+
+  mkdir -p bin
+  # shellcheck disable=SC2002
+  {
+    cat "$srcdir/neo4j.executable-template" \
+      | sed "s/%APP_NAME%/neo4j/" \
+      | sed "s/%CLASS_NAME%/org.neo4j.server.startup.Neo4jBoot/" \
+        > bin/neo4j
+    cat "$srcdir/neo4j.executable-template" \
+      | sed "s/%APP_NAME%/neo4j-admin/" \
+      | sed "s/%CLASS_NAME%/org.neo4j.server.startup.Neo4jAdminBoot/" \
+        > bin/neo4j-admin
+    cat "$srcdir/neo4j.executable-template" \
+      | sed "s/%APP_NAME%/cypher-shell/" \
+      | sed "s/%CLASS_NAME%/org.neo4j.shell.startup.CypherShellBoot/" \
+        > bin/cypher-shell
+  }
+}
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  export PATH="/usr/lib/jvm/java-$_java_version-openjdk/bin:$PATH"
+  mvn \
+    -Dmaven.repo.local="$srcdir/repo" \
+    package -DskipTests
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  # Create necessary folders
+  install -dm 755 "$pkgdir/var/log/$_pkgname"
+
+  # Man pages
+  install -Dm 644 -t "$pkgdir/usr/share/man/man1" \
+    community/cypher-shell/packaging/src/common/manpages/cypher-shell.1
+
+  # Executable files
+  install -Dm 755 -t "$pkgdir/usr/bin" \
+    bin/cypher-shell \
+    bin/neo4j \
+    bin/neo4j-admin
+
+  # Locally built distribution
+  tar -xf "packaging/standalone/target/neo4j-community-$pkgver-unix.tar.gz"
+  local bin_archive="neo4j-community-$pkgver"
+
+  # Config files
+  install -Dm 644 -t "$pkgdir/etc/neo4j" \
+    "$bin_archive/conf/neo4j-admin.conf" \
+    "$bin_archive/conf/neo4j.conf" \
+    "$bin_archive/conf/server-logs.xml" \
+    "$bin_archive/conf/user-logs.xml"
+
+  sed -i 's|=/usr/share/neo4j/lib|=/usr/share/java/neo4j|' \
+    "$pkgdir/etc/neo4j/neo4j.conf"
+
+  # Bash completion
+  install -Dm 644 "$bin_archive/bin/completion/neo4j-admin_completion" \
+    "$pkgdir/usr/share/bash-completion/completions/neo4j-admin"
+  install -Dm 644 "$bin_archive/bin/completion/neo4j_completion" \
+    "$pkgdir/usr/share/bash-completion/completions/neo4j"
+
+  # Install JARs
+  install -Dm 644 -t "$pkgdir/usr/share/java/neo4j" "$bin_archive/lib/"*.jar
+
+  # Documentation
+  install -Dm 644 -t "$pkgdir/usr/share/doc/neo4j" \
+    "$bin_archive/README.txt" \
+    "$bin_archive/UPGRADE.txt"
+
+  # License files
+  install -Dm 644 -t "$pkgdir/usr/share/licenses/$pkgname" \
+    "$bin_archive/LICENSE.txt" \
+    "$bin_archive/LICENSES.txt" \
+    "$bin_archive/NOTICE.txt"
+
+  # Systemd files
+  install -Dm 644 -t "$pkgdir/usr/lib/systemd/system" \
+    "$srcdir/neo4j.service"
+  install -Dm 644 "$srcdir/neo4j.sysusers" \
+    "$pkgdir/usr/lib/sysusers.d/neo4j.conf"
+  install -Dm 644 "$srcdir/neo4j.tmpfiles" \
+    "$pkgdir/usr/lib/tmpfiles.d/neo4j.conf"
+
+  # Neo4j browser is missing, it's release separately on newer versions https://neo4j.com/docs/browser-manual/current/deployment-modes/neo4j-server/
+  # Create plugins directory https://neo4j.com/docs/operations-manual/current/configuration/file-locations/#neo4j-plugins
+  install -dm 755 "$pkgdir/var/lib/neo4j/plugins"
+  install -Dm 755 -t "$pkgdir/var/lib/neo4j/plugins" "$srcdir/neo4j-browser-$_neo4j_browser_ver.jar"
+}
+

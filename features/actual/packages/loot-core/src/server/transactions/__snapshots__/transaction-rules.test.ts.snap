@@ -1,0 +1,173 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Learning categories > updates rules correctly even if multiple rules exist 1`] = `
+[
+  Rule {
+    "actions": [
+      Action {
+        "field": "category",
+        "handlebarsTemplate": undefined,
+        "op": "set",
+        "options": undefined,
+        "rawValue": "food",
+        "type": "id",
+        "value": "food",
+      },
+    ],
+    "conditions": [
+      Condition {
+        "field": "payee",
+        "op": "is",
+        "options": undefined,
+        "rawValue": "foo",
+        "type": "id",
+        "unparsedValue": "foo",
+        "value": "foo",
+      },
+    ],
+    "conditionsOp": "and",
+    "id": "id2",
+    "stage": null,
+  },
+  Rule {
+    "actions": [
+      Action {
+        "field": "category",
+        "handlebarsTemplate": undefined,
+        "op": "set",
+        "options": undefined,
+        "rawValue": "food",
+        "type": "id",
+        "value": "food",
+      },
+    ],
+    "conditions": [
+      Condition {
+        "field": "payee",
+        "op": "is",
+        "options": undefined,
+        "rawValue": "foo",
+        "type": "id",
+        "unparsedValue": "foo",
+        "value": "foo",
+      },
+    ],
+    "conditionsOp": "and",
+    "id": "id3",
+    "stage": null,
+  },
+  Rule {
+    "actions": [
+      Action {
+        "field": "category",
+        "handlebarsTemplate": undefined,
+        "op": "set",
+        "options": undefined,
+        "rawValue": "beer",
+        "type": "id",
+        "value": "beer",
+      },
+    ],
+    "conditions": [
+      Condition {
+        "field": "payee",
+        "op": "is",
+        "options": undefined,
+        "rawValue": null,
+        "type": "id",
+        "unparsedValue": null,
+        "value": null,
+      },
+    ],
+    "conditionsOp": "and",
+    "id": "id4",
+    "stage": null,
+  },
+]
+`;
+
+exports[`Learning categories > updates rules correctly even if multiple rules exist 2`] = `
+[
+  Rule {
+    "actions": [
+      Action {
+        "field": "category",
+        "handlebarsTemplate": undefined,
+        "op": "set",
+        "options": undefined,
+        "rawValue": "beer",
+        "type": "id",
+        "value": "beer",
+      },
+    ],
+    "conditions": [
+      Condition {
+        "field": "payee",
+        "op": "is",
+        "options": undefined,
+        "rawValue": "foo",
+        "type": "id",
+        "unparsedValue": "foo",
+        "value": "foo",
+      },
+    ],
+    "conditionsOp": "and",
+    "id": "id2",
+    "stage": null,
+  },
+  Rule {
+    "actions": [
+      Action {
+        "field": "category",
+        "handlebarsTemplate": undefined,
+        "op": "set",
+        "options": undefined,
+        "rawValue": "beer",
+        "type": "id",
+        "value": "beer",
+      },
+    ],
+    "conditions": [
+      Condition {
+        "field": "payee",
+        "op": "is",
+        "options": undefined,
+        "rawValue": "foo",
+        "type": "id",
+        "unparsedValue": "foo",
+        "value": "foo",
+      },
+    ],
+    "conditionsOp": "and",
+    "id": "id3",
+    "stage": null,
+  },
+  Rule {
+    "actions": [
+      Action {
+        "field": "category",
+        "handlebarsTemplate": undefined,
+        "op": "set",
+        "options": undefined,
+        "rawValue": "beer",
+        "type": "id",
+        "value": "beer",
+      },
+    ],
+    "conditions": [
+      Condition {
+        "field": "payee",
+        "op": "is",
+        "options": undefined,
+        "rawValue": null,
+        "type": "id",
+        "unparsedValue": null,
+        "value": null,
+      },
+    ],
+    "conditionsOp": "and",
+    "id": "id4",
+    "stage": null,
+  },
+]
+`;

@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    labels:
+      - dependencies
+    directories:
+      - backend/
+      - client/python/
+      - bot/discord/
+      - bot/telegram/
+      - bot/reddit/
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    labels:
+      - dependencies
+    directories:
+      - backend/
+      - bot/discord/
+      - bot/telegram/
+      - bot/reddit/
+      - /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    labels:
+      - CI/CD
+      - dependencies
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    labels:
+      - dependencies
+    directory: /client/typescript/
+    schedule:
+      interval: weekly

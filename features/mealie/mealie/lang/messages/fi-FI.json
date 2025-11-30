@@ -1,0 +1,83 @@
+{
+    "generic": {
+        "server-error": "Tapahtui odottamaton virhe"
+    },
+    "recipe": {
+        "unique-name-error": "Reseptien nimien täytyy olla yksilöllisiä",
+        "recipe-created": "Resepti luotu",
+        "recipe-image-deleted": "Reseptikuva poistettu",
+        "recipe-defaults": {
+            "ingredient-note": "1 kupillinen jauhoja",
+            "step-text": "Reseptin vaiheet sekä muut kentät reseptisivulla tukevat markdown-syntaksia.\n\n**Lisää linkki**\n\n[Oma linkki](https://demo.mealie.io)\n"
+        },
+        "servings-text": {
+            "makes": "Tekee",
+            "serves": "Annoksia",
+            "serving": "Annos",
+            "servings": "Annosta",
+            "yield": "Tuotto",
+            "yields": "Tuottaa"
+        }
+    },
+    "mealplan": {
+        "no-recipes-match-your-rules": "Määritysten mukaisia reseptejä ei löytynyt"
+    },
+    "user": {
+        "user-updated": "Käyttäjä päivitetty",
+        "password-updated": "Salasana päivitetty",
+        "invalid-current-password": "Nykyinen salasana ei kelpaa",
+        "ldap-update-password-unavailable": "Salasanaa ei voitu päivittää, sillä käyttäjä on LDAP-hakemiston alainen"
+    },
+    "group": {
+        "report-deleted": "Raportti poistettu."
+    },
+    "exceptions": {
+        "permission_denied": "Sinulla ei ole oikeutta tämän toiminnon suorittamiseen",
+        "recursive-recipe-link": "Reseptillä ei voida viitata itseensä, joko suoraan tai välillisesti",
+        "no-entry-found": "Pyydettyä resurssia ei löytynyt",
+        "integrity-error": "Tietokannan eheysvirhe",
+        "username-conflict-error": "Tämä käyttäjätunnus on jo käytössä",
+        "email-conflict-error": "Tämä sähköpostiosoite on jo käytössä"
+    },
+    "notifications": {
+        "generic-created": "{name} luotiin",
+        "generic-updated": "{name} päivitettiin",
+        "generic-created-with-url": "{name} on luotu, {url}",
+        "generic-updated-with-url": "{name} on päivitetty, {url}",
+        "generic-duplicated": "{name} on kahdennettu",
+        "generic-deleted": "{name} on poistettu",
+        "logged-out": "Kirjauduttu ulos"
+    },
+    "datetime": {
+        "year": "vuosi|vuotta",
+        "day": "päivä|päivää",
+        "hour": "tunti|tuntia",
+        "minute": "minuutti|minuuttia",
+        "second": "sekunti|sekuntia",
+        "millisecond": "millisekunti|millisekuntia",
+        "microsecond": "mikrosekunti|mikrosekuntia"
+    },
+    "emails": {
+        "password": {
+            "subject": "Mealie Unohtunut salasana",
+            "header_text": "Unohdin salasanan",
+            "message_top": "Olet pyytänyt salasanasi nollausta.",
+            "message_bottom": "Klikkaa yllä olevaa painiketta nollataksesi salasanasi.",
+            "button_text": "Nollaa salasana"
+        },
+        "invitation": {
+            "subject": "Kutsu liittyä Mealieen",
+            "header_text": "Sinut on kutsuttu.",
+            "message_top": "Sinut on kutsuttu liittymään Mealieen.",
+            "message_bottom": "Ole hyvä ja klikkaa yllä olevaa painiketta hyväksyäksesi kutsun.",
+            "button_text": "Hyväksy kutsu"
+        },
+        "test": {
+            "subject": "Mealie Testiviesti",
+            "header_text": "Testiviesti",
+            "message_top": "Tämä on testiviesti.",
+            "message_bottom": "Ole hyvä ja klikkaa yllä olevaa painiketta testataksesi sähköpostia.",
+            "button_text": "Avaa Mealie"
+        }
+    }
+}

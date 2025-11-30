@@ -1,0 +1,59 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=sslsniff
+pkgver=0.8
+pkgrel=6
+groups=('blackarch' 'blackarch-sniffer')
+pkgdesc='A tool to MITM all SSL connections on a LAN and dynamically generate certs for the domains that are being accessed on the fly.'
+arch=('x86_64' 'aarch64')
+url='https://github.com/moxie0/sslsniff'
+license=('GPL-3.0-or-later')
+depends=('boost' 'log4cpp' 'dsniff')
+makedepends=('git')
+source=("git+https://github.com/moxie0/$pkgname.git"
+        "02-fix-compatibility-with-gcc49.patch"
+        "Add-missing-libraries-at-link-time.patch"
+        "boost-1.67.patch"
+        "boost-1.88.patch"
+        "Fix-OpenSSL-1.1-FTBFS.patch")
+sha512sums=('SKIP'
+            'ef89fdc9b84adc0f205caab423188ff846f4f6e1e9afbb521cdb7101858d19b2fe413f0fefd5e96117bf92e9575d9a1ad7c8c5997bef5758af55d49c150c4405'
+            'af8e0bb853c308d47cff495ccd2a6a4a91200a420215e16dfb00e825e89f1093410514d1efba9f08f82e3d3bf312151670aefff2078d5b3d9466b461fef8fbdd'
+            'ff0024d496b80a5c4edfd52cf68be7bee2f57c8911f806256e9e444ad4172b7510ed9bf8f2c376233db2bdfd19693eeda679edfebbd6208cbe5e57d32f5e0251'
+            '87c861914d83f748ec5c2b9e19d5af45cc35b653ffea81b9f67b3fe853b4af200687cb311d19390ba12552189f63296cdcd9a6fde0b498f23a83f0ff765f4689'
+            'c61b88ccb0ffd52a31e1472d045fe12f878eb6a34c2262710493403452297429639635f40b2666068f0d96a4d5eade743dc154bd39e2aa66c33638f2b3e5f1d1')
+
+prepare() {
+  cd $pkgname
+
+  patch -p1 < ../02-fix-compatibility-with-gcc49.patch
+  patch -p1 < ../Add-missing-libraries-at-link-time.patch
+  patch -p1 < ../boost-1.67.patch
+  patch -p1 < ../boost-1.88.patch
+  patch -p1 < ../Fix-OpenSSL-1.1-FTBFS.patch
+
+  aclocal
+  autoconf
+  automake --add-missing
+}
+
+build() {
+  cd $pkgname
+
+  ./configure --prefix=/usr --disable-dependency-tracking
+  make
+}
+
+package() {
+  cd $pkgname
+
+  make install DESTDIR="$pkgdir"
+
+  install -dm 755 "$pkgdir/usr/share/sslsniff/"{updates,certs}
+  install -m 644 leafcert.pem IPSCACLASEA1.crt "$pkgdir/usr/share/$pkgname"
+  install -m 644 updates/*xml "$pkgdir/usr/share/$pkgname/updates"
+  install -m 644 certs/* "$pkgdir/usr/share/$pkgname/certs"
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" README
+}
+

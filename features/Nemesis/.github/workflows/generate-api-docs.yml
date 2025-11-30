@@ -1,0 +1,77 @@
+name: Generate API Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'projects/web_api/**'
+      - '.github/workflows/generate-api-docs.yml'
+      - '.github/scripts/generate_api_docs.py'
+  workflow_dispatch: # For manual triggering
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Python virtualenv
+        run: |
+          pip install --upgrade pip
+          python -m venv env
+          source env/bin/activate
+          cd projects/web_api
+          pip install poetry
+          poetry install
+
+      - name: Generate API documentation
+        run: |
+          source env/bin/activate
+          cd projects/web_api
+          poetry run python ../../.github/scripts/generate_api_docs.py
+
+      - name: Commit documentation changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'docs: update API documentation [skip ci]'
+          file_pattern: 'docs/*'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install mkdocs dependencies
+        run: |
+          source env/bin/activate
+          pip install -r docs/requirements.txt
+
+      - name: Build documentation
+        run: |
+          source env/bin/activate
+          mkdocs build
+
+      - name: Setup Github pages
+        uses: actions/configure-pages@v4
+
+      - name: Create Github pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy documentation to Github pages
+        uses: actions/deploy-pages@v4

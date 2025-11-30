@@ -1,0 +1,25 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=ruby-twitter_cldr
+_gemname=${pkgname#ruby-}
+pkgver=6.14.0
+pkgrel=2
+pkgdesc='Ruby implementation of the ICU (International Components for Unicode) that uses the Common Locale Data Repository to format dates, plurals, and more.'
+arch=('any')
+url='https://rubygems.org/gems/twitter_cldr'
+license=('Apache')
+depends=('ruby' 'ruby-camertron-eprun' 'ruby-tzinfo' 'ruby-cldr-plurals-runtime-rb')
+source=("https://rubygems.org/gems/$_pkgname-$pkgver.gem")
+noextract=("$_gemname-$pkgver.gem")
+sha512sums=('3777d2522c4f9ba4af45fd7434cdd81d6077e44db754c04f365139eaddc302c62b67690521d3ab3304564b8a41c10cca4291856342f124fdfe836736dc293155')
+
+package() {
+  _gemhome="$(gem env home)"
+
+  gem install --ignore-dependencies --no-user-install --no-document \
+    -i "$pkgdir/$_gemhome" -n "$pkgdir/usr/bin" "$_gemname-$pkgver.gem"
+
+  rm "$pkgdir/$_gemhome/cache/$_gemname-$pkgver.gem"
+}
+

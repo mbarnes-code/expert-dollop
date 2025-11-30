@@ -1,0 +1,28 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-asyauth
+_pkgname=asyauth
+pkgver=0.0.22
+pkgrel=1
+pkgdesc='Unified authentication library.'
+arch=('any')
+url='https://pypi.org/project/asyauth/#files'
+license=('MIT')
+depends=('python' 'python-asn1crypto' 'python-minikerberos' 'python-unicrypto'
+         'python-asysocks')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('1cdc3dbd60b47a6696d3293322b4c5664e7b619904d4ee13dbedd0bedb202dd74ef210f7742db9efac1fd346450f9f2ccbab713a4f00a75245f95b4ec652c18d')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}

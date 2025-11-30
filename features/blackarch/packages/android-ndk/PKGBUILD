@@ -1,0 +1,31 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=android-ndk
+pkgver=r29
+pkgrel=1
+epoch=2
+pkgdesc='Android C/C++ developer kit'
+arch=('x86_64')
+groups=('blackarch' 'blackarch-mobile')
+url='https://developer.android.com/ndk/downloads'
+license=('GPL' 'LGPL' 'custom')
+depends=('android-sdk' 'glibc')
+optdepends=(
+  'ncurses5-compat-libs: for using gdb'
+  'python: various helper scripts'
+)
+options=('!strip' 'staticlibs')
+install="$pkgname.install"
+source=('android-ndk.sh'
+        "https://dl.google.com/android/repository/$pkgname-${pkgver/./}-linux.zip")
+sha512sums=('a8684cf6e9fccbe97fd34c2d644da455d68e95bc27282e23d5261cac96c4e8072a5d1c0350e82b2617defc3b8bc71f6de8a6953eb87337416569dfb8c2040f96'
+            'b55819895a7fa3a0bc7ed411fb55ed15ad9e415b0122a81a4e026c9b696cd266cb4beebb2008cf1d6cac88d38187d52818734f87de793de303653eccb4ca68da')
+
+package() {
+  install -dm 755 "$pkgdir/opt"
+  cp -a --no-preserve=ownership "android-ndk-${pkgver/./}" "$pkgdir/opt/$pkgname"
+
+  install -Dm 644 "$pkgname.sh" -t "$pkgdir/etc/profile.d/"
+}
+

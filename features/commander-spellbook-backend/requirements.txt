@@ -1,0 +1,7 @@
+# Requirements for local development and testing
+flake8
+pydantic
+pytest-django
+pip-tools
+django-debug-toolbar
+psycopg2

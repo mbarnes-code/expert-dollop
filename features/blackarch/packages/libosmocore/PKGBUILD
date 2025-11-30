@@ -1,0 +1,51 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=libosmocore
+pkgver=1.10.0.r47.g38eb428
+pkgrel=1
+epoch=2
+pkgdesc='Collection of common code used in various sub-projects inside the Osmocom family of projects.'
+arch=('x86_64' 'aarch64')
+groups=('blackarch' 'blackarch-radio')
+url='https://osmocom.org/projects/libosmocore/wiki/Libosmocore'
+license=('GPL')
+depends=('talloc' 'pcsclite' 'lksctp-tools' 'libusb' 'lksctp-tools' 'liburing'
+         'libmnl' 'python')
+makedepends=('git')
+source=("git://git.osmocom.org/libosmocore.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+prepare() {
+  cd $pkgname
+
+  autoreconf -i
+  ./configure --prefix=/usr --exec-prefix=/usr --bindir=/usr/bin \
+              --sbindir=/usr/sbin --datadir=/usr/share --libexecdir=/usr/lib \
+              --localstatedir=/var --docdir=/usr/share/doc/libosmocore \
+              --libdir=/usr/lib/
+}
+
+build() {
+  cd $pkgname
+
+  make
+}
+
+package() {
+  cd $pkgname
+
+  make DESTDIR="$pkgdir" install
+}
+

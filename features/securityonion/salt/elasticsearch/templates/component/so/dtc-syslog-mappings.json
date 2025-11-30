@@ -1,0 +1,32 @@
+{
+  "_meta": {
+    "documentation": "https://www.elastic.co/guide/en/ecs/current/ecs-syslog.html",
+    "ecs_version": "1.12.2"
+  },
+  "template": {
+    "mappings": {
+      "properties": {
+        "syslog": {
+          "properties": {
+            "facility": {
+              "type": "long",
+              "fields": {
+                "keyword": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "priority": {
+              "type": "long",
+              "fields": {
+                "keyword": {
+                  "type": "keyword"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

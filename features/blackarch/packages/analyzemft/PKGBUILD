@@ -1,0 +1,48 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=analyzemft
+pkgver=483.d82bc98
+pkgrel=1
+pkgdesc='Parse the MFT file from an NTFS filesystem.'
+groups=('blackarch' 'blackarch-forensic')
+arch=('any')
+url='https://github.com/dkovar/analyzeMFT'
+license=('CPL')
+depends=('python' 'python-openpyxl')
+makedepends=('git' 'python-build' 'python-pip')
+source=("$pkgname::git+https://github.com/dkovar/analyzeMFT.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  echo $(git rev-list --count HEAD).$(git rev-parse --short HEAD)
+}
+
+build() {
+  cd $pkgname
+
+  python -m build --wheel --outdir="$startdir/dist"
+}
+
+package() {
+  cd $pkgname
+
+  pip install \
+    --verbose \
+    --disable-pip-version-check \
+    --no-warn-script-location \
+    --ignore-installed \
+    --no-compile \
+    --no-deps \
+    --root="$pkgdir" \
+    --prefix=/usr \
+    --no-index \
+    --find-links="file://$startdir/dist" \
+    $pkgname
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md
+  install -Dm 644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+
+
+. /usr/sbin/so-common
+
+echo $banner
+echo "Running kibana.so_savedobjects_defaults Salt state to restore default saved objects."
+printf "This could take a while if another Salt job is running. \nRun this command with --force to stop all Salt jobs before proceeding.\n"
+echo $banner
+
+    if [ "$1" = "--force" ]; then
+        printf "\nForce-stopping all Salt jobs before proceeding\n\n"
+        salt-call saltutil.kill_all_jobs
+    fi
+
+salt-call state.apply kibana.so_savedobjects_defaults -linfo queue=True

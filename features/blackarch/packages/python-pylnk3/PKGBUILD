@@ -1,0 +1,28 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-pylnk3
+_pkgname=pylnk3
+pkgver=0.4.3
+pkgrel=1
+pkgdesc='Windows LNK File Parser and Creator.'
+arch=('any')
+url='https://pypi.org/project/pylnk3/#files'
+license=('LGPL')
+depends=('python')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('ad49755b0e150acadd3ddb6a4963f066488febdbb56afcc2055d0c0ad8dba7605628b1caa05b637293ef54d6e139c799bff4eb0ee2a724940c3d892ed1cc9705')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package_python-pylnk3() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --prefix=/usr --root="$pkgdir" -O1 --skip-build
+}
+

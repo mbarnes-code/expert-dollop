@@ -1,0 +1,161 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Apply migrations",
+            "type": "shell",
+            "command": "python manage.py migrate",
+            "group": "none",
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
+        },
+        {
+            "label": "Seed Website Properties",
+            "type": "shell",
+            "command": "python manage.py seed_website_properties",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
+        },
+        {
+            "label": "Create temporary directories",
+            "type": "shell",
+            "args": [],
+            "group": "none",
+            "linux": {
+                "command": "mkdir -p ${workspaceFolder}/backend/temp/profiles"
+            },
+            "windows": {
+                "command": "if not exist ${workspaceFolder}\\backend\\temp\\profiles mkdir ${workspaceFolder}\\backend\\temp\\profiles",
+                "options": {
+                    "shell": {
+                        "executable": "cmd",
+                        "args": [
+                            "/c"
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "label": "Clean pending jobs",
+            "type": "shell",
+            "command": "python backend/manage.py clean_jobs --force",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
+        },
+        {
+            "label": "Upkeep",
+            "type": "shell",
+            "command": "python backend/manage.py upkeep",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
+        },
+        {
+            "label": "Prelaunch",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations",
+                "Clean pending jobs",
+                "Upkeep",
+                "Seed Website Properties",
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                },
+            }
+        },
+        {
+            "label": "Apply migrations with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python manage.py migrate --settings=backend.production_settings",
+            "group": "none",
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            },
+        },
+        {
+            "label": "Seed Website Properties with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python manage.py seed_website_properties --settings=backend.production_settings",
+            "group": "none",
+            "options": {
+                "cwd": "${workspaceFolder}/backend",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            }
+        },
+        {
+            "label": "Clean pending jobs with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python backend/manage.py clean_jobs --force --settings=backend.production_settings",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            }
+        },
+        {
+            "label": "Upkeep with production settings",
+            "type": "shell",
+            "command": "set -a; . \"$ENV_FILE\"; python backend/manage.py upkeep --settings=backend.production_settings",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations"
+            ],
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common",
+                    "ENV_FILE": "${workspaceFolder}/backend/secrets.env",
+                },
+            }
+        },
+        {
+            "label": "Prelaunch with production settings",
+            "group": "none",
+            "dependsOn": [
+                "Apply migrations with production settings",
+                "Clean pending jobs with production settings",
+                "Upkeep with production settings",
+                "Seed Website Properties with production settings",
+            ],
+        }
+    ]
+}

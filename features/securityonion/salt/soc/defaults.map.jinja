@@ -1,0 +1,40 @@
+{# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+   or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+   https://securityonion.net/license; you may not use this file except in compliance with the
+   Elastic License 2.0. #}
+
+{% import_yaml 'soc/defaults.yaml' as SOCDEFAULTS %}
+{% from 'vars/globals.map.jinja' import GLOBALS %}
+{% from 'docker/docker.map.jinja' import DOCKER -%}
+{% set INFLUXDB_TOKEN = salt['pillar.get']('influxdb:token') %}
+{% import_text 'influxdb/metrics_link.txt' as METRICS_LINK %}
+
+{% for module, application_url in GLOBALS.application_urls.items() %}
+{%   do SOCDEFAULTS.soc.config.server.modules[module].update({'hostUrl': application_url}) %}
+{% endfor %}
+
+{# add all grid heavy nodes to soc.server.modules.elastic.remoteHostUrls #}
+{% for node_type, minions in salt['pillar.get']('elasticsearch:nodes', {}).items() %}
+{%   if node_type in ['heavynode'] %}
+{%     for m in minions.keys() %}
+{%       do SOCDEFAULTS.soc.config.server.modules.elastic.remoteHostUrls.append('https://' ~ m ~ ':9200') %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+
+{% do SOCDEFAULTS.soc.config.server.modules.elastic.update({'username': GLOBALS.elasticsearch.auth.users.so_elastic_user.user, 'password': GLOBALS.elasticsearch.auth.users.so_elastic_user.pass}) %}
+
+{% do SOCDEFAULTS.soc.config.server.modules.influxdb.update({'hostUrl': 'https://' ~ GLOBALS.influxdb_host ~ ':8086'}) %}
+{% do SOCDEFAULTS.soc.config.server.modules.influxdb.update({'token': INFLUXDB_TOKEN}) %}
+{% for tool in SOCDEFAULTS.soc.config.server.client.tools %}
+{%   if tool.name == "toolInfluxDb" and METRICS_LINK | length > 0 %}
+{%     do tool.update({'link': METRICS_LINK}) %}
+{%   endif %}
+{% endfor %}
+
+{% do SOCDEFAULTS.soc.config.server.modules.statickeyauth.update({'anonymousCidr': DOCKER.range, 'apiKey': pillar.sensoroni.config.sensoronikey}) %}
+
+{% do SOCDEFAULTS.soc.config.server.client.case.update({'analyzerNodeId': GLOBALS.hostname}) %}
+{% do SOCDEFAULTS.soc.config.server.client.update({'exportNodeId': GLOBALS.hostname}) %}
+
+{% set SOCDEFAULTS = SOCDEFAULTS.soc %}

@@ -1,0 +1,42 @@
+{
+  "name": "mtg-scripting-toolkit",
+  "private": true,
+  "description": "A collection of utilities for scripts to analyze Magic card data.",
+  "license": "UNLICENSED",
+  "author": {
+    "name": "Anthony Mattox",
+    "url": "https://anthonymattox.com"
+  },
+  "engines": {
+    "node": "^18.16.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ahmattox/mtg-scripting-toolkit"
+  },
+  "scripts": {
+    "lint": "eslint '.' --ext .ts",
+    "format": "prettier --write \"**/*.{ts,md}\"",
+    "types:check": "tsc --noEmit",
+    "search": "tsx ./scripts/search.ts",
+    "cache:clear": "rm -rf ./.cache"
+  },
+  "dependencies": {
+    "@types/d3": "^7.4.0",
+    "d3": "^7.8.3",
+    "fuse.js": "^6.6.2",
+    "lodash": "^4.17.21",
+    "yaml": "^2.2.2"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.14.191",
+    "@types/prompt": "^1.1.4",
+    "@typescript-eslint/eslint-plugin": "^5.47.0",
+    "@typescript-eslint/parser": "^5.47.0",
+    "eslint": "^8.30.0",
+    "prettier": "^2.8.1",
+    "prompt": "^1.3.0",
+    "tsx": "^3.12.1",
+    "typescript": "^4.9.4"
+  }
+}

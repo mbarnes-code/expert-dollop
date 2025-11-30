@@ -1,0 +1,26 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+mcp.json
+.cursor/
+.cursorrules
+*.log
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
+*.tmp
+*.bak
+package-lock.json
+diagrams
+FileScopeMCP-diagram.png
+FileScopeMCP-tree.json
+*.png
+*.svg
+*.pdf
+*.csv
+run.sh
+

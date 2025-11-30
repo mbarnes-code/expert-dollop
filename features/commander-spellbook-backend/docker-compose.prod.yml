@@ -1,0 +1,37 @@
+services:
+  web:
+    extends:
+      file: docker-compose.yml
+      service: web
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: production
+      args:
+        VERSION: production
+    volumes: !reset []
+    ports:
+      - 80:80
+
+  db:
+    extends:
+      file: docker-compose.yml
+      service: db
+
+  discord-bot:
+    extends:
+      file: docker-compose.yml
+      service: discord-bot
+
+  reddit-bot:
+    extends:
+      file: docker-compose.yml
+      service: reddit-bot
+
+  telegram-bot:
+    extends:
+      file: docker-compose.yml
+      service: telegram-bot
+
+volumes:
+  postgres_data:

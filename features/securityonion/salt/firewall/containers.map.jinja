@@ -1,0 +1,108 @@
+{% from 'vars/globals.map.jinja' import GLOBALS %}
+
+{% if GLOBALS.role == 'so-eval' %}
+{% set NODE_CONTAINERS = [
+     'so-dockerregistry',
+     'so-elasticsearch',
+     'so-elastic-fleet',
+     'so-elastic-fleet-package-registry',
+     'so-influxdb',
+     'so-kibana',
+     'so-kratos',
+     'so-hydra',
+     'so-nginx',
+     'so-redis',
+     'so-soc',
+     'so-strelka-coordinator',
+     'so-strelka-gatekeeper',
+     'so-strelka-frontend',
+     'so-strelka-backend',
+     'so-strelka-manager',
+     'so-strelka-filestream'
+] %}
+
+{% elif GLOBALS.role in ['so-manager', 'so-standalone','so-managersearch', 'so-managerhype'] %}
+{% set NODE_CONTAINERS = [
+     'so-dockerregistry',
+     'so-elasticsearch',
+     'so-elastic-fleet',
+     'so-elastic-fleet-package-registry',
+     'so-influxdb',
+     'so-kafka',
+     'so-kibana',
+     'so-kratos',
+     'so-hydra',
+     'so-logstash',
+     'so-nginx',
+     'so-redis',
+     'so-soc',
+     'so-strelka-coordinator',
+     'so-strelka-gatekeeper',
+     'so-strelka-frontend',
+     'so-strelka-backend',
+     'so-strelka-manager',
+     'so-strelka-filestream'
+] %}
+
+{% elif GLOBALS.role == 'so-searchnode' %}
+{% set NODE_CONTAINERS = [
+     'so-elasticsearch',
+     'so-logstash',
+     'so-nginx'
+] %}
+
+{% elif GLOBALS.role == 'so-heavynode' %}
+{% set NODE_CONTAINERS = [
+     'so-elasticsearch',
+     'so-elastic-agent',
+     'so-logstash',
+     'so-nginx',
+     'so-redis',
+     'so-strelka-coordinator',
+     'so-strelka-gatekeeper',
+     'so-strelka-frontend',
+     'so-strelka-backend',
+     'so-strelka-manager',
+     'so-strelka-filestream'
+] %}
+
+{% elif GLOBALS.role == 'so-import' %}
+{% set NODE_CONTAINERS = [
+     'so-dockerregistry',
+     'so-elasticsearch',
+     'so-elastic-fleet',
+     'so-elastic-fleet-package-registry',
+     'so-influxdb',
+     'so-kibana',
+     'so-kratos',
+     'so-hydra',
+     'so-nginx',
+     'so-soc'
+] %}
+
+{% elif GLOBALS.role == 'so-receiver' %}
+{% set NODE_CONTAINERS = [
+     'so-logstash',
+     'so-redis',
+     'so-kafka'
+] %}
+
+{% elif GLOBALS.role == 'so-idh' %}
+{% set NODE_CONTAINERS = [
+     'so-idh',
+] %}
+
+{% elif GLOBALS.role == 'so-fleet' %}
+{% set NODE_CONTAINERS = [
+     'so-elastic-fleet',
+     'so-logstash',
+     'so-nginx-fleet-node'
+] %}
+
+{% elif GLOBALS.role == 'so-sensor' %}
+{% set NODE_CONTAINERS = [] %}
+
+{% else %}
+{% set NODE_CONTAINERS = [] %}
+
+{% endif %}

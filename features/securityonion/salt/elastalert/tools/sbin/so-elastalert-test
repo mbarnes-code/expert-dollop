@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Originally written by Bryant Treacle
+# https://raw.githubusercontent.com/bryant-treacle/so-elastalert-test-rule/master/so-elastalert-test
+# Modified by Doug Burks and Wes Lambert
+#
+# Purpose:  This script will allow you to test your elastalert rule without entering the Docker container.
+
+HOST_RULE_DIR=/opt/so/rules/elastalert
+OPTIONS=""
+SKIP=0
+RESULTS_TO_LOG="n"
+RULE_NAME=""
+FILE_SAVE_LOCATION=""
+
+usage()
+{
+	cat <<EOF
+
+Test Elastalert Rule
+  Options:
+  -h                This message
+  -a                Trigger real alerts instead of the debug alert
+  -l <path_to_file> Write results to specified log file
+  -o '<options>'    Specify Elastalert options ( Ex. --schema-only , --count-only, --days N ) 
+  -r <rule_name>    Specify filename of rule to test (must exist in $HOST_RULE_DIR; do not include path)
+
+EOF
+}
+
+while getopts "hal:o:r:" OPTION
+do
+	case $OPTION in
+	h)
+		usage
+		exit 0
+		;;
+	a)
+		OPTIONS="--alert"
+		;;
+	l)
+		RESULTS_TO_LOG="y"
+		FILE_SAVE_LOCATION=$OPTARG
+		;;		
+	o)
+		OPTIONS=$OPTARG
+		;;  	
+	r)
+		RULE_NAME=$OPTARG
+		SKIP=1
+		;;
+	*)
+		usage
+		exit 0
+		;;
+	esac
+done
+
+docker_exec(){
+	CMD="docker exec -it so-elastalert elastalert-test-rule /opt/elastalert/rules/$RULE_NAME --config /opt/elastalert/config.yaml $OPTIONS"
+	if [ "${RESULTS_TO_LOG,,}" = "y" ] ; then
+		$CMD > "$FILE_SAVE_LOCATION"
+	else
+		$CMD
+	fi	
+}
+
+rule_prompt(){
+	CURRENT_RULES=$(cd "$HOST_RULE_DIR" && find . -type f \( -name "*.yaml" -o -name "*.yml" \) | sed -e 's/^\.\///')
+	if [ -z "$CURRENT_RULES" ]; then
+		echo "There are no rules available to test. Rule files must be placed in the $HOST_RULE_DIR directory."
+		exit 1
+	fi
+	echo
+	echo "This script will allow you to test an Elastalert rule."
+	echo
+	echo "Below is a list of available Elastalert rules:"
+	echo
+	echo "-----------------------------------"
+	echo
+	echo "$CURRENT_RULES"
+	echo
+	echo "-----------------------------------"
+	echo
+	while [ -z "$RULE_NAME" ]; do
+		read -p "Choose a rule to test from the list above (must be typed exactly as shown above): " -e RULE_NAME
+	done
+}
+
+log_save_prompt(){
+	RESULTS_TO_LOG=""
+	read -p "The results can be rather long.  Would you like to write the results to a file? (y/N) " -e RESULTS_TO_LOG
+}
+
+log_path_prompt(){
+		while [ -z "$FILE_SAVE_LOCATION" ]; do
+			read -p "Please enter the log file path and file name: " -e FILE_SAVE_LOCATION
+		done
+		echo "Depending on the rule this may take a while."
+}
+
+if [ $SKIP -eq 0 ]; then
+	rule_prompt
+	log_save_prompt
+	if [ "${RESULTS_TO_LOG,,}" = "y" ] ; then
+		log_path_prompt
+	fi
+fi
+
+echo 
+
+docker_exec
+RESULT=$?
+
+echo
+
+if [ $RESULT -eq 0 ]; then
+	echo "Test completed successfully!"
+else
+	echo "Test failed."
+fi
+
+echo

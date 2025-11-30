@@ -1,0 +1,22 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-zebracorn
+_pkgname=zebracorn
+pkgver=0.0.1
+pkgrel=5
+pkgdesc='A Unicorn CPU emulator fork customized for the zelos binary emulator.'
+arch=('x86_64')
+url='https://pypi.org/project/zebracorn/#files'
+depends=('python')
+makedepends=('python-build' 'python-installer')
+license=('AGPL')
+options=(!emptydirs)
+source=("https://files.pythonhosted.org/packages/21/e5/5dfb808becfe9fd10f9f3e1e02f1571c2485935774b4360e0e4f46ff3a73/$_pkgname-$pkgver-py2.py3-none-manylinux1_x86_64.whl")
+sha512sums=('7483def15637cd39323b73e0a38baeaf7654eb4461c3da05414987050ee65e58f0832728cd98261fa9682f8f9983f75c125979bd1171470732dff7737487920f')
+noextract=("$_pkgname-$pkgver-py2.py3-none-manylinux1_x86_64.whl")
+
+package() {
+  python -m installer --destdir="$pkgdir" *.whl
+}
+

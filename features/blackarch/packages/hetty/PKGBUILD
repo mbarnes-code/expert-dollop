@@ -1,0 +1,44 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=hetty
+pkgver=v0.7.0.r7.gf7def87
+pkgrel=1
+epoch=1
+pkgdesc='HTTP toolkit for security research. Aims to become an open source alternative to commercial software like Burp Suite Pro.'
+arch=('x86_64' 'aarch64')
+groups=('blackarch' 'blackarch-webapp' 'blackarch-proxy')
+url='https://github.com/dstotijn/hetty'
+license=('MIT')
+makedepends=('git' 'go' 'yarn')
+source=("$pkgname.install"
+        "git+https://github.com/dstotijn/$pkgname.git")
+sha512sums=('ec0cd49c178b1b94084e6ae2b03d6a5825c02853fb42662f4b0150611a7f9dd0c5a13f585a51a1dbbc43c6514186a8eadb5eaa51d4b0b2397ace04a3adfb8815'
+            'SKIP')
+install="$pkgname.install"
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+build() {
+  cd $pkgname
+
+  make
+}
+
+package() {
+  cd $pkgname
+
+  install -Dm 755 $pkgname "$pkgdir/usr/bin/$pkgname"
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

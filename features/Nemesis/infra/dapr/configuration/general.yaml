@@ -1,0 +1,15 @@
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: daprConfig
+spec:
+  metric:
+    enabled: true
+    http:
+      increasedCardinality: false
+  httpPipeline:
+    handlers:
+    - name: maximum-request-size
+      type: middleware.http.requestsize
+      properties:
+        maxBodySize: "300MB"

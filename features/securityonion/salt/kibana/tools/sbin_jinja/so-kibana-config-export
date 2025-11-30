@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+{%- set FLEET_MANAGER = salt['pillar.get']('global:fleet_manager', False) %}
+{%- set FLEET_NODE = salt['pillar.get']('global:fleet_node', False) %}
+{%- set FLEET_IP = salt['pillar.get']('global:fleet_ip', '') %}
+{%- set MANAGER = salt['pillar.get']('global:url_base', '') %}
+
+KIBANA_HOST={{ MANAGER }}
+KSO_PORT=5601
+OUTFILE="saved_objects.ndjson"
+
+SESSIONCOOKIE=$(curl -K /opt/so/conf/elasticsearch/curl.config -c - -X GET http://$KIBANA_HOST:$KSO_PORT/ | grep sid | awk '{print $7}')
+curl -K /opt/so/conf/elasticsearch/curl.config -b "sid=$SESSIONCOOKIE" -s -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -XPOST -L $KIBANA_HOST:$KSO_PORT/api/saved_objects/_export -d '{ "type": [ "index-pattern", "config", "visualization", "dashboard", "search" ], "excludeExportDetails": false }' > $OUTFILE
+
+# Clean up using PLACEHOLDER
+sed -i "s/$KIBANA_HOST/PLACEHOLDER/g" $OUTFILE
+
+# Clean up for Fleet, if applicable
+# {% if FLEET_NODE or FLEET_MANAGER %}
+# Fleet IP
+sed -i "s/{{ MANAGER }}/FLEETPLACEHOLDER/g" $OUTFILE
+# {% endif %}

@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+{% from 'vars/globals.map.jinja' import GLOBALS %}
+
+
+. /usr/sbin/so-common
+
+require_manager
+
+# Inform user we are about to remove Elastic Fleet data
+echo
+echo "This script will remove the current Elastic Fleet install and all of its data and then rerun Elastic Fleet setup."
+echo "Deployed Elastic Agents will no longer be enrolled and will need to be reinstalled."
+echo "Only the Elastic Fleet instance on the Manager will be reinstalled - dedicated Fleet node config will removed and will need to be reinstalled."
+echo "This script should only be used as a last resort to reinstall Elastic Fleet." 
+echo
+echo "If you would like to proceed, then type AGREE and press ENTER."
+echo
+# Read user input
+read INPUT
+if [ "${INPUT^^}" != 'AGREE' ]; then exit 0; fi
+
+
+status "Uninstalling all Elastic Agents on all Grid Nodes..."
+salt \* cmd.run "elastic-agent uninstall -f" queue=True
+
+status "Stopping Fleet Container..."
+so-elastic-fleet-stop --force
+
+status "Deleting Fleet Data from Pillars..."
+so-yaml.py remove /opt/so/saltstack/local/pillar/minions/{{ GLOBALS.minion_id }}.sls elasticfleet
+so-yaml.py remove /opt/so/saltstack/local/pillar/global/soc_global.sls global.fleet_grid_enrollment_token_general
+so-yaml.py remove /opt/so/saltstack/local/pillar/global/soc_global.sls global.fleet_grid_enrollment_token_heavy
+
+status "Restarting Kibana..."
+so-kibana-restart --force
+
+status "Removing Integrations State File..."
+rm -f /opt/so/state/eaintegrations.txt
+
+status "Starting Elastic Fleet Setup..."
+so-elastic-fleet-setup
+
+status "Re-installing Elastic Agent on all Grid Nodes..."
+salt \* state.apply elasticfleet.install_agent_grid queue=True
+
+status "Elastic Fleet Reset complete...."

@@ -1,0 +1,341 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "*"
+    tags:
+      - "*"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      packages: read
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v5
+
+      - name: Setup Node ⬢
+        uses: actions/setup-node@v6
+        with:
+          node-version: 23
+          cache: yarn
+          registry-url: https://npm.pkg.github.com
+
+      - name: Cache node modules 🗃
+        id: cache-nodemodules
+        uses: actions/cache@v4
+        with:
+          # npm packages are cached in node_modules
+          # npm also provides a local cache in .npm
+          # Cypress binary is stored in ~/.cache
+          path: |
+            node_modules
+            ~/.npm
+            ~/.cache
+          key: ${{ runner.os }}-node-modules-build-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Cache Site Data ⏬
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist/
+          key: ${{ runner.os }}-download-data-${{ github.sha }}
+
+      - name: Install Node Modules 📦
+        if: steps.cache-nodemodules.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+
+  lint:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v5
+
+      - name: Setup Node ⬢
+        uses: actions/setup-node@v6
+        with:
+          node-version: 23
+          cache: yarn
+
+      - name: Restore node modules from cache 📦
+        id: cache-nodemodules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+            ~/.cache
+          key: ${{ runner.os }}-node-modules-build-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install 📦
+        if: steps.cache-nodemodules.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Run lint 👀
+        run: yarn run lint
+
+  type-check:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v5
+
+      - name: Setup Node ⬢
+        uses: actions/setup-node@v6
+        with:
+          node-version: 23
+          cache: yarn
+
+      - name: Restore node modules from cache 📦
+        id: cache-nodemodules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+            ~/.cache
+          key: ${{ runner.os }}-node-modules-build-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install 📦
+        if: steps.cache-nodemodules.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Run typescript 👀
+        run: yarn tsc --noEmit
+
+  test:
+    runs-on: ubuntu-22.04
+    needs: build
+    strategy:
+      matrix:
+        browser: [chrome, firefox, edge, electron]
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v5
+
+      - name: Setup Node ⬢
+        uses: actions/setup-node@v6
+        with:
+          node-version: 23
+          cache: yarn
+
+      - name: Restore node modules from cache 📦
+        id: cache-nodemodules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+            ~/.cache
+          key: ${{ runner.os }}-node-modules-build-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install 📦
+        if: steps.cache-nodemodules.outputs.cache-hit != 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Cypress run 🧪
+        uses: cypress-io/github-action@v6
+        with:
+          install-command: "true"
+          build: yarn run build
+          start: yarn start
+          wait-on: "http://localhost:3000, https://backend.commanderspellbook.com"
+          browser: ${{ matrix.browser }}
+
+  docker:
+    runs-on: ubuntu-22.04
+    permissions:
+      packages: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and export image
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+          context: .
+          tags: spellbook-client:latest
+          secrets: |
+            "github_token=${{ secrets.GITHUB_TOKEN }}"
+          outputs: type=docker,dest=/tmp/spellbook-client.tar
+
+      - name: Upload image artifact 📦
+        uses: actions/upload-artifact@v5
+        with:
+          name: spellbook-client
+          path: /tmp/spellbook-client.tar
+
+  release:
+    runs-on: ubuntu-22.04
+    needs:
+      - build
+      - lint
+      - type-check
+      - test
+      - docker
+    if: github.ref == 'refs/heads/main' && github.ref_type == 'branch' && github.repository == 'SpaceCowMedia/commander-spellbook-site'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      GIT_AUTHOR_NAME: GitHub Actions
+      GIT_AUTHOR_EMAIL: action@github.com
+      GIT_COMMITTER_NAME: GitHub Actions
+      GIT_COMMITTER_EMAIL: action@github.com
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout full commit history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Setup Node ⬢
+        uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+      - name: Install semantic-release
+        run: npm -g install @semantic-release/git @semantic-release/exec semantic-release
+      - id: release
+        name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
+
+  deploy:
+    runs-on: ubuntu-22.04
+    needs: [build, release]
+    if: needs.release.outputs.version
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    environment: scm-production
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # This is required for actions/checkout
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download image artifact 📦
+        uses: actions/download-artifact@v6
+        with:
+          name: spellbook-client
+          path: /tmp
+
+      - name: Load image 🐳
+        run: docker load --input /tmp/spellbook-client.tar
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Copy Static Files to S3
+        env:
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          id=$(docker create spellbook-client:latest)
+          docker cp $id:/app/.next/static _next
+          docker rm -v $id
+
+          aws s3 cp \
+            --recursive \
+            --cache-control "max-age=2592000" \
+            --exclude "*" \
+            --include "*.js" \
+            --content-type "text/javascript; charset=utf-8" \
+            _next/ s3://$S3_BUCKET/_next/static
+
+          aws s3 cp \
+            --recursive \
+            --cache-control "max-age=2592000" \
+            --exclude "*" \
+            --include "*.css" \
+            --content-type "text/css; charset=utf-8" \
+            _next/ s3://$S3_BUCKET/_next/static
+
+          # Other files will not have UTF-8 set
+          aws s3 cp \
+            --recursive \
+            --cache-control "max-age=2592000" \
+            --exclude "*.js" \
+            --exclude "*.css" \
+            _next/ s3://$S3_BUCKET/_next/static
+
+      - name: Create Cloudfront Invalidation
+        env:
+          DISTRIBUTION_ID: ${{ secrets.DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation \
+          --distribution-id $DISTRIBUTION_ID \
+          --paths "/*"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO_NAME }}
+          IMAGE_TAG: ${{ needs.release.outputs.version }}
+        run: |
+          docker tag spellbook-client:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag spellbook-client:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push --all-tags $ECR_REGISTRY/$ECR_REPOSITORY
+
+  rollout:
+    runs-on: ubuntu-22.04
+    needs: [build, deploy]
+    permissions:
+      id-token: write # This is required for requesting the JWT
+      contents: read # This is required for actions/checkout
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Config kube
+        env:
+          CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
+        run: aws eks --region us-east-2 update-kubeconfig --name $CLUSTER_NAME --kubeconfig kubeconfig.yaml
+
+      - name: Install and configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Rollout pods
+        run: |
+          export KUBECONFIG=kubeconfig.yaml
+          kubectl rollout restart deployment/spellbook-client -n spellbook-prod
+
+#          timeout 600 kubectl rollout status deployment/spellbook-client -n spellbook

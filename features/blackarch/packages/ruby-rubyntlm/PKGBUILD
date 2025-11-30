@@ -1,0 +1,34 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=ruby-rubyntlm
+_gemname=rubyntlm
+pkgver=0.6.5
+pkgrel=4
+pkgdesc='Ruby/NTLM library.'
+arch=('any')
+url='https://github.com/winrb/rubyntlm'
+license=('MIT')
+depends=('ruby')
+options=(!emptydirs)
+source=("https://rubygems.org/downloads/$_gemname-$pkgver.gem")
+noextract=("$_gemname-$pkgver.gem")
+sha512sums=('6b55d06db1ce91600b858ace4304dc7b4d94158fb4389b4244aaf8857b9e32d16ac92a2052f6e235b1e47579e180959a257e0716892faa4a4c51b89e060193c0')
+
+package() {
+  _gemdir="$(ruby -e'puts Gem.default_dir')"
+
+	if [[ $CARCH == arm* ]] ; then
+		gem install --no-user-install --ignore-dependencies --no-rdoc --no-ri \
+			-n "$pkgdir/usr/bin" -i "$pkgdir$_gemdir" "$_gemname-$pkgver.gem"
+	else
+		gem install --no-user-install --ignore-dependencies -i "$pkgdir$_gemdir" \
+			-n "$pkgdir/usr/bin" "$_gemname-$pkgver.gem"
+	fi
+
+  rm "$pkgdir/$_gemdir/cache/$_gemname-$pkgver.gem"
+
+  install -Dm 644 "$pkgdir/$_gemdir/gems/$_gemname-$pkgver/LICENSE" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

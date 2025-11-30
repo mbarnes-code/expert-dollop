@@ -1,0 +1,1 @@
+{{ LOGSTASH_MERGED.config | yaml(False) | replace("_x_", ".") }}

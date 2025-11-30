@@ -1,0 +1,2410 @@
+#!/bin/bash
+
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+
+# README - DO NOT DEFINE GLOBAL VARIABLES IN THIS FILE. Instead use so-variables.
+
+### Begin Logging Section ###
+log() {
+	msg=$1
+	level=${2:-I}
+	now=$(TZ=GMT date +"%Y-%m-%dT%H:%M:%SZ")
+	echo -e "$now | $level | $msg" 2>&1 | tee -a "$setup_log"
+}
+
+error() {
+	log "$1" "ERROR"
+}
+
+info() {
+	log "$1" "INFO"
+}
+
+title() {
+	echo -e "\n-----------------------------\n $1\n-----------------------------\n" >> "$setup_log" 2>&1
+}
+
+fail_setup() {
+	error "Setup encountered an unrecoverable failure, exiting"
+	touch /root/failure
+	exit 1
+}
+
+logCmd() {
+	cmd=$1
+	info "Executing command: $cmd"
+	$cmd 2>&1 | tee -a $setup_log
+}
+### End Logging Section ###
+
+airgap_rules() {
+	# Copy the rules for detections if using Airgap
+	mkdir -p /nsm/rules
+	logCmd "rsync -av /root/SecurityOnion/agrules/ /nsm/rules/"
+
+	# Copy over the securityonion-resources repo
+	logCmd "rsync -av  /root/SecurityOnion/agrules/securityonion-resources /nsm/"
+}
+
+airgap_detection_summaries() {
+	# Copy summaries over to SOC and checkout the correct branch
+	logCmd "rsync -av --chown=socore:socore /nsm/securityonion-resources /opt/so/conf/soc/ai_summary_repos"
+	logCmd "git config --global --add safe.directory /opt/so/conf/soc/ai_summary_repos/securityonion-resources"
+	logCmd "git -C /opt/so/conf/soc/ai_summary_repos/securityonion-resources checkout generated-summaries-published"
+}
+
+add_admin_user() {
+	title "Adding $ADMINUSER to the system with sudo rights"
+	logCmd "useradd '$ADMINUSER'"
+	echo "$ADMINUSER":"$ADMINPASS1" | chpasswd --crypt-method=SHA512
+	logCmd "usermod -aG wheel '$ADMINUSER'"	
+}
+
+add_mngr_ip_to_hosts() {
+	info "Adding $MSRV to /etc/hosts with IP: $MSRVIP"
+	echo "$MSRVIP   $MSRV" >> /etc/hosts
+}
+
+add_socore_user_manager() {
+	info "Adding socore user"
+	logCmd "so_add_user socore 939 939 /opt/so" 
+}
+
+add_web_user() {
+	wait_for_file /nsm/kratos/db/db.sqlite 30 5
+	{
+		info "Attempting to add administrator user for web interface...";
+		echo "$WEBPASSWD1" | /usr/sbin/so-user add --email "$WEBUSER" --role "superuser";
+		info "Add user result: $?";
+	} >> "/root/so-user-add.log" 2>&1
+}
+
+analyze_system() {
+	title "System Characteristics"
+	logCmd "uptime"
+	logCmd "uname -a"
+	logCmd "free -h"
+	logCmd "lscpu"
+	logCmd "df -h"
+	logCmd "ip a"
+}
+
+desktop_salt_local() {
+
+	SALTVERSION=$(grep "version:" ../salt/salt/master.defaults.yaml | grep -o "[0-9]\+\.[0-9]\+")
+	# Install everything using local salt
+	# Set the repo
+	securityonion_repo
+	gpg_rpm_import
+	# Install salt
+	logCmd "yum -y install salt-minion-$SALTVERSION httpd-tools python3 python3-dateutil yum-utils device-mapper-persistent-data lvm2 openssl jq"
+	logCmd "yum -y update --exclude=salt*"
+
+	salt_install_module_deps
+	salt_patch_x509_v2
+
+	logCmd "salt-call state.apply desktop --local --file-root=../salt/ -l info"
+	read -r -d '' message <<- EOM
+		Finished Security Onion Desktop installation.
+
+		Press the Enter key to reboot.
+	EOM
+
+	if [[ -z "$TESTING" ]]; then
+		whiptail --title "$whiptail_title" --msgbox "$message" 12 75
+		reboot
+	fi
+	exit 0 
+
+}
+
+desktop_pillar() {
+
+	local pillar_file=$local_salt_dir/pillar/minions/$MINION_ID.sls
+
+	# Create the desktop pillar
+	printf '%s\n'\
+		"host:"\
+		"  mainint: '$MNIC'"\
+		"desktop:"\
+		"  gui:"\
+		"    enabled: true"\
+		"sensoroni:"\
+		"  config:"\
+		"    node_description: '${NODE_DESCRIPTION//\'/''}'" > $pillar_file
+}
+
+calculate_useable_cores() {
+
+	# Calculate reasonable core usage
+	local cores_for_zeek=$(( (num_cpu_cores/2) - 1 ))
+	local lb_procs_round
+	lb_procs_round=$(printf "%.0f\n" $cores_for_zeek)
+
+	if [ "$lb_procs_round" -lt 1 ]; then lb_procs=1; else lb_procs=$lb_procs_round; fi
+	export lb_procs
+}
+
+check_admin_pass() {
+	check_pass_match "$ADMINPASS1" "$ADMINPASS2" "APMATCH"
+}
+
+check_manager_connection() {
+	# See if you can curl the manager. If not you can either try again or continue
+	info "Checking manager connectivity"	
+	man_test_err=$(curl -s $MSRVIP:4505 --connect-timeout 5 2>&1)
+	
+	local ret=$?
+
+	if [[ $ret != 1 ]]; then
+		info "Could not reach $MSRV"
+		whiptail_manager_unreachable
+	fi
+}
+
+check_network_manager_conf() {
+	local gmdconf="/etc/NetworkManager/conf.d/10-globally-managed-devices.conf"
+	local preupdir="/etc/NetworkManager/dispatcher.d/pre-up.d"
+
+	{
+		[[ -f $gmdconf ]] && mv "$gmdconf" "${gmdconf}.bak"
+		touch "$gmdconf"
+		systemctl restart NetworkManager
+	} >> "$setup_log" 2>&1
+
+	if [[ ! -d "$preupdir" ]]; then
+		mkdir "$preupdir" >> "$setup_log" 2>&1
+	fi
+}
+
+check_pass_match() {
+	info "Making sure passwords match"
+	local pass=$1
+	local confirm_pass=$2
+	local var=$3
+
+	if [ "$pass" = "$confirm_pass" ]; then
+		export "$var=yes"
+	else
+		whiptail_passwords_dont_match
+	fi
+}
+
+# False if stopped, true if running
+check_service_status() {
+
+	local service_name=$1
+	info "Checking service $service_name status"
+	systemctl status $service_name > /dev/null 2>&1
+	local status=$?
+	if [ $status -gt 0 ]; then
+		info "  $service_name is not running" 
+		return 1;
+	else
+		info "  $service_name is running"
+		return 0;
+	fi
+
+}
+
+check_web_pass() {
+	info "Making sure web credential passwords match"
+	check_pass_match "$WEBPASSWD1" "$WEBPASSWD2" "WPMATCH"
+}
+
+clear_manager() {
+	# Clear out the old manager public key in case this is a re-install.
+	# This only happens if you re-install the manager.
+	if [ -f /etc/salt/pki/minion/minion_master.pub ]; then
+		info "Clearing old Salt master key"
+		logCmd "rm -f /etc/salt/pki/minion/minion_master.pub"
+		info "Restarting Salt Minion"
+		logCmd "systemctl -q restart salt-minion"
+	fi
+
+}
+
+collect_adminuser_inputs() {
+	whiptail_create_admin_user
+
+	while ! valid_username "$ADMINUSER"; do
+		whiptail_invalid_input
+		whiptail_create_admin_user "$ADMINUSER"
+	done
+
+	APMATCH=no
+	while [[ $APMATCH != yes ]]; do
+		whiptail_create_admin_user_password1
+		whiptail_create_admin_user_password2
+		check_admin_pass
+	done
+}
+
+collect_dns() {
+	whiptail_management_interface_dns "8.8.8.8,8.8.4.4"
+
+	while ! valid_dns_list "$MDNS"; do
+		whiptail_invalid_input
+		whiptail_management_interface_dns "$MDNS"
+	done
+
+	MDNS=$(echo "$MDNS" | tr -s "," " ") # MDNS needs to be space separated, we prompt for comma separated for consistency
+}
+
+collect_dns_domain() {
+	whiptail_management_interface_dns_search "searchdomain.local"
+
+	while ! valid_fqdn "$MSEARCH"; do
+		whiptail_invalid_input
+		whiptail_management_interface_dns_search "$MSEARCH"
+	done
+}
+
+collect_dockernet() {
+	if ! whiptail_dockernet_check; then
+		whiptail_dockernet_sosnet "172.17.1.0"
+
+		while ! valid_ip4 "$DOCKERNET" || [[ $DOCKERNET =~ "172.17.0." ]]; do
+			whiptail_invalid_input
+			whiptail_dockernet_sosnet "$DOCKERNET"
+		done
+	fi
+}
+
+collect_gateway() {
+	whiptail_management_interface_gateway
+
+	while ! valid_ip4 "$MGATEWAY"; do
+		whiptail_invalid_input
+		whiptail_management_interface_gateway "$MGATEWAY"
+	done
+}
+
+collect_hostname() {
+	collect_hostname_validate
+
+	while has_uppercase "$HOSTNAME"; do
+		if ! (whiptail_uppercase_warning); then
+			collect_hostname_validate
+		else
+			no_use_hostname=true
+			break
+		fi
+	done
+}
+
+collect_hostname_validate() {
+	if [[ -z "$TESTING" ]] && [[ "$HOSTNAME" == *'localhost'* ]]; then HOSTNAME=securityonion; fi
+
+	whiptail_set_hostname "$HOSTNAME"
+
+	if [[ -z $default_hostname_flag ]] && [[ $HOSTNAME == 'securityonion' ]]; then # Will only check HOSTNAME=securityonion once
+		if ! (whiptail_avoid_default_hostname); then
+			whiptail_set_hostname "$HOSTNAME"
+		fi
+		default_hostname_flag=true
+	fi
+
+	while ! valid_hostname "$HOSTNAME"; do
+		whiptail_invalid_hostname
+		whiptail_set_hostname "$HOSTNAME"
+	done
+}
+
+collect_idh_preferences() {
+	IDH_MGTRESTRICT='False'
+	whiptail_idh_preferences
+
+	if [[ "$idh_preferences" != "" ]]; then IDH_MGTRESTRICT='True'; fi
+}
+
+collect_int_ip_mask() {
+	whiptail_management_interface_ip_mask
+
+	while ! valid_ip4_cidr_mask "$manager_ip_mask"; do
+		whiptail_invalid_input
+		whiptail_management_interface_ip_mask "$manager_ip_mask"
+	done
+
+	MIP=$(echo "$manager_ip_mask" | sed 's/\/.*//' )
+	MMASK=$(echo "$manager_ip_mask" | sed 's/.*\///')
+}
+
+collect_mngr_hostname() {
+	whiptail_management_server
+
+	while ! valid_hostname "$MSRV"; do
+		whiptail_invalid_hostname
+		whiptail_management_server "$MSRV"
+	done
+
+	while [[ $MSRV == "$HOSTNAME" ]]; do 
+		whiptail_invalid_hostname 0
+		whiptail_management_server "$MSRV"
+	done
+
+	# Remove the manager from /etc/hosts incase a user entered the wrong IP when prompted 
+	# and they are going through the installer again
+	if [[ "$HOSTNAME" != "$MSRV" ]]; then
+		info "Removing $MSRV from /etc/hosts if present."
+		sed -i "/$MSRV/d" /etc/hosts
+	fi
+
+	if [[ -z "$MSRVIP" ]]; then
+		if ! getent hosts "$MSRV"; then
+			whiptail_manager_ip
+
+			while ! valid_ip4 "$MSRVIP" || [[ $MSRVIP == "$MAINIP" || $MSRVIP == "127.0.0.1" ]]; do
+				whiptail_invalid_input
+				whiptail_manager_ip "$MSRVIP"
+			done
+		else
+			MSRVIP=$(getent hosts "$MSRV" | awk 'NR==1{print $1}')
+			whiptail_manager_ip "$MSRVIP"
+			while ! valid_ip4 "$MSRVIP" || [[ $MSRVIP == "$MAINIP" || $MSRVIP == "127.0.0.1" ]]; do
+				whiptail_invalid_input
+				whiptail_manager_ip "$MSRVIP"
+			done
+		fi
+	fi
+}
+
+collect_net_method() { 
+	whiptail_net_method
+	if [[ "$network_traffic" == "PROXY"* ]]; then
+		collect_proxy no_ask
+		needs_proxy=true
+	fi
+}
+
+collect_proxy() {
+	[[ -n $TESTING ]] && return
+	local ask=${1:-true}
+
+	collect_proxy_details "$ask" || return
+	while ! proxy_validate; do
+		if whiptail_invalid_proxy; then
+			collect_proxy_details no_ask
+		else
+			so_proxy=""
+			break
+		fi
+	done
+}
+
+collect_proxy_details() {
+	local ask=${1:-true}
+	local use_proxy
+	if [[ $ask != true ]]; then
+		use_proxy=0
+	else
+		whiptail_proxy_ask
+		use_proxy=$?
+	fi
+
+	if [[ $use_proxy == 0 ]]; then
+		whiptail_proxy_addr "$proxy_addr"
+
+		while ! valid_proxy "$proxy_addr"; do
+			whiptail_invalid_input
+			whiptail_proxy_addr "$proxy_addr"
+		done
+
+		if whiptail_proxy_auth_ask; then
+			whiptail_proxy_auth_user "$proxy_user"
+			whiptail_proxy_auth_pass "$proxy_pass"
+
+			local url_prefixes=( 'http://' 'https://' )
+			for prefix in "${url_prefixes[@]}"; do
+				if echo "$proxy_addr" | grep -q "$prefix"; then
+					local proxy=${proxy_addr#"$prefix"}
+					so_proxy="${prefix}${proxy_user}:${proxy_pass}@${proxy}"
+					break
+				fi
+			done
+		else
+			so_proxy="$proxy_addr"
+		fi
+		export so_proxy
+	else
+		return 1
+	fi
+}
+
+collect_redirect_host() {
+	collect_redirect_host_validate
+
+	while has_uppercase "$REDIRECTHOST"; do
+		local text
+		! valid_hostname "$REDIRECTHOST" && text="domain name" || text="hostname"
+		if ! (whiptail_uppercase_warning "$text"); then
+			collect_redirect_host_validate "$REDIRECTHOST"
+		else
+			break
+		fi
+	done
+}
+
+collect_redirect_host_validate() {
+	local prefill=${1:-$HOSTNAME}
+
+	whiptail_set_redirect_host "$prefill"
+
+	while ! valid_ip4 "$REDIRECTHOST" && ! valid_hostname "$REDIRECTHOST" && ! valid_fqdn "$REDIRECTHOST"; do
+		whiptail_invalid_input
+		whiptail_set_redirect_host "$REDIRECTHOST"
+	done
+}
+
+collect_so_allow() {
+	if whiptail_so_allow_yesno; then
+		whiptail_so_allow
+
+		while ! valid_cidr "$ALLOW_CIDR" && ! valid_ip4 "$ALLOW_CIDR"; do
+			whiptail_invalid_input
+			whiptail_so_allow "$ALLOW_CIDR"
+		done
+	fi
+}
+
+# Get an email & password for the web admin user
+collect_webuser_inputs() {
+	whiptail_create_web_user
+
+	while ! so-user valemail --email "$WEBUSER" >> "$setup_log" 2>&1; do
+		whiptail_invalid_user_warning
+		whiptail_create_web_user "$WEBUSER"
+	done
+
+	WPMATCH=no
+	while [[ $WPMATCH != yes ]]; do
+		whiptail_create_web_user_password1
+		while ! check_password "$WEBPASSWD1"; do
+			whiptail_invalid_pass_characters_warning
+			whiptail_create_web_user_password1
+		done
+		if echo "$WEBPASSWD1" | so-user valpass >> "$setup_log" 2>&1; then
+			whiptail_create_web_user_password2
+			check_web_pass
+		else
+			whiptail_invalid_pass_warning
+		fi
+	done
+}
+
+configure_minion() {
+	local minion_type=$1
+	if [[ $is_desktop ]]; then 
+		minion_type=desktop
+	fi
+	info "Configuring minion type as $minion_type" 
+	echo "role: so-$minion_type" > /etc/salt/grains
+	
+	local minion_config=/etc/salt/minion
+
+	echo "id: '$MINION_ID'" > "$minion_config"
+
+	case "$minion_type" in
+		'workstation')
+			echo "master: '$MSRV'" >> "$minion_config"
+			;;
+		'manager'* | 'eval' | 'standalone' | 'import')
+			cp -f ../salt/ca/files/signing_policies.conf /etc/salt/minion.d/signing_policies.conf
+			printf '%s\n'\
+				"master: '$HOSTNAME'"\
+				"mysql.host: '$MAINIP'"\
+				"mysql.port: '3306'"\
+				"mysql.user: 'root'" >> "$minion_config"
+			if [ ! -f $local_salt_dir/pillar/secrets.sls ]; then
+				echo "mysql.pass: '$MYSQLPASS'" >> "$minion_config"
+			else
+				OLDPASS=$(grep "mysql" $local_salt_dir/pillar/secrets.sls | awk '{print $2}')
+				echo "mysql.pass: '$OLDPASS'" >> "$minion_config"
+			fi
+			;;
+		*)
+			echo "master: '$MSRV'" >> "$minion_config"
+			;;
+	esac
+
+	printf '%s\n'\
+		"use_superseded:"\
+		"  - module.run"\
+		"features:"\
+		"  x509_v2: true"\
+		"log_level: info"\
+		"log_level_logfile: info"\
+		"log_file: /opt/so/log/salt/minion"\
+		"#startup_states: highstate" >> "$minion_config"
+
+	# At the time the so-managerhype node does not yet have the bridge configured.
+	# The so-hypervisor node doesn't either, but it doesn't cause issues here.
+	local usebr0=false
+	if [ "$minion_type" == 'hypervisor' ]; then
+    	usebr0=true
+	fi
+	local pillar_json="{\"host\": {\"mainint\": \"$MNIC\"}, \"usebr0\": $usebr0}"
+	info "Running: salt-call state.apply salt.mine_functions --local --file-root=../salt/ -l info pillar='$pillar_json'"
+	salt-call state.apply salt.mine_functions --local --file-root=../salt/ -l info pillar="$pillar_json"
+
+	{
+		logCmd "systemctl enable salt-minion";
+		logCmd "systemctl restart salt-minion";
+	} >> "$setup_log" 2>&1
+}
+
+checkin_at_boot() {
+	local minion_config=/etc/salt/minion
+
+	info "Enabling checkin at boot"
+	sed -i 's/#startup_states: highstate/startup_states: highstate/' "$minion_config"
+}
+
+check_requirements() {
+	local req_mem
+	local req_cores
+	local req_storage
+	local nic_list
+	readarray -t nic_list <<< "$(ip link| awk -F: '$0 !~ "lo|vir|veth|br|docker|wl|^[^0-9]"{print $2}' | grep -vwe "bond0"  | sed 's/ //g' | sed -r 's/(.*)(\.[0-9]+)@\1/\1\2/g')"
+	local num_nics=${#nic_list[@]}
+	
+	if [[ $is_eval ]]; then
+		req_mem=8
+		req_cores=4
+		req_nics=2
+	elif [[ $is_standalone ]]; then
+		req_mem=16
+		req_cores=4
+		req_nics=2
+	elif [[ $is_manager ]]; then
+		req_mem=16
+		req_cores=4
+		req_nics=1
+	elif [[ $is_managersearch ]]; then
+		req_mem=16
+		req_cores=8
+		req_nics=1
+	elif [[ $is_sensor ]]; then
+		req_mem=12
+		req_cores=4
+		req_nics=2
+	elif [[ $is_fleet ]]; then
+		req_mem=4
+		req_cores=4
+		req_nics=1
+	elif [[ $is_searchnode ]]; then
+		req_mem=16
+		req_cores=4
+		req_nics=1
+	elif [[ $is_heavynode ]]; then
+		req_mem=16
+		req_cores=4
+		req_nics=2
+	elif [[ $is_idh ]]; then
+		req_mem=1
+		req_cores=2
+		req_nics=1
+	elif [[ $is_import ]]; then
+		req_mem=4
+		req_cores=2
+		req_nics=1
+	elif [[ $is_receiver ]]; then
+		req_mem=8
+		req_cores=2
+		req_nics=1
+	elif [[ $is_managerhype || $is_hypervisor ]]; then
+		req_mem=64
+		req_cores=32
+		req_nics=1
+	fi
+
+	if [[ $setup_type == 'network' ]] ; then
+		if [[ -n $nsm_mount ]]; then # does a /nsm mount exist
+			if [[ $is_import ]]; then
+				req_storage=50
+			elif [[ $is_idh ]]; then
+			    req_storage=12
+			else
+				req_storage=100
+			fi
+			if [[ $free_space_root -lt $req_storage ]]; then
+				whiptail_storage_requirements "/" "${free_space_root} GB" "${req_storage} GB"
+			fi
+			if [[ $free_space_nsm -lt $req_storage ]]; then
+				whiptail_storage_requirements "/nsm" "${free_space_nsm} GB" "${req_storage} GB"
+			fi
+		else
+			if [[ $is_import ]]; then
+				req_storage=50
+			elif [[ $is_idh ]]; then
+			    req_storage=12
+			else
+				req_storage=200
+			fi
+			if [[ $free_space_root -lt $req_storage ]]; then
+				whiptail_storage_requirements "/" "${free_space_root} GB" "${req_storage} GB"
+			fi
+		fi	
+	fi
+
+	if [[ $num_nics -lt $req_nics ]]; then
+		if [[ $num_nics -eq 1 ]]; then
+			whiptail_requirements_error "NIC" "$num_nics" "$req_nics"
+		else
+			whiptail_requirements_error "NICs" "$num_nics" "$req_nics"
+		fi
+	fi
+
+	if [[ $num_cpu_cores -lt $req_cores ]]; then
+		if [[ $num_cpu_cores -eq 1 ]]; then
+			whiptail_requirements_error "core" "$num_cpu_cores" "$req_cores"
+		else
+			whiptail_requirements_error "cores" "$num_cpu_cores" "$req_cores"
+		fi
+		
+	fi
+	
+	if [[ $total_mem_hr -lt $req_mem ]]; then
+		whiptail_requirements_error "memory" "${total_mem_hr} GB" "${req_mem} GB"
+		if [[ $is_standalone || $is_heavynode ]]; then
+			echo "This install type will fail with less than $req_mem GB of memory. Exiting setup."
+			exit 0
+		fi
+	fi
+	if [[ $is_standalone || $is_heavynode ]]; then
+		if [[ $total_mem_hr -gt 15 && $total_mem_hr -lt 24 ]]; then
+			low_mem=true
+		else
+			low_mem=false
+		fi
+	fi
+}
+
+check_sos_appliance() {
+	if [ -f "/etc/SOSMODEL" ]; then
+		local MODEL=$(cat /etc/SOSMODEL)
+		info "Found SOS Model $MODEL"
+		echo "sosmodel: $MODEL" >> /etc/salt/grains
+	else
+		info "Not an appliance"
+	fi
+}
+
+compare_main_nic_ip() {
+	if ! [[ $MNIC =~ ^(tun|wg|vpn).*$ ]]; then
+	  if [[ "$MAINIP" != "$MNIC_IP" ]]; then
+			error "[ERROR] Main gateway ($MAINIP) does not match ip address of management NIC ($MNIC_IP)."
+
+		  read -r -d '' message <<- EOM
+		  	The IP being routed by Linux is not the IP address assigned to the management interface ($MNIC).
+
+			This is not a supported configuration, please remediate 
+			and rerun setup.
+			EOM
+
+		  [[ -n $TESTING ]] || whiptail --title "$whiptail_title" --msgbox "$message" 11 75
+		  kill -SIGINT "$(ps --pid $$ -oppid=)"; fail_setup
+	  fi
+	else
+		# Setup uses MAINIP, but since we ignore the equality condition when using a VPN 
+		# just set the variable to the IP of the VPN interface
+		MAINIP=$MNIC_IP
+	fi
+	
+}
+
+configure_network_sensor() {
+	info "Setting up sensor interface"
+
+	if [[ $is_cloud ]]; then
+                info "Configuring traditional interface settings, since this is a cloud installation..."
+		local nmcli_con_args=( "type" "ethernet" )
+	else 
+                info "Configuring bond interface settings, since this is a not a cloud installation..."
+		local nmcli_con_args=( "type" "bond" "mode" "0" )
+	fi
+
+	# Create the bond interface only if it doesn't already exist
+	nmcli -f name,uuid -p con | grep -q '$INTERFACE'
+	local found_int=$?
+
+	if [[ $found_int != 0 ]]; then
+		nmcli con add ifname "$INTERFACE" con-name "$INTERFACE" "${nmcli_con_args[@]}" -- \
+			ipv4.method disabled \
+			ipv6.method ignore \
+			ethernet.mtu "$MTU" \
+			connection.autoconnect "yes" >> "$setup_log" 2>&1
+	else
+		local int_uuid
+		int_uuid=$(nmcli -f name,uuid -p con | sed -n "s/$INTERFACE //p" | tr -d ' ')
+
+		nmcli con mod "$int_uuid" \
+			ipv4.method disabled \
+			ipv6.method ignore \
+			ethernet.mtu "$MTU" \
+			connection.autoconnect "yes" >> "$setup_log" 2>&1
+	fi
+
+	local err=0
+	for BNIC in "${BNICS[@]}"; do
+		add_interface_bond0 "$BNIC" --verbose >> "$setup_log" 2>&1
+		local ret=$?
+		[[ $ret -eq 0 ]] || err=$ret
+	done
+	return $err
+}
+
+configure_hyper_bridge() {
+	info "Setting up hypervisor bridge"
+	info "Checking $MNIC ipv4.method is auto or manual"
+    ipmethod=$(nmcli -f ipv4.method con show "$MNIC" | cut -d ':' -f 2 | xargs)
+	info "ipv4.method found $ipmethod"
+	# Create the bond interface only if it doesn't already exist
+	nmcli -f name,uuid -p con | grep -q br0
+	local found_int=$?
+
+	if [[ $found_int != 0 ]]; then
+	    info "Creating bridge br0"
+		nmcli con add ifname br0 type bridge con-name br0 >> "$setup_log" 2>&1
+	fi
+
+	# add mgmt interface as slave
+	logCmd "nmcli con add type bridge-slave ifname $MNIC master br0"
+
+	# if static ip was set transfer settings to the bridge
+	if [[ "$ipmethod" == "manual" ]]; then
+		local addresses=$(nmcli -f ipv4.addresses con show "$MNIC" | cut -d ':' -f 2 | xargs)
+		local gateway=$(nmcli -f ipv4.gateway con show "$MNIC" | cut -d ':' -f 2 | xargs)
+		local dns=$(nmcli -f ipv4.dns con show "$MNIC" | cut -d ':' -f 2 | xargs)
+		local dnssearch=$(nmcli -f ipv4.dns-search con show "$MNIC" | cut -d ':' -f 2 | xargs)
+		# will need to check for proxy
+		#local proxy=
+
+		logCmd "nmcli con mod br0 ipv4.addresses $addresses"
+		logCmd "nmcli con mod br0 ipv4.gateway $gateway"
+		logCmd "nmcli con mod br0 ipv4.dns $dns"
+		logCmd "nmcli con mod br0 ipv4.dns-search $dnssearch"
+		logCmd "nmcli con mod br0 ipv4.method manual"
+		logCmd "nmcli con up br0"
+		# we cant bring down MNIC here since it would disrupt ssh sessions. we will need to bring it down at the end of the first highstate
+		# network comms will take place on MNIC until it is brought down and switches to br0
+	fi
+
+	return
+}
+
+copy_salt_master_config() {
+
+	title "Copy the Salt master config template to the proper directory"
+	if [ "$setup_type" = 'iso' ]; then
+		logCmd "cp /root/SecurityOnion/files/salt/master/master /etc/salt/master"
+		#logCmd "cp /root/SecurityOnion/files/salt/master/salt-master.service /usr/lib/systemd/system/salt-master.service"
+	else
+		logCmd "cp ../files/salt/master/master /etc/salt/master"
+		#logCmd "cp ../files/salt/master/salt-master.service /usr/lib/systemd/system/salt-master.service"
+	fi
+	info "Copying pillar and salt files in $temp_install_dir to $local_salt_dir"
+	logCmd "cp -R $temp_install_dir/pillar/ $local_salt_dir/"
+	if [ -d "$temp_install_dir"/salt ] ; then
+		logCmd "cp -R $temp_install_dir/salt/ $local_salt_dir/"
+	fi
+
+	# Restart the service so it picks up the changes
+	logCmd "systemctl daemon-reload"
+	logCmd "systemctl enable salt-master"
+	logCmd "systemctl restart salt-master"
+}
+
+create_local_nids_rules() {
+	title "Create a local.rules file so it doesn't get removed on updates"
+	logCmd "mkdir -p /opt/so/saltstack/local/salt/idstools"
+	echo "# Custom Suricata rules go in this file" > /opt/so/saltstack/local/salt/idstools/local.rules
+	logCmd "salt-run fileserver.clear_file_list_cache"
+}
+
+create_manager_pillars() {
+	elasticfleet_pillar
+	elasticsearch_pillar
+	logstash_pillar
+	manager_pillar
+	create_global
+	create_sensoroni_pillar
+	backup_pillar
+	docker_pillar
+	redis_pillar
+	idstools_pillar
+	kratos_pillar
+	hydra_pillar
+	soc_pillar
+	idh_pillar
+	influxdb_pillar
+	logrotate_pillar
+	patch_pillar
+	nginx_pillar
+	kibana_pillar
+	kafka_pillar
+}
+
+create_repo() {
+	title "Create the repo directory"
+	logCmd "dnf -y install yum-utils createrepo_c"
+	logCmd "createrepo /nsm/repo"
+}
+
+
+detect_cloud() {
+	info "Testing if setup is running on a cloud instance..."
+	if [ -f /etc/SOCLOUD ] || \
+	    dmidecode -s bios-version 2>&1 | grep -q amazon || \
+		dmidecode -s bios-vendor 2>&1 | grep -q Amazon || \
+		dmidecode -s bios-vendor 2>&1 | grep -q Google || \
+		[ -f /var/log/waagent.log ]; then
+
+		info "Detected a cloud installation..."
+		export is_cloud="true"
+	else
+		info "This does not appear to be a cloud installation."
+	fi
+}
+
+detect_os() {
+	title "Detecting Base OS"
+	if [ -f /etc/redhat-release ]; then
+		if grep -q "Rocky Linux release 9" /etc/redhat-release; then
+			OS=rocky
+			OSVER=9
+			is_rocky=true
+			is_rpm=true
+			not_supported=true
+			unset is_supported
+		elif grep -q "CentOS Stream release 9" /etc/redhat-release; then
+			OS=centos
+			OSVER=9
+			is_centos=true
+			is_rpm=true
+			not_supported=true
+			unset is_supported
+		elif grep -q "AlmaLinux release 9" /etc/redhat-release; then
+			OS=alma
+			OSVER=9
+			is_alma=true
+			is_rpm=true
+			not_supported=true
+			unset is_supported
+		elif grep -q "Red Hat Enterprise Linux release 9" /etc/redhat-release; then
+			if [ -f /etc/oracle-release ]; then
+				OS=oracle
+				OSVER=9
+				is_oracle=true
+				is_rpm=true
+				is_supported=true
+			else
+				OS=rhel
+				OSVER=9
+				is_rhel=true
+				is_rpm=true
+				not_supported=true
+				unset is_supported
+			fi
+		fi
+	elif [ -f /etc/os-release ]; then
+		if grep -q "UBUNTU_CODENAME=focal" /etc/os-release; then
+			OSVER=focal
+			UBVER=20.04
+			OS=ubuntu
+			is_ubuntu=true
+			is_deb=true
+			not_supported=true
+			unset is_supported
+		elif grep -q "UBUNTU_CODENAME=jammy" /etc/os-release; then
+			OSVER=jammy
+			UBVER=22.04
+			OS=ubuntu
+			is_ubuntu=true
+			is_deb=true
+			not_supported=true
+			unset is_supported
+		elif grep -q "VERSION_CODENAME=bookworm" /etc/os-release; then
+			OSVER=bookworm
+			DEBVER=12
+			is_debian=true
+			OS=debian
+			is_deb=true
+			not_supported=true
+			unset is_supported
+		fi
+		installer_prereq_packages
+
+	else
+		info "We were unable to determine if you are using a supported OS."
+		fail_setup
+	fi
+
+	info "Found OS: $OS $OSVER"
+}
+
+download_elastic_agent_artifacts() {
+	if ! update_elastic_agent 2>&1 | tee -a "$setup_log"; then
+		fail_setup
+	fi
+}
+
+installer_prereq_packages() {	
+	if [[ $is_deb ]]; then
+		# Print message to stdout so the user knows setup is doing something
+		info "Running apt-get update"
+		retry 150 10 "apt-get update" "" "Err:" >> "$setup_log" 2>&1 || fail_setup
+		# Install network manager so we can do interface stuff
+		if ! command -v nmcli > /dev/null 2>&1; then
+			info "Installing network-manager"
+			retry 150 10 "apt-get -y install network-manager ethtool" >> "$setup_log" 2>&1 || fail_setup
+			logCmd "systemctl enable NetworkManager"
+			logCmd "systemctl start NetworkManager"
+		fi
+		if ! command -v curl > /dev/null 2>&1; then
+			retry 150 10 "apt-get -y install curl"  >> "$setup_log" 2>&1 || fail_setup
+		fi
+	fi
+}
+
+disable_auto_start() {
+	
+	if crontab -l -u $INSTALLUSERNAME 2>&1 | grep -q so-setup; then
+		# Remove the automated setup script from crontab, if it exists
+		logCmd "crontab -u $INSTALLUSERNAME -r"
+	fi
+
+	if grep -s -q so-setup /home/$INSTALLUSERNAME/.bash_profile; then
+		# Truncate last line of the bash profile
+		info "Removing auto-run of setup from bash profile"
+		sed -i '$ d' /home/$INSTALLUSERNAME/.bash_profile >> "$setup_log" 2>&1
+	fi
+}
+
+disable_ipv6() {
+	{
+		info "Disabling ipv6"
+		logCmd "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
+		logCmd "sysctl -w net.ipv6.conf.default.disable_ipv6=1"
+	}  >> "$setup_log" 2>&1
+	{
+		echo "net.ipv6.conf.all.disable_ipv6 = 1"
+		echo "net.ipv6.conf.default.disable_ipv6 = 1"
+		echo "net.ipv6.conf.lo.disable_ipv6 = 1" 
+	} >> /etc/sysctl.conf
+}
+
+docker_seed_update() {
+	local name=$1
+	local percent_delta=1
+	((docker_seed_update_percent+=percent_delta))
+
+	set_progress_str "$docker_seed_update_percent" "Downloading $name"
+}
+
+docker_seed_registry() {
+	local VERSION="$SOVERSION"
+
+	if [ -f /nsm/docker-registry/docker/registry.tar ]; then
+		logCmd "tar xvf /nsm/docker-registry/docker/registry.tar -C /nsm/docker-registry/docker"
+		logCmd "rm /nsm/docker-registry/docker/registry.tar"
+	elif [ -d /nsm/docker-registry/docker/registry ] && [ -f /etc/SOCLOUD ]; then
+		echo "Using existing docker registry content for cloud install"
+	else
+		if [ "$install_type" == 'IMPORT' ]; then
+			container_list 'so-import'	
+		else
+			container_list
+		fi
+
+		docker_seed_update_percent=25
+
+		update_docker_containers 'netinstall' '' 'docker_seed_update' '/dev/stdout' 2>&1 | tee -a "$setup_log"
+	fi
+}
+
+elasticfleet_pillar() {
+    logCmd "mkdir -p $local_salt_dir/pillar/elasticfleet"
+    touch $adv_elasticfleet_pillar_file
+    touch $elasticfleet_pillar_file
+}
+
+elasticsearch_pillar() {
+	title "Create Advanced File"
+	logCmd "touch $adv_elasticsearch_pillar_file"
+	# Create the Elasticsearch pillar
+	printf '%s\n'\
+		"elasticsearch:"\
+		"  config:"\
+		"    cluster:"\
+		"      name: securityonion"\
+		"      routing:"\
+        "        allocation:"\
+        "          disk:"\
+        "            threshold_enabled: true"\
+        "            watermark:"\
+        "              low: 80%"\
+        "              high: 85%"\
+        "              flood_stage: 90%"\
+		"    script:"\
+        "      max_compilations_rate: 20000/1m"\
+        "    indices:"\
+        "      query:"\
+        "        bool:"\
+        "          max_clause_count: 3500"\
+                "  index_settings: {}" > $elasticsearch_pillar_file
+}
+
+es_heapsize() {
+
+	title "Determine ES Heap Size"
+	if [ "$total_mem" -lt 8000 ] ; then
+		ES_HEAP_SIZE="600m"
+	elif [ "$total_mem" -ge 100000 ]; then
+		# Set a max of 25GB for heap size
+		# https://www.elastic.co/guide/en/elasticsearch/guide/current/heap-sizing.html
+		ES_HEAP_SIZE="25000m"
+	else
+		# Set heap size to 33% of available memory
+		ES_HEAP_SIZE=$(( total_mem / 3 ))
+		if [ "$ES_HEAP_SIZE" -ge 25001 ] ; then
+			ES_HEAP_SIZE="25000m"
+		else
+			ES_HEAP_SIZE=$ES_HEAP_SIZE"m"
+		fi
+	fi
+	export ES_HEAP_SIZE
+
+	if [[ "$install_type" =~ ^(EVAL|MANAGERSEARCH|STANDALONE|IMPORT)$ ]]; then
+		NODE_ES_HEAP_SIZE=$ES_HEAP_SIZE
+		export NODE_ES_HEAP_SIZE
+	fi
+}
+
+filter_unused_nics() {
+
+	if [[ $MNIC ]]; then local grep_string="$MNIC\|bond0"; else local grep_string="bond0"; fi
+
+	# If we call this function and NICs have already been assigned to the bond interface then add them to the grep search string
+	if [[ $BNICS ]]; then
+		grep_string="$grep_string"
+		for BONDNIC in "${BNICS[@]}"; do
+			grep_string="$grep_string\|$BONDNIC"
+		done
+	fi
+
+	# Finally, set filtered_nics to any NICs we aren't using (and ignore interfaces that aren't of use)
+	filtered_nics=$(ip link | awk -F: '$0 !~ "lo|vir|veth|br|docker|wl|^[^0-9]"{print $2}' | grep -vwe "$grep_string"  | sed 's/ //g' | sed -r 's/(.*)(\.[0-9]+)@\1/\1\2/g')
+	readarray -t filtered_nics <<< "$filtered_nics"
+	
+	nic_list=()
+	nic_list_management=()
+	for nic in "${filtered_nics[@]}"; do
+		local nic_mac=$(cat "/sys/class/net/${nic}/address" 2>/dev/null)
+		case $(cat "/sys/class/net/${nic}/carrier" 2>/dev/null) in
+			1)
+				nic_list+=("$nic" "$nic_mac  Link UP " "OFF")
+				nic_list_management+=("$nic" "$nic_mac  Link UP " )
+				;;
+			0)
+				nic_list+=("$nic" "$nic_mac  Link DOWN " "OFF")
+				nic_list_management+=("$nic" "$nic_mac  Link DOWN " )
+				;;
+			*)
+				nic_list+=("$nic" "$nic_mac  Link UNKNOWN " "OFF")
+				nic_list_management+=("$nic" "$nic_mac  Link UNKNOWN " )
+				;;
+		esac
+	done
+
+	export nic_list nic_list_management
+}
+
+# Generate Firewall Templates
+firewall_generate_templates() {
+	title "Generate Firewall Template"
+
+	local firewall_pillar_path=$local_salt_dir/salt/firewall
+	logCmd "mkdir -p $firewall_pillar_path"
+   
+	logCmd "cp -r ../files/firewall/* /opt/so/saltstack/local/salt/firewall/"
+
+}
+
+generate_ca() {
+	title "Generating the certificate authority"
+	logCmd "salt-call state.apply ca -l info"
+	info "Confirming existence of the CA certificate"
+	logCmd "openssl x509 -in /etc/pki/ca.crt -noout -subject -issuer -dates"
+}
+
+generate_ssl() {
+	# if the install type is a manager then we need to wait for the minion to be ready before trying
+	# to run the ssl state since we need the minion to sign the certs
+	if [[ $waitforstate ]]; then
+		(wait_for_salt_minion "$MINION_ID" "5" '/dev/stdout' || fail_setup) 2>&1 | tee -a "$setup_log"
+	fi
+	info "Applying SSL state"
+	logCmd "salt-call state.apply ssl -l info"
+}
+
+generate_passwords(){
+  title "Generate Random Passwords"
+  INFLUXPASS=$(get_random_value)
+  INFLUXTOKEN=$(head -c 64 /dev/urandom | base64 --wrap=0)
+  SENSORONIKEY=$(get_random_value)
+  KRATOSKEY=$(get_random_value)
+  HYDRAKEY=$(get_random_value)
+  HYDRASALT=$(get_random_value)
+  REDISPASS=$(get_random_value)
+  SOCSRVKEY=$(get_random_value 64)
+  IMPORTPASS=$(get_random_value)
+}
+
+generate_interface_vars() {
+	title "Setting the MTU to 9000 on all monitor NICS"
+	MTU=9000
+	export MTU
+
+	# Set interface variable
+	if [[ $is_cloud ]]; then
+		INTERFACE=${BNICS[0]}
+	else 
+		INTERFACE='bond0'
+	fi
+        info "Interface set to $INTERFACE"
+	export INTERFACE
+}
+
+get_redirect() {
+	whiptail_set_redirect
+	if [ "$REDIRECTINFO" = "OTHER" ]; then
+		collect_redirect_host
+	fi
+}
+
+get_minion_type() {
+	local minion_type
+	minion_type=$(echo "$install_type" | tr '[:upper:]' '[:lower:]')
+	echo "$minion_type"
+}
+
+hypervisor_local_states() {
+    # these states need to run before the first highstate so that we dont deal with the salt-minion restarting
+    # and we need these setup prior to the highstate
+    info "Check if hypervisor or managerhype"
+    if [ $is_hypervisor ] || [ $is_managerhype ]; then
+        info "Running libvirt states for hypervisor"
+        logCmd "salt-call state.apply libvirt.64962 --local --file-root=../salt/ -l info queue=True"
+        info "Setting up bridge for $MNIC"
+		salt-call state.apply libvirt.bridge --local --file-root=../salt/ -l info pillar='{"host": {"mainint": "'$MNIC'"}}' queue=True
+    fi
+}
+
+install_cleanup() {
+	if [ -f "$temp_install_dir" ]; then
+		info "Installer removing the following files:"
+		logCmd "ls -lR $temp_install_dir"
+
+		# Clean up after ourselves
+		logCmd "rm -rf $temp_install_dir"
+	fi
+	
+	# All cleanup prior to this statement must be compatible with automated testing. Cleanup
+	# that will disrupt automated tests should be placed beneath this statement.
+	[ -n "$TESTING" ] && return
+
+	if [[ $setup_type == 'iso' ]]; then
+		info "Removing so-setup permission entry from sudoers file"
+		logCmd "sed -i '/so-setup/d' /etc/sudoers"
+	fi
+
+	if [[ -z $SO_ERROR ]]; then
+		info "Setup completed at $(date)" 
+	fi
+}
+
+import_registry_docker() {
+	if [ -f /nsm/docker-registry/docker/registry_image.tar ]; then
+	  logCmd "service docker start"
+	  logCmd "docker load -i /nsm/docker-registry/docker/registry_image.tar" 
+	else
+	  info "Need to download registry"
+	fi
+}
+
+idh_pillar() {
+	touch $adv_idh_pillar_file
+}
+
+kibana_pillar() {
+	logCmd "mkdir -p $local_salt_dir/pillar/kibana"
+	logCmd "touch $adv_kibana_pillar_file"
+	logCmd "touch $kibana_pillar_file"
+}
+
+kafka_pillar() {
+	KAFKACLUSTERID=$(get_random_value 22)
+	KAFKAPASS=$(get_random_value)
+	KAFKATRUST=$(get_random_value)
+	logCmd "mkdir -p $local_salt_dir/pillar/kafka"
+	logCmd "touch $adv_kafka_pillar_file"
+	logCmd "touch $kafka_pillar_file"
+	printf '%s\n'\
+		"kafka:"\
+		"  cluster_id: $KAFKACLUSTERID"\
+		"  config:"\
+		"    password: $KAFKAPASS"\
+		"    trustpass: $KAFKATRUST" > $kafka_pillar_file
+}
+
+logrotate_pillar() {
+	logCmd "mkdir -p $local_salt_dir/pillar/logrotate"
+	logCmd "touch $adv_logrotate_pillar_file"
+	logCmd "touch $logrotate_pillar_file"
+}
+
+patch_pillar() {
+	touch $adv_patch_pillar_file
+	touch $patch_pillar_file
+}
+
+logstash_pillar() {
+	# Create the logstash advanced pillar
+	touch $adv_logstash_pillar_file
+	touch $logstash_pillar_file
+}
+
+# Set Logstash heap size based on total memory
+ls_heapsize() {
+	title "Setting Logstash heap size"
+	if [ "$total_mem" -ge 32000 ]; then
+		LS_HEAP_SIZE='1000m'
+		return
+	fi
+
+	case "$install_type" in
+		'MANAGERSEARCH' | 'HEAVYNODE' | 'STANDALONE')
+			LS_HEAP_SIZE='1000m'
+			;;
+		'EVAL')
+			LS_HEAP_SIZE='700m'
+			;;
+		*)
+			LS_HEAP_SIZE='500m'
+			;;
+	esac
+	export LS_HEAP_SIZE
+
+}
+
+idstools_pillar() {
+	title "Ading IDSTOOLS pillar options"
+	touch $adv_idstools_pillar_file
+}
+
+nginx_pillar() {
+	title "Creating the NGINX pillar"
+	[[ -z "$TESTING" ]] && return
+
+	# When testing, set the login rate limiting to high values to avoid failing automated logins
+	printf '%s\n'\
+		"nginx:"\
+		"  config:"\
+		"    throttle_login_burst: 9999"\
+		"    throttle_login_rate: 9999"\
+		"" > "$nginx_pillar_file"
+}
+
+soc_pillar() {
+	title "Creating the SOC pillar"
+	touch $adv_soc_pillar_file
+	printf '%s\n'\
+		"soc:"\
+		"  config:"\
+		"    server:"\
+		"      srvKey: '$SOCSRVKEY'" > "$soc_pillar_file"
+
+	if [[ $telemetry -ne 0 ]]; then
+		echo "  telemetryEnabled: false" >> $soc_pillar_file
+	fi
+}
+
+telegraf_pillar() {
+	title "Creating telegraf pillar"
+	touch $adv_telegraf_pillar_file
+	touch $telegraf_pillar_file
+}
+
+manager_pillar() {
+	touch $adv_manager_pillar_file
+	title "Create the manager pillar"
+	printf '%s\n'\
+		"manager:"\
+		"  proxy: '$so_proxy'"\
+		"  no_proxy: '$no_proxy_string'"\
+		"  elastalert: 1"\
+		"" > "$manager_pillar_file"
+}
+
+kratos_pillar() {
+	title "Create the Kratos pillar file"
+	touch $adv_kratos_pillar_file
+	printf '%s\n'\
+		"kratos:"\
+		"  config:"\
+		"    secrets:"\
+		"      default:"\
+		"        - '$KRATOSKEY'"\
+		"" > "$kratos_pillar_file"
+}
+
+hydra_pillar() {
+	title "Create the Hydra pillar file"
+	touch $adv_hydra_pillar_file
+	touch $hydra_pillar_file
+	chmod 660 $hydra_pillar_file
+	printf '%s\n'\
+		"hydra:"\
+		"  config:"\
+		"    secrets:"\
+		"      system:"\
+		"        - '$HYDRAKEY'"\
+        "    oidc:"\
+        "        subject_identifiers:"\
+        "            pairwise:"\
+        "                salt: '$HYDRASALT'"\
+		"" > "$hydra_pillar_file"
+}
+
+create_global() {
+	title "Creating the global.sls"
+	touch $adv_global_pillar_file
+	if [ -z "$NODE_CHECKIN_INTERVAL_MS" ]; then
+		NODE_CHECKIN_INTERVAL_MS=10000
+		if [ "$install_type" = 'EVAL' ] || [ "$install_type" = 'STANDALONE' ] || [ "$install_type" = 'IMPORT' ]; then
+			NODE_CHECKIN_INTERVAL_MS=1000
+		fi
+	fi
+
+	if [ -f "$global_pillar_file" ]; then
+		rm $global_pillar_file
+	fi
+
+	# Create a global file for global values
+	echo "global:" >> $global_pillar_file
+	echo "  soversion: '$SOVERSION'" >> $global_pillar_file
+	echo "  managerip: '$MAINIP'" >> $global_pillar_file
+	echo "  mdengine: 'ZEEK'" >> $global_pillar_file
+	echo "  ids: 'Suricata'" >> $global_pillar_file
+	echo "  url_base: '$REDIRECTIT'" >> $global_pillar_file
+	if [[ $HIGHLANDER == 'True' ]]; then
+		echo "  highlander: True" >> $global_pillar_file
+	fi
+	if [[ $is_airgap ]]; then
+		echo "  airgap: True" >> $global_pillar_file
+	else 
+		echo "  airgap: False" >> $global_pillar_file
+	fi
+
+	# Continue adding other details	
+	echo "  imagerepo: '$IMAGEREPO'" >> $global_pillar_file
+	echo "  repo_host: '$HOSTNAME'" >> $global_pillar_file
+	echo "  influxdb_host: '$HOSTNAME'" >> $global_pillar_file
+	echo "  registry_host: '$HOSTNAME'" >> $global_pillar_file
+	echo "  endgamehost: '$ENDGAMEHOST'" >> $global_pillar_file
+
+	if [[ $is_standalone || $is_eval ]]; then
+        	echo "  pcapengine: SURICATA" >> $global_pillar_file
+	fi
+}
+
+create_sensoroni_pillar() {
+	title "Create the sensoroni pillar file"
+	touch $adv_sensoroni_pillar_file
+	
+	printf '%s\n'\
+		"sensoroni:"\
+		"  config:"\
+		"    node_checkin_interval_ms: $NODE_CHECKIN_INTERVAL_MS"\
+		"    sensoronikey: '$SENSORONIKEY'"\
+		"    soc_host: '$REDIRECTIT'" > $sensoroni_pillar_file
+
+}
+
+backup_pillar() {
+	title "Create the backup pillar file"
+	touch $adv_backup_pillar_file
+}
+
+docker_pillar() {
+	title "Create the docker pillar file"
+	touch $adv_docker_pillar_file
+	touch $docker_pillar_file
+
+	if [ ! -z "$DOCKERNET" ]; then
+		DOCKERGATEWAY=$(echo $DOCKERNET | awk -F'.' '{print $1,$2,$3,1}' OFS='.')
+		printf '%s\n'\
+			"docker:"\
+			"  range: '$DOCKERNET/24'"\
+			"  gateway: '$DOCKERGATEWAY'" > $docker_pillar_file
+	fi
+}
+
+redis_pillar() {
+	title "Create the redis pillar file"
+	touch $adv_redis_pillar_file
+	printf '%s\n'\
+		"redis:"\
+		"  config:"\
+		"    requirepass: '$REDISPASS'" > $redis_pillar_file
+}
+
+influxdb_pillar() {
+	title "Create the influxdb pillar file"
+	touch $adv_influxdb_pillar_file
+	touch $influxdb_pillar_file
+	printf '%s\n'\
+		"influxdb:"\
+		"  token: $INFLUXTOKEN" > $local_salt_dir/pillar/influxdb/token.sls
+}
+
+make_some_dirs() {
+	mkdir -p /nsm
+	mkdir -p "$default_salt_dir"
+	mkdir -p "$local_salt_dir"
+	mkdir -p $local_salt_dir/pillar/minions
+	mkdir -p $local_salt_dir/salt/firewall/hostgroups
+	mkdir -p $local_salt_dir/salt/firewall/portgroups
+	mkdir -p $local_salt_dir/salt/firewall/ports
+
+	for THEDIR in bpf pcap elasticsearch ntp firewall redis backup influxdb strelka sensoroni soc docker zeek suricata nginx telegraf logstash soc manager kratos hydra idstools idh elastalert stig global kafka versionlock hypervisor vm; do
+	mkdir -p $local_salt_dir/pillar/$THEDIR
+	touch $local_salt_dir/pillar/$THEDIR/adv_$THEDIR.sls
+	touch $local_salt_dir/pillar/$THEDIR/soc_$THEDIR.sls
+	done
+}
+
+mark_version() {
+	title "Marking the current version"
+	echo "$SOVERSION" > /etc/soversion
+}
+
+network_init() {
+	title "Initializing Network"
+	disable_ipv6
+	set_hostname
+	if [[ ( $is_iso || $is_desktop_iso || $is_debian ) ]]; then
+		set_management_interface
+	fi
+}
+
+network_init_whiptail() {
+	case "$setup_type" in
+		'iso')
+			whiptail_management_nic
+			whiptail_dhcp_or_static
+
+			if [ "$address_type" != 'DHCP' ]; then
+				collect_int_ip_mask
+				collect_gateway
+				collect_dns
+				collect_dns_domain
+			fi
+			;;
+		'network')
+			whiptail_network_notice
+			whiptail_dhcp_warn
+			whiptail_management_nic
+			;;
+	esac
+}
+
+networking_needful() {
+	[[ -f $net_init_file ]] && whiptail_net_reinit && reinit_networking=true
+
+	if [[ $reinit_networking ]] || ! [[ -f $net_init_file ]]; then
+		collect_hostname
+	fi
+	[[ ! ( $is_eval || $is_import ) ]] && whiptail_node_description
+	if [[ $reinit_networking ]] || ! [[ -f $net_init_file ]]; then
+		network_init_whiptail
+	else
+		source "$net_init_file"
+	fi
+	if [[ $reinit_networking ]] || ! [[ -f $net_init_file ]]; then
+		network_init
+	fi
+	set_main_ip
+	compare_main_nic_ip
+
+	# Attempt to autodetect the manager IP, if an offset value exists 
+	if [[ -n "$MSRVIP_OFFSET" && -z "$MSRVIP" ]]; then
+		mips1=$(echo "$MNIC_IP" | awk -F. '{print $1}') 
+		mips2=$(echo "$MNIC_IP" | awk -F. '{print $2}') 
+		mips3=$(echo "$MNIC_IP" | awk -F. '{print $3}') 
+		mips4=$(echo "$MNIC_IP" | awk -F. '{print $4}') 
+		MSRVIP="$mips1.$mips2.$mips3.$((mips4+$MSRVIP_OFFSET))"
+	fi
+}
+
+network_setup() {
+	info "Finishing up network setup"
+	info "... Copying 99-so-checksum-offload-disable"
+	logCmd "cp ./install_scripts/99-so-checksum-offload-disable /etc/NetworkManager/dispatcher.d/pre-up.d/99-so-checksum-offload-disable"
+	info "... Modifying 99-so-checksum-offload-disable";
+	logCmd "sed -i '/\$MNIC/${INTERFACE}/g' /etc/NetworkManager/dispatcher.d/pre-up.d/99-so-checksum-offload-disable"
+}
+
+parse_install_username() {
+	# parse out the install username so things copy correctly
+	INSTALLUSERNAME=${SUDO_USER:-${USER}}
+}
+
+print_salt_state_apply() {
+	local state=$1
+
+	info "Applying $state Salt state"
+}
+
+process_installtype() {
+	if [ "$install_type" = 'EVAL' ]; then
+		is_eval=true
+		STRELKARULES=1
+	elif [ "$install_type" = 'STANDALONE' ]; then
+		is_standalone=true
+	elif [ "$install_type" = 'MANAGERSEARCH' ]; then
+		is_managersearch=true
+	elif [ "$install_type" = 'MANAGER' ]; then
+		is_manager=true
+	elif [ "$install_type" = 'SENSOR' ]; then
+		is_sensor=true
+	elif [ "$install_type" = 'SEARCHNODE' ]; then
+		is_searchnode=true
+	elif [ "$install_type" = 'HEAVYNODE' ]; then
+		is_heavynode=true
+	elif [ "$install_type" = 'FLEET' ]; then
+		is_fleet=true
+	elif [ "$install_type" = 'IDH' ]; then
+		is_idh=true
+	elif [ "$install_type" = 'IMPORT' ]; then
+		is_import=true
+	elif [ "$install_type" = 'RECEIVER' ]; then
+		is_receiver=true
+	elif [ "$install_type" = 'DESKTOP' ]; then
+		is_desktop=true
+	elif [ "$install_type" = 'HYPERVISOR' ]; then
+		is_hypervisor=true
+	elif [ "$install_type" = 'MANAGERHYPE' ]; then
+		is_managerhype=true
+	fi
+
+}
+
+proxy_validate() {
+	info "Testing proxy..."
+	local test_url="https://raw.githubusercontent.com/Security-Onion-Solutions/securityonion/master/KEYS"
+	proxy_test_err=$(curl -sS "$test_url" --proxy "$so_proxy" --connect-timeout 5 2>&1) # set short connection timeout so user doesn't sit waiting for proxy test to timeout
+	local ret=$?
+
+	if [[ $ret != 0 ]]; then
+		error "Could not reach $test_url using proxy provided"
+		error "Received error: $proxy_test_err"
+		if [[ -n $TESTING ]]; then
+			error "Exiting setup"
+			kill -SIGINT "$(ps --pid $$ -oppid=)"; fail_setup
+		fi
+	fi
+	return $ret
+}
+
+reserve_group_ids() {
+	# This is a hack to fix OS from taking group IDs that we need
+	logCmd "groupadd -g 928 kratos"
+	logCmd "groupadd -g 930 elasticsearch"
+	logCmd "groupadd -g 931 logstash"
+	logCmd "groupadd -g 932 kibana"
+	logCmd "groupadd -g 933 elastalert"
+	logCmd "groupadd -g 937 zeek"
+	logCmd "groupadd -g 940 suricata"
+	logCmd "groupadd -g 941 stenographer"
+	logCmd "groupadd -g 945 ossec"
+	logCmd "groupadd -g 946 cyberchef"
+}
+
+reserve_ports() {
+	# These are also set via salt but need to be set pre-install to avoid conflicts before salt runs
+	if ! sysctl net.ipv4.ip_local_reserved_ports | grep 55000 | grep 57314; then
+		info "Reserving ephemeral ports used by Security Onion components to avoid collisions"
+		sysctl -w net.ipv4.ip_local_reserved_ports="55000,57314"
+	else
+		info "Ephemeral ports already reserved"
+	fi
+}
+
+reinstall_init() {
+	info "Putting system in state to run setup again"
+
+	if [[ $install_type =~ ^(MANAGER|EVAL|MANAGERSEARCH|MANAGERHYPE|STANDALONE|FLEET|IMPORT)$ ]]; then
+		local salt_services=( "salt-master" "salt-minion" )
+	else
+		local salt_services=( "salt-minion" )
+	fi
+
+	local service_retry_count=20
+
+	# Disregard previous install outcomes
+	rm -f /root/failure
+	rm -f /root/success
+
+	{
+		# remove all of root's cronjobs
+		logCmd "crontab -r -u root"
+
+		if command -v salt-call &> /dev/null && grep -q "master:" /etc/salt/minion 2> /dev/null; then
+			# Disable schedule so highstate doesn't start running during the install
+			salt-call -l info schedule.disable --local
+
+			# Kill any currently running salt jobs, also to prevent issues with highstate.
+			salt-call -l info saltutil.kill_all_jobs --local
+		fi
+
+		logCmd "salt-call state.apply ca.remove -linfo --local --file-root=../salt"
+		logCmd "salt-call state.apply ssl.remove -linfo --local --file-root=../salt"
+
+		# Kill any salt processes (safely)
+		for service in "${salt_services[@]}"; do
+			# Stop the service in the background so we can exit after a certain amount of time
+			if check_service_status "$service"; then
+				systemctl stop "$service" &
+			fi
+			local pid=$!
+
+			local count=0
+			while check_service_status "$service"; do
+				if [[ $count -gt $service_retry_count ]]; then
+					info "Could not stop $service after 1 minute, exiting setup."
+
+					# Stop the systemctl process trying to kill the service, show user a message, then exit setup
+					kill -9 $pid
+					fail_setup
+				fi
+				
+				sleep 5
+				((count++))
+			done
+		done
+
+		# Remove all salt configs
+		rm -rf /etc/salt/engines/* /etc/salt/grains /etc/salt/master /etc/salt/master.d/* /etc/salt/minion /etc/salt/minion.d/* /etc/salt/pki/* /etc/salt/proxy /etc/salt/proxy.d/* /var/cache/salt/
+
+		if command -v docker &> /dev/null; then
+			# Stop and remove all so-* containers so files can be changed with more safety
+			if [[ $(docker ps -a -q --filter "name=so-" | wc -l) -gt 0 ]]; then
+				docker stop $(docker ps -a -q --filter "name=so-")
+				docker rm -f $(docker ps -a -q --filter "name=so-")
+			fi
+		fi
+
+		local date_string
+		date_string=$(date +%s)
+
+		# Backup /opt/so since we'll be rebuilding this directory during setup
+		backup_dir /opt/so "$date_string"
+		# If the elastic license has been accepted restore the state file
+		restore_file "/opt/so_old_$date_string/state/yeselastic.txt" "/opt/so/state/"
+
+		# Backup (and erase) directories in /nsm to prevent app errors
+		backup_dir /nsm/mysql "$date_string"
+		backup_dir /nsm/kratos "$date_string"
+		backup_dir /nsm/hydra "$date_string"
+		backup_dir /nsm/influxdb "$date_string"
+
+		# Uninstall local Elastic Agent, if installed
+		logCmd "elastic-agent uninstall -f"
+
+		if [[ $is_deb ]]; then
+			info "Unholding previously held packages."
+			apt-mark unhold $(apt-mark showhold)
+		fi
+
+	} >> "$setup_log" 2>&1
+
+	info "System reinstall init has been completed."
+}
+
+reset_proxy() {
+	[[ -f /etc/profile.d/so-proxy.sh ]] && rm -f /etc/profile.d/so-proxy.sh
+	
+	[[ -f /etc/systemd/system/docker.service.d/http-proxy.conf ]] && rm -f /etc/systemd/system/docker.service.d/http-proxy.conf
+	systemctl daemon-reload
+	command -v docker &> /dev/null && info "Restarting Docker..." && logCmd "systemctl restart docker"
+	
+	[[ -f /root/.docker/config.json ]] && rm -f /root/.docker/config.json
+
+	[[ -f /etc/gitconfig ]] && rm -f /etc/gitconfig
+	
+	if [[ $is_rpm ]]; then
+		sed -i "/proxy=/d" /etc/dnf/dnf.conf
+	else
+		[[ -f /etc/apt/apt.conf.d/00-proxy.conf ]] && rm -f /etc/apt/apt.conf.d/00-proxy.conf
+	fi
+}
+
+restore_file() {
+	src=$1
+	dst=$2
+	if [ -f "$src" ]; then
+		[ ! -d "$dst" ] && mkdir -v -p "$dst"
+		info "Restoring $src to $dst."
+		cp -v "$src" "$dst" >> "$setup_log" 2>&1
+	fi
+}
+
+backup_dir() {
+	dir=$1
+	backup_suffix=$2
+
+	if [[ -d $dir ]]; then
+		mv "$dir" "${dir}_old_${backup_suffix}"
+	fi
+}
+
+drop_install_options() {
+	# Drop the install Variable
+	echo "MAINIP=$MAINIP" > /opt/so/install.txt
+	echo "MNIC=$MNIC" >> /opt/so/install.txt
+	echo "NODE_DESCRIPTION='$NODE_DESCRIPTION'" >> /opt/so/install.txt
+	echo "ES_HEAP_SIZE=$ES_HEAP_SIZE" >> /opt/so/install.txt
+	echo "PATCHSCHEDULENAME=$PATCHSCHEDULENAME" >> /opt/so/install.txt
+	echo "INTERFACE=$INTERFACE" >> /opt/so/install.txt
+	NODETYPE=${install_type^^}
+	echo "NODETYPE=$NODETYPE" >> /opt/so/install.txt
+	if [[ $low_mem == "true" ]]; then
+		echo "CORECOUNT=1" >> /opt/so/install.txt
+	else
+		echo "CORECOUNT=$lb_procs" >> /opt/so/install.txt
+	fi
+	echo "LSHOSTNAME=$HOSTNAME" >> /opt/so/install.txt
+	echo "LSHEAP=$LS_HEAP_SIZE" >> /opt/so/install.txt
+	echo "CPUCORES=$num_cpu_cores" >> /opt/so/install.txt
+	echo "IDH_MGTRESTRICT=$IDH_MGTRESTRICT" >> /opt/so/install.txt
+	echo "IDH_SERVICES=$IDH_SERVICES" >> /opt/so/install.txt
+}
+
+remove_package() {
+	local package_name=$1
+	if [[ $is_rpm ]]; then
+		if rpm -qa | grep -q "$package_name"; then
+			logCmd "dnf remove -y $package_name"
+		fi
+	else
+		if dpkg -l | grep -q "$package_name"; then
+			retry 150 10 "apt purge -y \"$package_name\""
+		fi
+	fi
+}
+
+# When updating the salt version, also update the version in securityonion-builds/images/iso-task/Dockerfile and salt/salt/master.defaults.yaml and salt/salt/minion.defaults.yaml
+# CAUTION! SALT VERSION UDDATES - READ BELOW
+# When updating the salt version, also update the version in:
+# - securityonion-builds/iso-resources/build.sh
+# - securityonion-builds/iso-resources/packages.lst
+# - securityonion/salt/salt/master.defaults.yaml
+# - securityonion/salt/salt/minion.defaults.yaml
+
+securityonion_repo() {
+	# Remove all the current repos
+	if [[ $is_oracle ]]; then
+		logCmd "dnf -v clean all"
+		logCmd "mkdir -vp /root/oldrepos"
+		if [ -n "$(ls -A /etc/yum.repos.d/ 2>/dev/null)" ]; then
+			logCmd "mv -v /etc/yum.repos.d/* /root/oldrepos/"
+		fi
+		if ! $is_desktop_grid; then
+			gpg_rpm_import
+			if [[ ! $is_airgap ]]; then
+				echo "https://repo.securityonion.net/file/so-repo/prod/2.4/oracle/9" > /etc/yum/mirror.txt
+				echo "https://so-repo-east.s3.us-east-005.backblazeb2.com/prod/2.4/oracle/9" >> /etc/yum/mirror.txt
+				echo "[main]" > /etc/yum.repos.d/securityonion.repo
+				echo "gpgcheck=1" >> /etc/yum.repos.d/securityonion.repo
+				echo "installonly_limit=3" >> /etc/yum.repos.d/securityonion.repo
+				echo "clean_requirements_on_remove=True" >> /etc/yum.repos.d/securityonion.repo
+				echo "best=True" >> /etc/yum.repos.d/securityonion.repo
+				echo "skip_if_unavailable=False" >> /etc/yum.repos.d/securityonion.repo
+				echo "cachedir=/opt/so/conf/reposync/cache" >> /etc/yum.repos.d/securityonion.repo
+				echo "keepcache=0" >> /etc/yum.repos.d/securityonion.repo
+				echo "[securityonionsync]" >> /etc/yum.repos.d/securityonion.repo
+				echo "name=Security Onion Repo repo" >> /etc/yum.repos.d/securityonion.repo
+				echo "mirrorlist=file:///etc/yum/mirror.txt" >> /etc/yum.repos.d/securityonion.repo
+				echo "enabled=1" >> /etc/yum.repos.d/securityonion.repo
+				echo "gpgcheck=1" >> /etc/yum.repos.d/securityonion.repo
+				logCmd "dnf repolist"
+			else
+				echo "[securityonion]" > /etc/yum.repos.d/securityonion.repo
+				echo "name=Security Onion Repo" >> /etc/yum.repos.d/securityonion.repo
+				echo "baseurl=https://$MSRV/repo" >> /etc/yum.repos.d/securityonion.repo
+				echo "enabled=1" >> /etc/yum.repos.d/securityonion.repo
+				echo "gpgcheck=1" >> /etc/yum.repos.d/securityonion.repo
+				echo "sslverify=0" >> /etc/yum.repos.d/securityonion.repo
+				logCmd "dnf repolist"
+			fi
+		elif [[ ! $waitforstate ]]; then
+			echo "[securityonion]" > /etc/yum.repos.d/securityonion.repo
+			echo "name=Security Onion Repo" >> /etc/yum.repos.d/securityonion.repo
+			echo "baseurl=https://$MSRV/repo" >> /etc/yum.repos.d/securityonion.repo
+			echo "enabled=1" >> /etc/yum.repos.d/securityonion.repo
+			echo "gpgcheck=1" >> /etc/yum.repos.d/securityonion.repo
+			echo "sslverify=0" >> /etc/yum.repos.d/securityonion.repo		
+		elif [[ $waitforstate ]]; then
+			echo "[securityonion]" > /etc/yum.repos.d/securityonion.repo
+			echo "name=Security Onion Repo" >> /etc/yum.repos.d/securityonion.repo
+			echo "baseurl=file:///nsm/repo/" >> /etc/yum.repos.d/securityonion.repo
+			echo "enabled=1" >> /etc/yum.repos.d/securityonion.repo
+			echo "gpgcheck=1" >> /etc/yum.repos.d/securityonion.repo
+		fi
+	fi
+	if [[ $is_rpm ]]; then logCmd "dnf repolist all"; fi
+	if [[ $waitforstate ]]; then
+		if [[ $is_rpm ]]; then
+				# Build the repo locally so we can use it
+				echo "Syncing Repos"
+				repo_sync_local
+		fi
+	fi
+}
+
+repo_sync_local() {
+	SALTVERSION=$(grep "version:" ../salt/salt/master.defaults.yaml | grep -o "[0-9]\+\.[0-9]\+")
+	info "Repo Sync"
+	if [[ $is_supported ]]; then
+		# Sync the repo from the the SO repo locally.
+		# Check for reposync
+		info "Adding Repo Download Configuration"
+		mkdir -p /nsm/repo
+		mkdir -p /opt/so/conf/reposync/cache
+		echo "https://repo.securityonion.net/file/so-repo/prod/2.4/oracle/9" > /opt/so/conf/reposync/mirror.txt
+		echo "https://repo-alt.securityonion.net/prod/2.4/oracle/9" >> /opt/so/conf/reposync/mirror.txt
+		echo "[main]" > /opt/so/conf/reposync/repodownload.conf
+		echo "gpgcheck=1" >> /opt/so/conf/reposync/repodownload.conf
+		echo "installonly_limit=3" >> /opt/so/conf/reposync/repodownload.conf
+		echo "clean_requirements_on_remove=True" >> /opt/so/conf/reposync/repodownload.conf
+		echo "best=True" >> /opt/so/conf/reposync/repodownload.conf
+		echo "skip_if_unavailable=False" >> /opt/so/conf/reposync/repodownload.conf
+		echo "cachedir=/opt/so/conf/reposync/cache" >> /opt/so/conf/reposync/repodownload.conf
+		echo "keepcache=0" >> /opt/so/conf/reposync/repodownload.conf
+		echo "[securityonionsync]" >> /opt/so/conf/reposync/repodownload.conf
+		echo "name=Security Onion Repo repo" >> /opt/so/conf/reposync/repodownload.conf
+		echo "mirrorlist=file:///opt/so/conf/reposync/mirror.txt" >> /opt/so/conf/reposync/repodownload.conf
+		echo "enabled=1" >> /opt/so/conf/reposync/repodownload.conf
+		echo "gpgcheck=1" >> /opt/so/conf/reposync/repodownload.conf
+	
+		logCmd "dnf repolist"
+		
+		if [[ ! $is_airgap ]]; then
+        	curl --retry 5 --retry-delay 60 -A "netinstall/$SOVERSION/$OS/$(uname -r)/1" https://sigs.securityonion.net/checkup --output /tmp/install
+			retry 5 60 "dnf reposync --norepopath -g --delete -m -c /opt/so/conf/reposync/repodownload.conf --repoid=securityonionsync --download-metadata -p /nsm/repo/" >> "$setup_log" 2>&1 || fail_setup
+			# After the download is complete run createrepo
+			create_repo
+		fi
+	else
+		# Add the proper repos for unsupported stuff
+		echo "Adding Repos"
+		if [[ $is_rpm ]]; then
+			if [[ $is_rhel ]]; then
+				logCmd "subscription-manager repos --enable codeready-builder-for-rhel-9-$(arch)-rpms"
+				info "Install epel for rhel" 
+				logCmd "dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm"
+				logCmd "dnf -y install https://dl.fedoraproject.org/pub/epel/epel-next-release-latest-9.noarch.rpm"
+			else  
+				logCmd "dnf config-manager --set-enabled crb"
+				logCmd "dnf -y install epel-release"
+			fi
+			dnf install -y yum-utils device-mapper-persistent-data lvm2
+			curl -fsSL https://repo.securityonion.net/file/so-repo/prod/2.4/so/so.repo | tee /etc/yum.repos.d/so.repo
+			rpm --import https://packages.broadcom.com/artifactory/api/security/keypair/SaltProjectKey/public
+			dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+			curl -fsSL "https://github.com/saltstack/salt-install-guide/releases/latest/download/salt.repo" | tee /etc/yum.repos.d/salt.repo
+			dnf repolist
+			curl --retry 5 --retry-delay 60 -A "netinstall/$SOVERSION/$OS/$(uname -r)/1" https://sigs.securityonion.net/checkup --output /tmp/install
+		else
+			echo "Not sure how you got here."
+			exit 1
+		fi
+	fi
+}
+
+saltify() {
+	info "Installing Salt"
+	SALTVERSION=$(grep "version:" ../salt/salt/master.defaults.yaml | grep -o "[0-9]\+\.[0-9]\+")
+	if [[ $is_deb ]]; then
+
+		DEBIAN_FRONTEND=noninteractive retry 150 20 "apt-get -y -o Dpkg::Options::=\"--force-confdef\" -o Dpkg::Options::=\"--force-confold\" upgrade" >> "$setup_log" 2>&1 || fail_setup
+		if [ $OSVER == "focal" ]; then update-alternatives --install /usr/bin/python python /usr/bin/python3.10 10; fi
+		local pkg_arr=(
+			'apache2-utils'
+			'ca-certificates'
+			'curl'
+			'software-properties-common'
+			'apt-transport-https'
+			'openssl'
+			'netcat-openbsd'
+			'jq'
+			'gnupg'
+		)
+		retry 150 20 "apt-get -y install ${pkg_arr[*]}" || fail_setup
+
+		logCmd "mkdir -vp /etc/apt/keyrings"
+		logCmd "wget -q --inet4-only -O /etc/apt/keyrings/docker.pub https://download.docker.com/linux/ubuntu/gpg"
+
+		# Download public key
+		logCmd "curl -fsSL -o /etc/apt/keyrings/salt-archive-keyring-2023.pgp https://packages.broadcom.com/artifactory/api/security/keypair/SaltProjectKey/public"
+		# Create apt repo target configuration
+		echo "deb [signed-by=/etc/apt/keyrings/salt-archive-keyring-2023.pgp arch=amd64] https://packages.broadcom.com/artifactory/saltproject-deb/ stable main" | sudo tee /etc/apt/sources.list.d/salt.list
+
+		if [[ $is_ubuntu ]]; then
+			# Add Docker Repo
+			add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" 
+		
+		else
+			# Add Docker Repo
+			curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+			echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $OSVER stable" > /etc/apt/sources.list.d/docker.list 
+		fi
+
+		logCmd "apt-key add /etc/apt/keyrings/salt-archive-keyring-2023.pgp"
+
+		#logCmd "apt-key add /opt/so/gpg/SALTSTACK-GPG-KEY.pub"
+		logCmd "apt-key add /etc/apt/keyrings/docker.pub"
+
+		# Add SO Saltstack Repo
+		#echo "deb https://repo.securityonion.net/file/securityonion-repo/ubuntu/20.04/amd64/salt3004.2/ focal main" > /etc/apt/sources.list.d/saltstack.list
+
+		# Ain't nothing but a GPG 
+
+		retry 150 20 "apt-get update" "" "Err:" || fail_setup
+		if [[ $waitforstate ]]; then
+			retry 150 20 "apt-get -y install salt-common=$SALTVERSION salt-minion=$SALTVERSION salt-master=$SALTVERSION" || fail_setup
+			retry 150 20 "apt-mark hold salt-minion salt-common salt-master" || fail_setup
+			retry 150 20 "apt-get -y install python3-pip python3-dateutil python3-m2crypto python3-packaging python3-influxdb python3-lxml" || exit 1
+		else
+			retry 150 20 "apt-get -y install salt-common=$SALTVERSION salt-minion=$SALTVERSION" || fail_setup
+			retry 150 20 "apt-mark hold salt-minion salt-common" || fail_setup
+		fi
+	fi
+		
+	if [[ $is_rpm ]]; then
+		if [[ $waitforstate ]]; then 
+			# install all for a manager
+			logCmd "dnf -y install salt-$SALTVERSION salt-master-$SALTVERSION salt-minion-$SALTVERSION"
+		else
+			# We just need the minion
+			if [[ $is_airgap ]]; then
+			    logCmd "dnf -y install salt salt-minion"
+			else
+			    logCmd "dnf -y install salt-$SALTVERSION salt-minion-$SALTVERSION"
+			fi
+		fi
+	fi
+
+	logCmd "mkdir -p /etc/salt/minion.d"
+	salt_install_module_deps
+	salt_patch_x509_v2
+
+}
+
+salt_install_module_deps() {
+    logCmd "salt-call state.apply salt.python_modules --local --file-root=../salt/"
+}
+
+salt_patch_x509_v2() {
+	# this can be removed when https://github.com/saltstack/salt/issues/66929 is resolved
+	logCmd "salt-call state.apply salt.patch.x509_v2 --local --file-root=../salt/"
+}
+
+# Create an secrets pillar so that passwords survive re-install
+secrets_pillar(){
+  if [ ! -f $local_salt_dir/pillar/secrets.sls ]; then
+	info "Creating Secrets Pillar"
+	mkdir -p $local_salt_dir/pillar
+	printf '%s\n'\
+		"secrets:"\
+		"  import_pass: $IMPORTPASS"\
+		"  influx_pass: $INFLUXPASS" > $local_salt_dir/pillar/secrets.sls
+  fi
+}
+
+set_network_dev_status_list() {
+	readarray -t nmcli_dev_status_list <<< "$(nmcli -t -f DEVICE,STATE -c no dev status)"
+	export nmcli_dev_status_list
+}
+
+set_main_ip() {
+	local count=0
+	local progress='.'
+	local c=0
+	local m=3.3
+	local max_attempts=30
+	info "Gathering the management IP. "
+	while ! valid_ip4 "$MAINIP" || ! valid_ip4 "$MNIC_IP"; do
+		MAINIP=$(ip route get 1 | awk '{print $7;exit}')
+		MNIC_IP=$(ip a s "$MNIC" | grep -oE 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
+		((count=count+1))
+		p=$(awk -vp=$m -vq=$count 'BEGIN{printf "%.0f" ,p * q}')
+		printf "%-*s" $((count+1)) '[' | tr ' ' '#'
+		printf "%*s%3d%%\r"  $((max_attempts-count))  "]" "$p"
+		if [ $count = $max_attempts ]; then
+			info "ERROR: Could not determine MAINIP or MNIC_IP."
+			info "MAINIP=$MAINIP"
+			info "MNIC_IP=$MNIC_IP"
+			whiptail_error_message "The management IP could not be determined. Please check the log at /root/sosetup.log and verify the network configuration. Select OK to exit."
+			fail_setup
+		fi
+		sleep 1
+	done
+}
+
+# Add /usr/sbin to everyone's path
+set_path() {
+	echo "complete -cf sudo" >> /etc/profile.d/securityonion.sh
+}
+
+set_minion_info() {
+	short_name=$(echo "$HOSTNAME" | awk -F. '{print $1}')
+
+	if [[ $is_desktop ]]; then
+		MINION_ID=$(echo "${short_name}_desktop" | tr '[:upper:]' '[:lower:]')
+	fi
+	if [[ ! $is_desktop ]]; then
+		MINION_ID=$(echo "${short_name}_${install_type}" | tr '[:upper:]' '[:lower:]')
+	fi
+	export MINION_ID
+
+	info "MINION_ID = $MINION_ID"
+
+	minion_type=$(get_minion_type)
+}
+
+set_proxy() {
+
+	# Don't proxy localhost, local ip, and management ip
+	no_proxy_string="localhost, 127.0.0.1, ${MAINIP}, ${HOSTNAME}"
+	if [[ -n $MSRV ]] && [[ -n $MSRVIP ]];then
+		no_proxy_string="${no_proxy_string}, ${MSRVIP}, ${MSRV}"
+	fi
+
+	# Set proxy environment variables used by curl, wget, docker, and others
+	{
+		echo "export use_proxy=on"
+		echo "export http_proxy=\"${so_proxy}\""
+		echo "export https_proxy=\"\$http_proxy\""
+		echo "export ftp_proxy=\"\$http_proxy\""
+		echo "export no_proxy=\"${no_proxy_string}\""
+	} > /etc/profile.d/so-proxy.sh
+
+	source /etc/profile.d/so-proxy.sh
+
+	[[ -d '/etc/systemd/system/docker.service.d' ]] || mkdir -p /etc/systemd/system/docker.service.d
+
+	# Create proxy config for dockerd 
+	printf '%s\n'\
+		"[Service]"\
+		"Environment=\"HTTP_PROXY=${so_proxy}\""\
+		"Environment=\"HTTPS_PROXY=${so_proxy}\""\
+		"Environment=\"NO_PROXY=${no_proxy_string}\"" > /etc/systemd/system/docker.service.d/http-proxy.conf
+
+	systemctl daemon-reload
+	command -v docker &> /dev/null && systemctl restart docker
+
+	# Create config.json for docker containers
+	[[ -d /root/.docker ]] || mkdir /root/.docker
+	printf '%s\n'\
+		"{"\
+		"  \"proxies\":"\
+		"  {"\
+		"    \"default\":"\
+		"    {"\
+		"      \"httpProxy\":\"${so_proxy}\","\
+		"      \"httpsProxy\":\"${so_proxy}\","\
+		"      \"ftpProxy\":\"${so_proxy}\","\
+		"      \"noProxy\":\"${no_proxy_string}\""\
+		"    }"\
+		"  }"\
+		"}" > /root/.docker/config.json
+
+	# Set proxy for package manager
+	if [[ $is_rpm ]]; then
+		echo "proxy=$so_proxy" >> /etc/yum.conf
+	else
+		# Set it up so the updates roll through the manager
+		printf '%s\n'\
+			"Acquire::http::Proxy \"$so_proxy\";"\
+			"Acquire::https::Proxy \"$so_proxy\";" > /etc/apt/apt.conf.d/00-proxy.conf
+	fi
+
+	# Set global git proxy
+	printf '%s\n'\
+		"[http]"\
+		"  proxy = ${so_proxy}" > /etc/gitconfig
+}
+
+setup_salt_master_dirs() {
+	# Create salt master directories
+	mkdir -p $default_salt_dir/pillar
+	mkdir -p $default_salt_dir/salt
+	mkdir -p $local_salt_dir/pillar
+	mkdir -p $local_salt_dir/salt
+
+	# Copy over the salt code and templates
+	if [ "$setup_type" = 'iso' ]; then
+		logCmd "rsync -avh --exclude 'TRANS.TBL' /home/$INSTALLUSERNAME/SecurityOnion/pillar/* $default_salt_dir/pillar/"
+		logCmd "rsync -avh --exclude 'TRANS.TBL' /home/$INSTALLUSERNAME/SecurityOnion/salt/* $default_salt_dir/salt/"
+		logCmd "mkdir -p $local_salt_dir/salt/zeek/policy/intel"
+		logCmd "touch $local_salt_dir/salt/zeek/policy/intel/intel.dat"
+	else
+		logCmd "cp -R ../pillar/* $default_salt_dir/pillar/"
+		logCmd "cp -R ../salt/* $default_salt_dir/salt/"
+		logCmd "mkdir -p $local_salt_dir/salt/zeek/policy/intel"
+		logCmd "touch $local_salt_dir/salt/zeek/policy/intel/intel.dat"
+	fi
+
+	info "Chown the salt dirs on the manager for socore"
+	logCmd "chown -R socore:socore /opt/so"
+}
+
+set_progress_str() {
+	local percentage_input=$1
+	progress_bar_text=$2
+	export progress_bar_text
+	local nolog=$2
+
+	if (( "$percentage_input" >= "$percentage" )); then
+		percentage="$percentage_input"
+	fi
+
+	percentage_str="XXX\n${percentage}\n${progress_bar_text}\nXXX"
+
+	echo -e "$percentage_str"
+
+	if [[ -z $nolog ]]; then
+		info "Progressing ($percentage%): $progress_bar_text"
+
+		# printf '%s\n' \
+		# 	'----'\
+		# 	"$percentage% - ${progress_bar_text^^}"\
+		# 	"----" >> "$setup_log" 2>&1
+	fi
+}
+
+set_default_log_size() {
+	local percentage
+
+	case $install_type in
+		STANDALONE | EVAL | HEAVYNODE)
+			percentage=50
+		;;
+		*)
+			percentage=80
+		;;
+	esac
+
+	local disk_dir="/"
+	if mountpoint -q /nsm; then
+		disk_dir="/nsm"
+	fi
+	if mountpoint -q /nsm/elasticsearch; then
+		disk_dir="/nsm/elasticsearch"
+		percentage=80
+	fi
+	
+	local disk_size_1k
+	disk_size_1k=$(df $disk_dir | grep -v "^Filesystem" | awk '{print $2}')
+
+	local ratio="1048576"
+
+	local disk_size_gb
+	disk_size_gb=$( echo "$disk_size_1k" "$ratio" | awk '{print($1/$2)}' )
+
+	log_size_limit=$( echo "$disk_size_gb" "$percentage" | awk '{printf("%.0f", $1 * ($2/100))}')
+}
+
+set_desktop_background() {
+
+	logCmd "mkdir /usr/local/share/backgrounds"
+	logCmd "cp ../salt/desktop/files/so-wallpaper.jpg /usr/local/share/backgrounds/so-wallpaper.jpg"
+	logCmd "cp ../salt/desktop/files/00-background /etc/dconf/db/local.d/00-background"
+	logCmd "dconf update"
+
+}
+
+set_hostname() {
+
+	logCmd "hostnamectl set-hostname --static $HOSTNAME"
+	echo "127.0.0.1   $HOSTNAME $HOSTNAME.localdomain localhost localhost.localdomain localhost4 localhost4.localdomain" > /etc/hosts
+	echo "::1   $HOSTNAME $HOSTNAME.localdomain localhost localhost.localdomain localhost6 localhost6.localdomain6" >> /etc/hosts
+	echo "$HOSTNAME" > /etc/hostname
+
+	logCmd "hostname -F /etc/hostname"
+}
+
+set_initial_firewall_policy() {
+	case "$install_type" in
+		'EVAL' | 'MANAGER' | 'MANAGERHYPE' | 'MANAGERSEARCH' | 'STANDALONE' | 'IMPORT')
+			so-firewall includehost $minion_type $MAINIP --apply
+			;;
+	esac
+}
+
+set_initial_firewall_access() {
+	if [[ ! -z "$ALLOW_CIDR" ]]; then
+		so-firewall includehost analyst $ALLOW_CIDR --apply
+	fi
+	if [[ ! -z "$MINION_CIDR" ]]; then
+		so-firewall includehost sensor $MINION_CIDR
+		so-firewall includehost searchnode $MINION_CIDR --apply
+	fi
+}
+
+# Set up the management interface on the ISO
+set_management_interface() {
+	title "Setting up the main interface"
+	if [ "$address_type" = 'DHCP' ]; then
+		logCmd "nmcli con mod $MNIC connection.autoconnect yes"
+		logCmd "nmcli con up $MNIC"
+		logCmd "nmcli -p connection show $MNIC"
+	else
+		# Set Static IP
+		nmcli con mod "$MNIC" ipv4.addresses "$MIP"/"$MMASK"\
+			ipv4.gateway "$MGATEWAY" \
+			ipv4.dns "$MDNS"\
+			ipv4.dns-search "$MSEARCH"\
+			connection.autoconnect yes\
+			ipv4.method manual >> "$setup_log" 2>&1
+		nmcli con up "$MNIC" >> "$setup_log" 2>&1
+	fi
+}
+
+set_redirect() {
+	title "Setting redirect host"
+	case $REDIRECTINFO in
+		'IP')
+			REDIRECTIT="$MAINIP"
+			;;
+		'HOSTNAME')
+			REDIRECTIT="$HOSTNAME"
+			;;
+		*)
+			REDIRECTIT="$REDIRECTHOST"
+			;;
+	esac
+}
+
+set_timezone() {
+
+	timedatectl set-timezone Etc/UTC
+
+}
+
+so_add_user() {
+	local username=$1
+	local uid=$2
+	local gid=$3
+	local home_dir=$4
+	if [ "$5" ]; then local pass=$5; fi
+
+	info "Add $username user"
+	logCmd "groupadd --gid $gid $username"
+	logCmd "useradd -m --uid $uid --gid $gid --home-dir $home_dir $username"
+
+	# If a password has been passed in, set the password
+	if [ "$pass" ]; then
+		echo "$username":"$pass" | chpasswd --crypt-method=SHA512
+	fi
+}
+
+update_sudoers_for_testing() {
+	if [ -n "$TESTING" ]; then
+		info "Ensuring $INSTALLUSERNAME has password-less sudo access for automated testing purposes."
+		sed -i "s/^$INSTALLUSERNAME   ALL=(ALL)       ALL/$INSTALLUSERNAME   ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers
+	fi
+}
+
+update_packages() {
+	if [[ $is_oracle ]]; then
+		logCmd "dnf repolist"
+		logCmd "dnf -y update --allowerasing --exclude=salt*,docker*,containerd*"
+		RMREPOFILES=("oracle-linux-ol9.repo" "uek-ol9.repo" "virt-ol9.repo")
+		info "Removing repo files added by oracle-repos package update"
+		for FILE in ${RMREPOFILES[@]}; do
+			logCmd "rm -f /etc/yum.repos.d/$FILE"
+		done
+	elif [[ $is_deb ]]; then
+		info "Running apt-get update"
+		retry 150 10 "apt-get -y update" "" "Err:" >> "$setup_log" 2>&1 || fail_setup
+		info "Running apt-get upgrade"
+		retry 150 10 "apt-get -y upgrade" >> "$setup_log" 2>&1 || fail_setup
+	else
+		info "Updating packages"
+		logCmd "dnf -y update --allowerasing --exclude=salt*,docker*,containerd*"
+	fi
+}
+
+# This is used for development to speed up network install tests.
+use_turbo_proxy() {
+	if [[ ! $install_type =~ ^(MANAGER|EVAL|HELIXSENSOR|MANAGERSEARCH|STANDALONE)$ ]]; then
+		info "turbo is not supported on this install type"
+		return
+	fi
+
+	if [[ $OS == 'centos' ]]; then
+		printf '%s\n' "proxy=${TURBO}:3142" >> /etc/yum.conf
+	else
+		printf '%s\n'\
+			"Acquire {"\
+			"  HTTP::proxy \"${TURBO}:3142\";"\
+			"  HTTPS::proxy \"${TURBO}:3142\";"\
+			"}" > /etc/apt/apt.conf.d/proxy.conf
+	fi
+}
+
+wait_for_file() {
+	local filename=$1
+	local max_attempts=$2 # this is multiplied by the wait interval, so make sure it isn't too large
+	local cur_attempts=0
+	local wait_interval=$3
+	local total_time=$(( max_attempts * wait_interval ))
+	local date
+	date=$(date)
+
+	while [[ $cur_attempts -lt $max_attempts ]]; do
+		if [ -f "$filename" ]; then
+			info "File $filename found at $date"
+			return 0
+		else
+			((cur_attempts++))
+			info "File $filename does not exist; waiting ${wait_interval}s then checking again ($cur_attempts/$max_attempts)..."
+			sleep "$wait_interval"
+		fi
+	done
+	info "Could not find $filename after waiting ${total_time}s"
+	return 1
+}
+
+verify_setup() {
+	info "Verifying setup"
+	set -o pipefail
+	./so-verify "$setup_type" 2>&1 | tee -a $setup_log
+	result=$?
+	set +o pipefail
+	if [[ $result -eq 0 ]]; then
+		# Remove ISO sudoers entry if present
+                sed -i '/so-setup/d' /etc/sudoers
+		whiptail_setup_complete
+	else
+		whiptail_setup_failed
+	fi
+}

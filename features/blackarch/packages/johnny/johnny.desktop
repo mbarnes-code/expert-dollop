@@ -1,0 +1,9 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Johnny
+Exec=/usr/bin/johnny
+Terminal=false
+Icon=johnny
+Type=Application
+Categories=X-BlackArch-Cracker;
+Comment=GUI for John the Ripper

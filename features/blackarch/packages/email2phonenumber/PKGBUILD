@@ -1,0 +1,37 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=email2phonenumber
+pkgver=29.9df9dbe
+pkgrel=4
+pkgdesc="A OSINT tool to obtain a target's phone number just by having his email address."
+groups=('blackarch' 'blackarch-social' 'blackarch-recon')
+arch=('any')
+url='https://github.com/martinvigo/email2phonenumber'
+license=('MIT')
+depends=('python' 'python-beautifulsoup4' 'python-bs4' 'python-certifi'
+         'python-chardet' 'python-idna' 'python-requests' 'python-soupsieve'
+         'python-urllib3')
+makedepends=('git')
+source=("git+https://github.com/martinvigo/$pkgname.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+package() {
+  cd $pkgname
+
+  install -Dm 755 "$pkgname.py" "$pkgdir/usr/bin/$pkgname"
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

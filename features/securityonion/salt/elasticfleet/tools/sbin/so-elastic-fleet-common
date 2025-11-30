@@ -1,0 +1,226 @@
+#!/bin/bash
+#
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+DEFAULT_SALT_DIR=/opt/so/saltstack/default
+
+if [ -z $NOROOT ]; then
+        # Check for prerequisites
+        if [ "$(id -u)" -ne 0 ]; then
+                echo "This script must be run using sudo!"
+                exit 1
+        fi
+fi
+
+# Ensure /usr/sbin is in path
+if ! echo "$PATH" | grep -q "/usr/sbin"; then
+  export PATH="$PATH:/usr/sbin"
+fi
+
+# Define a banner to separate sections
+banner="========================================================================="
+
+fleet_api() {
+    local QUERYPATH=$1
+    shift
+
+    curl -sK /opt/so/conf/elasticsearch/curl.config -L "localhost:5601/api/fleet/${QUERYPATH}" "$@" --retry 3 --retry-delay 10 --fail 2>/dev/null
+}
+
+elastic_fleet_integration_check() {
+
+    AGENT_POLICY=$1
+
+    JSON_STRING=$2
+
+    NAME=$(jq -r .name $JSON_STRING)
+
+    INTEGRATION_ID=$(/usr/sbin/so-elastic-fleet-agent-policy-view "$AGENT_POLICY" | jq -r '.item.package_policies[] | select(.name=="'"$NAME"'") | .id')
+
+}
+
+elastic_fleet_integration_create() {
+
+    JSON_STRING=$1
+
+    if ! fleet_api "package_policies" -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -XPOST -d "$JSON_STRING"; then
+        return 1
+    fi
+}
+
+
+elastic_fleet_integration_remove() {
+
+    AGENT_POLICY=$1
+
+    NAME=$2
+
+    INTEGRATION_ID=$(/usr/sbin/so-elastic-fleet-agent-policy-view "$AGENT_POLICY" | jq -r '.item.package_policies[] | select(.name=="'"$NAME"'") | .id')
+
+    JSON_STRING=$( jq -n \
+                    --arg INTEGRATIONID "$INTEGRATION_ID" \
+                    '{"packagePolicyIds":[$INTEGRATIONID]}'
+                    )
+
+    if ! fleet_api "package_policies/delete" -XPOST -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d "$JSON_STRING"; then
+        echo "Error: Unable to delete '$NAME' from '$AGENT_POLICY'"
+        return 1
+    fi
+}
+
+elastic_fleet_integration_update() {
+
+    UPDATE_ID=$1
+
+    JSON_STRING=$2
+
+    if ! fleet_api "package_policies/$UPDATE_ID" -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -XPUT -d "$JSON_STRING"; then
+        return 1
+    fi
+}
+
+elastic_fleet_integration_policy_upgrade() {
+
+    INTEGRATION_ID=$1
+
+    JSON_STRING=$( jq -n \
+                    --arg INTEGRATIONID "$INTEGRATION_ID" \
+                    '{"packagePolicyIds":[$INTEGRATIONID]}'
+                    )
+
+    if ! fleet_api "package_policies/upgrade" -XPOST -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d "$JSON_STRING"; then
+        return 1
+    fi
+}
+
+
+elastic_fleet_package_version_check() {
+    PACKAGE=$1
+
+    if output=$(fleet_api "epm/packages/$PACKAGE"); then
+        echo "$output" | jq -r '.item.version'
+    else
+        echo "Error: Failed to get current package version for '$PACKAGE'"
+        return 1
+    fi
+}
+
+elastic_fleet_package_latest_version_check() {
+    PACKAGE=$1
+    if output=$(fleet_api "epm/packages/$PACKAGE"); then
+        if version=$(jq -e -r '.item.latestVersion' <<< $output); then
+            echo "$version"
+        fi
+    else
+        echo "Error: Failed to get latest version for '$PACKAGE'"
+        return 1
+    fi
+}
+
+elastic_fleet_package_install() {
+    PKG=$1
+    VERSION=$2
+    if ! fleet_api "epm/packages/$PKG/$VERSION" -XPOST -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d '{"force":true}'; then
+        return 1
+    fi
+}
+
+elastic_fleet_bulk_package_install() {
+    BULK_PKG_LIST=$1
+    if ! fleet_api "epm/packages/_bulk" -XPOST -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d@$BULK_PKG_LIST; then
+        return 1
+    fi
+}
+
+elastic_fleet_installed_packages() {
+    if ! fleet_api "epm/packages/installed?perPage=500"; then
+        return 1
+    fi
+}
+
+elastic_fleet_agent_policy_ids() {
+    if output=$(fleet_api "agent_policies"); then
+        echo "$output" | jq -r .items[].id
+    else
+        echo "Error: Failed to retrieve agent policies."
+        return 1
+    fi
+}
+
+elastic_fleet_integration_policy_names() {
+    AGENT_POLICY=$1
+    if output=$(fleet_api "agent_policies/$AGENT_POLICY"); then
+        echo "$output" | jq -r .item.package_policies[].name
+    else
+        echo "Error: Failed to retrieve integrations for '$AGENT_POLICY'."
+        return 1
+    fi
+}
+
+elastic_fleet_integration_policy_package_name() {
+    AGENT_POLICY=$1
+    INTEGRATION=$2
+    if output=$(fleet_api "agent_policies/$AGENT_POLICY"); then
+        echo "$output" | jq -r --arg INTEGRATION "$INTEGRATION" '.item.package_policies[] | select(.name==$INTEGRATION)| .package.name'
+    else
+        echo "Error: Failed to retrieve package name for '$INTEGRATION' in '$AGENT_POLICY'."
+        return 1
+    fi
+}
+
+elastic_fleet_integration_policy_package_version() {
+    AGENT_POLICY=$1
+    INTEGRATION=$2
+
+    if output=$(fleet_api "agent_policies/$AGENT_POLICY"); then
+        if version=$(jq -e -r --arg INTEGRATION "$INTEGRATION" '.item.package_policies[] | select(.name==$INTEGRATION)| .package.version' <<< "$output"); then
+            echo "$version"
+        fi
+    else
+        echo "Error: Failed to retrieve integration version for '$INTEGRATION' in policy '$AGENT_POLICY'"
+        return 1
+    fi
+}
+
+elastic_fleet_integration_id() {
+    AGENT_POLICY=$1
+    INTEGRATION=$2
+    if output=$(fleet_api "agent_policies/$AGENT_POLICY"); then
+        echo "$output" | jq -r --arg INTEGRATION "$INTEGRATION" '.item.package_policies[] | select(.name==$INTEGRATION)| .id'
+    else
+        echo "Error: Failed to retrieve integration ID for '$INTEGRATION' in '$AGENT_POLICY'."
+        return 1
+    fi
+}
+
+elastic_fleet_integration_policy_dryrun_upgrade() {
+    INTEGRATION_ID=$1
+    if ! fleet_api "package_policies/upgrade/dryrun" -H "Content-Type: application/json" -H 'kbn-xsrf: true' -XPOST -d "{\"packagePolicyIds\":[\"$INTEGRATION_ID\"]}"; then
+        echo "Error: Failed to complete dry run for '$INTEGRATION_ID'."
+        return 1
+    fi
+}
+
+elastic_fleet_policy_create() {
+
+    NAME=$1
+    DESC=$2
+    FLEETSERVER=$3
+    TIMEOUT=$4
+
+    JSON_STRING=$( jq -n \
+        --arg NAME "$NAME" \
+        --arg DESC "$DESC" \
+        --arg TIMEOUT $TIMEOUT \
+        --arg FLEETSERVER "$FLEETSERVER" \
+            '{"name": $NAME,"id":$NAME,"description":$DESC,"namespace":"default","monitoring_enabled":["logs"],"inactivity_timeout":$TIMEOUT,"has_fleet_server":$FLEETSERVER}'
+        )
+    # Create Fleet Policy
+    if ! fleet_api "agent_policies" -XPOST -H 'kbn-xsrf: true' -H 'Content-Type: application/json' -d "$JSON_STRING"; then
+        return 1
+    fi
+
+}

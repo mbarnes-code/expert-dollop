@@ -1,0 +1,42 @@
+{
+    "workbench.colorCustomizations": {
+        "statusBar.background": "#ab47bd",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#bc6dca",
+        "statusBarItem.remoteBackground": "#ab47bd",
+        "statusBarItem.remoteForeground": "#e7e7e7"
+    },
+    "peacock.color": "#ab47bd",
+    "python.testing.pytestArgs": [
+        "backend",
+        "client/python",
+        "common",
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.analysis.languageServerMode": "full",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.exclude": [
+        "backend/*/migrations",
+        "client/python",
+        "**/venv",
+        "**/node_modules",
+        "**/__pycache__",
+        ".git",
+        "hidden/"
+    ],
+    "python.analysis.extraPaths": [
+        "common",
+        "backend",
+        "client/python"
+    ],
+    "python.analysis.autoImportCompletions": true,
+    "flake8.cwd": "${workspaceFolder}/backend",
+    "mypy-type-checker.cwd": "${workspaceFolder}/backend",
+    "todo-tree.tree.scanMode": "workspace only",
+    "debug.inlineValues": "off",
+    "yaml.schemas": {
+        "Kubernetes": "*kube*.yaml",
+    },
+}

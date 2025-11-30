@@ -1,0 +1,484 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Start Server",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "runserver",
+                "8000"
+            ],
+            "pythonArgs": [
+                "-Wd"
+            ],
+            "envFile": "${workspaceFolder}/backend/secrets.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 1
+            },
+            "serverReadyAction" : {
+                "action": "openExternally",
+                "pattern": "Starting development server at (https?://[a-z0-9\\.:]+/?)",
+                "uriFormat": "%s",
+                "killOnServerStop": true
+            }
+        },
+        {
+            "name": "Start Server (Production)",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "runserver",
+                "8000",
+                "--settings=backend.production_settings"
+            ],
+            "envFile": "${workspaceFolder}/backend/secrets.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch with production settings",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 1
+            },
+            "serverReadyAction" : {
+                "action": "openExternally",
+                "pattern": "Starting development server at (https?://[a-z0-9\\.:]+/?)",
+                "uriFormat": "%s",
+                "killOnServerStop": true
+            }
+        },
+        {
+            "name": "Start Profiling Server",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "runserver",
+                "--settings=backend.debug_settings",
+            ],
+            "envFile": "${workspaceFolder}/backend/secrets.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 2
+            },
+            "serverReadyAction" : {
+                "action": "openExternally",
+                "pattern": "Starting development server at (https?://[a-z0-9\\.:]+/?)",
+                "uriFormat": "%s",
+                "killOnServerStop": true
+            }
+        },
+        {
+            "name": "Test",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "test",
+                // "spellbook.tests.test_models"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 3
+            },
+        },
+        {
+            "name": "Test Client",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "backend/manage.py",
+            "args": [
+                "test",
+                "client/python/tests"
+            ],
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Django",
+                "order": 3
+            },
+        },
+        {
+            "name": "Generate Variants",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "generate_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 4
+            },
+        },
+        {
+            "name": "Generate Variants using PyPy",
+            "type": "debugpy",
+            "python": "pypy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "generate_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 4
+            },
+        },
+        {
+            "name": "Profile Generate Variants",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "module": "cProfile",
+            "args": [
+                "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants.prof", "manage.py", "generate_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 4
+            },
+        },
+        {
+            "name": "Profile Generate Variants using PyPy",
+            "type": "debugpy",
+            "python": "pypy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "module": "cProfile",
+            "args": [
+                "-o", "${workspaceFolder}/backend/temp/profiles/generate_variants_pypy.prof", "manage.py", "generate_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 5
+            },
+        },
+        {
+            "name": "Export variants",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "export_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 6
+            },
+        },
+        {
+            "name": "Update Cards",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "update_cards"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 7
+            },
+        },
+        {
+            "name": "Update Variants",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "update_variants"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 8
+            },
+        },
+        {
+            "name": "Combo of the Day",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "combo_of_the_day"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Prelaunch",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 9
+            },
+        },
+        {
+            "name": "Cleanup Jobs (force)",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "clean_jobs",
+                "--force"
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "preLaunchTask": "Apply migrations",
+            "django": true,
+            "justMyCode": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 12
+            },
+        },
+        {
+            "name": "Debug Migrate",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "migrate",
+                "spellbook",
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 13
+            },
+        },
+        {
+            "name": "Debug Schema Validation",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/backend",
+            "program": "manage.py",
+            "args": [
+                "spectacular",
+                "--validate",
+                "--traceback",
+            ],
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}${/}common",
+            },
+            "django": true,
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 14
+            },
+        },
+        {
+            "name": "Launch Discord Bot",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/discord",
+            "envFile": "${workspaceFolder}/bot/discord/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_discord.py",
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 15
+            }
+        },
+         {
+            "name": "Launch Reddit Bot",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/reddit",
+            "envFile": "${workspaceFolder}/bot/reddit/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_reddit.py",
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 16
+            }
+        },
+        {
+            "name": "Launch Reddit Bot Daily Tasks",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/reddit",
+            "envFile": "${workspaceFolder}/bot/reddit/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_reddit.py",
+            "args": [
+                "--daily",
+            ],
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 17
+            }
+        },
+        {
+            "name": "Launch Telegram Bot",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/bot/telegram",
+            "envFile": "${workspaceFolder}/bot/telegram/secrets.env",
+            "windows": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common;${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "linux": {
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}${/}common:${workspaceFolder}${/}client${/}python",
+                },
+            },
+            "program": "spellbook_telegram.py",
+            "justMyCode": false,
+            "presentation": {
+                "hidden": false,
+                "group": "Spellbook",
+                "order": 18
+            }
+        }
+    ]
+}

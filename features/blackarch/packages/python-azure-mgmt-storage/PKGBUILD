@@ -1,0 +1,29 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-azure-mgmt-storage
+_pkgname=azure-mgmt-storage
+pkgver=23.0.1
+pkgrel=1
+pkgdesc='Microsoft Azure Storage Management Client Library for Python.'
+arch=('any')
+url='https://pypi.org/project/azure-mgmt-storage/#files'
+license=('MIT')
+depends=('python' 'python-azure-common' 'python-msrestazure' 'python-msrest')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.zip")
+sha512sums=('426a30b37fc65f1ccde0e640bc30c55df9a36d6934edcd67048bebd9d5a7a7d0cfba143bb1b348d261537beafe425d1010751529f62befea8d06fa0a298f2628')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --prefix=/usr --root="$pkgdir" --optimize=1 \
+    --skip-build
+}
+

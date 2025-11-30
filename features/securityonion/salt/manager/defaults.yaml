@@ -1,0 +1,16 @@
+manager:
+  reposync:
+    enabled: True
+    hour: 3
+    minute: 0
+  additionalCA: ''
+  insecureSkipVerify: False
+  agent_monitoring:
+    enabled: False
+    config:
+      critical_agents: []
+      custom_kquery:
+      offline_threshold: 5
+      realert_threshold: 5
+      page_size: 250
+      run_interval: 5

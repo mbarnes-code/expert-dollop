@@ -1,0 +1,29 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-google-cloud-container
+_pkgname=google-cloud-container
+pkgver=2.59.0
+pkgrel=1
+pkgdesc='Google Container Engine API client library.'
+arch=('any')
+url='https://pypi.org/project/google-cloud-container/#files'
+license=('Apache')
+depends=('python' 'python-google-api-core')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('3c8bb9dbb3843ea0c2e01947500e838a9246ba68a5baf47d375e018efc7a412ecc5de5880ca31b5591b4269d1e9812ada4247d39ce9925782356964126ae7754')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --prefix=/usr --root="$pkgdir" --optimize=1 \
+    --skip-build
+}
+

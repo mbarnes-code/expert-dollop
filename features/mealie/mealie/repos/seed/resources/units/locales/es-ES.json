@@ -1,0 +1,141 @@
+{
+    "teaspoon": {
+        "name": "cucharadita",
+        "plural_name": "cucharaditas",
+        "description": "",
+        "abbreviation": "cdita"
+    },
+    "tablespoon": {
+        "name": "cucharada",
+        "plural_name": "cucharadas",
+        "description": "",
+        "abbreviation": "cda"
+    },
+    "cup": {
+        "name": "taza",
+        "plural_name": "tazas",
+        "description": "",
+        "abbreviation": "t"
+    },
+    "fluid-ounce": {
+        "name": "onza líquida",
+        "plural_name": "onzas líquidas",
+        "description": "",
+        "abbreviation": "on liq"
+    },
+    "pint": {
+        "name": "pinta",
+        "plural_name": "pintas",
+        "description": "",
+        "abbreviation": "pt"
+    },
+    "quart": {
+        "name": "cuarto",
+        "plural_name": "cuartos de galón",
+        "description": "",
+        "abbreviation": "qt"
+    },
+    "gallon": {
+        "name": "galón",
+        "plural_name": "galón/es",
+        "description": "",
+        "abbreviation": "gal"
+    },
+    "milliliter": {
+        "name": "mililitro/s",
+        "plural_name": "mililitros",
+        "description": "",
+        "abbreviation": "ml"
+    },
+    "liter": {
+        "name": "litro/s",
+        "plural_name": "litros",
+        "description": "",
+        "abbreviation": "l"
+    },
+    "pound": {
+        "name": "libra/s",
+        "plural_name": "libras",
+        "description": "",
+        "abbreviation": "lb",
+        "plural_abbreviation": "libras"
+    },
+    "ounce": {
+        "name": "onza/s",
+        "plural_name": "onzas",
+        "description": "",
+        "abbreviation": "onz"
+    },
+    "gram": {
+        "name": "gramo/s",
+        "plural_name": "gramos",
+        "description": "",
+        "abbreviation": "g"
+    },
+    "kilogram": {
+        "name": "kilogramo/s",
+        "plural_name": "kilogramos",
+        "description": "",
+        "abbreviation": "kg"
+    },
+    "milligram": {
+        "name": "miligramo/s",
+        "plural_name": "miligramos",
+        "description": "",
+        "abbreviation": "mg"
+    },
+    "splash": {
+        "name": "gota/s",
+        "plural_name": "gota/s",
+        "description": "",
+        "abbreviation": ""
+    },
+    "dash": {
+        "name": "pizca",
+        "plural_name": "pizcas",
+        "description": "",
+        "abbreviation": ""
+    },
+    "serving": {
+        "name": "porción/es",
+        "plural_name": "porciones",
+        "description": "",
+        "abbreviation": ""
+    },
+    "head": {
+        "name": "cabeza/s",
+        "plural_name": "cabezas",
+        "description": "",
+        "abbreviation": ""
+    },
+    "clove": {
+        "name": "diente/s",
+        "plural_name": "clavos de olor",
+        "description": "",
+        "abbreviation": ""
+    },
+    "can": {
+        "name": "lata",
+        "plural_name": "latas",
+        "description": "",
+        "abbreviation": ""
+    },
+    "bunch": {
+        "name": "puñado",
+        "plural_name": "puñados",
+        "description": "",
+        "abbreviation": ""
+    },
+    "pack": {
+        "name": "paquete",
+        "plural_name": "paquetes",
+        "description": "",
+        "abbreviation": ""
+    },
+    "pinch": {
+        "name": "pellizco",
+        "plural_name": "pellizcos",
+        "description": "",
+        "abbreviation": ""
+    }
+}

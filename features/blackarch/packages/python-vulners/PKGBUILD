@@ -1,0 +1,30 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-vulners
+_pkgname=vulners
+pkgver=3.0.5
+pkgrel=1
+pkgdesc='Python library and command-line utility for Vulners (https://vulners.com).'
+arch=('any')
+url='https://pypi.org/project/vulners/#files'
+depends=('python-requests' 'python-six')
+makedepends=('python-setuptools')
+license=('GPL3')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('69547ac0015e30d909c913a3d25f56646edfdce1829727a1348fbe740eb17f244a1a2fbb73e2447b50a13584cf47fa1457ef0eaaa5c72e697102fd3e55fef607')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

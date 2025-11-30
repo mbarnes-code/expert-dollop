@@ -1,0 +1,4 @@
+[
+  "test.delete.me",
+  "**/test-file-to-remove.txt"
+]

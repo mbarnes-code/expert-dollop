@@ -1,0 +1,896 @@
+#!/bin/bash
+#
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+# Elastic agent is not managed by salt. Because of this we must store this base information in a 
+# script that accompanies the soup system. Since so-common is one of those special soup files, 
+# and since this same logic is required during installation, it's included in this file.
+
+DEFAULT_SALT_DIR=/opt/so/saltstack/default
+DOC_BASE_URL="https://docs.securityonion.net/en/2.4"
+
+if [ -z $NOROOT ]; then
+	# Check for prerequisites
+	if [ "$(id -u)" -ne 0 ]; then
+		echo "This script must be run using sudo!"
+		exit 1
+	fi
+fi
+
+# Ensure /usr/sbin is in path
+if ! echo "$PATH" | grep -q "/usr/sbin"; then
+  export PATH="$PATH:/usr/sbin"
+fi
+
+# See if a proxy is set. If so use it.
+if [ -f /etc/profile.d/so-proxy.sh ]; then
+  . /etc/profile.d/so-proxy.sh
+fi
+
+# Define a banner to separate sections
+banner="========================================================================="
+
+add_interface_bond0() {
+	local BNIC=$1
+	if [[ -z $MTU ]]; then
+		local MTU
+		MTU=$(lookup_pillar "mtu" "sensor")
+	fi
+	local nic_error=0
+
+	# Check if specific offload features are able to be disabled
+	for string in "generic-segmentation-offload" "generic-receive-offload" "tcp-segmentation-offload"; do
+		if ethtool -k "$BNIC" | grep $string | grep -q "on [fixed]"; then
+			echo "The hardware or driver for interface ${BNIC} is not supported, packet capture may not work as expected."
+			((nic_error++))
+			break
+		fi
+	done
+
+	case "$2" in
+		-v|--verbose)
+			local verbose=true
+		;;
+	esac
+
+	for i in rx tx sg tso ufo gso gro lro; do
+		if [[ $verbose == true ]]; then
+			ethtool -K "$BNIC" $i off
+		else
+			ethtool -K "$BNIC" $i off &>/dev/null
+		fi
+	done
+
+        if ! [[ $is_cloud ]]; then
+	  # Check if the bond slave connection has already been created
+	  nmcli -f name,uuid -p con | grep -q "bond0-slave-$BNIC"
+	  local found_int=$?
+
+	  if [[ $found_int != 0 ]]; then
+		  # Create the slave interface and assign it to the bond
+		  nmcli con add type ethernet ifname "$BNIC" con-name "bond0-slave-$BNIC" master bond0 -- \
+			  ethernet.mtu "$MTU" \
+			  connection.autoconnect "yes"
+	  else
+		  local int_uuid
+		  int_uuid=$(nmcli -f name,uuid -p con | sed -n "s/bond0-slave-$BNIC //p" | tr -d ' ')
+
+		  nmcli con mod "$int_uuid" \
+			  ethernet.mtu "$MTU" \
+			  connection.autoconnect "yes"
+	  fi
+        fi
+
+	ip link set dev "$BNIC" arp off multicast off allmulticast off promisc on
+
+        if ! [[ $is_cloud ]]; then
+	  # Bring the slave interface up
+	  if [[ $verbose == true ]]; then
+		  nmcli con up "bond0-slave-$BNIC"
+	  else
+		  nmcli con up "bond0-slave-$BNIC" &>/dev/null
+	  fi
+	fi
+	if [ "$nic_error" != 0 ]; then
+		return "$nic_error"
+	fi
+}
+
+airgap_playbooks() {
+	SRC_DIR=$1
+	# Copy playbooks if using airgap
+	mkdir -p /nsm/airgap-resources
+	# Purge old airgap playbooks to ensure SO only uses the latest released playbooks
+	rm -fr /nsm/airgap-resources/playbooks
+	tar xf $SRC_DIR/airgap-resources/playbooks.tgz -C /nsm/airgap-resources/
+	chown -R socore:socore /nsm/airgap-resources/playbooks
+	git config --global --add safe.directory /nsm/airgap-resources/playbooks
+}
+
+check_container() {
+	docker ps | grep "$1:" > /dev/null 2>&1
+	return $?
+}
+
+check_password() {
+	local password=$1
+	echo "$password" | egrep -v "'|\"|\\$|\\\\" > /dev/null 2>&1
+	return $?
+}
+
+check_password_and_exit() {
+	local password=$1
+	if ! check_password "$password"; then
+		echo "Password is invalid. Do not include single quotes, double quotes, dollar signs, and backslashes in the password."
+		exit 2
+	fi
+	return 0
+}
+
+check_elastic_license() {
+
+	[ -n "$TESTING" ] && return
+
+	# See if the user has already accepted the license
+	if [ ! -f /opt/so/state/yeselastic.txt ]; then
+	  elastic_license
+	else
+	  echo "Elastic License has already been accepted"
+	fi  
+}
+
+check_salt_master_status() {
+	local count=0
+    local attempts="${1:- 10}"
+	current_time="$(date '+%b %d %H:%M:%S')"
+	echo "Checking if we can access the salt master and that it is ready at: ${current_time}"
+    while ! salt-call state.show_top -l error concurrent=true 1> /dev/null; do
+        current_time="$(date '+%b %d %H:%M:%S')"
+        echo "Can't access salt master or it is not ready at: ${current_time}"
+        ((count+=1))
+        if [[ $count -eq $attempts ]]; then
+			# 10 attempts takes about 5.5 minutes
+            echo "Gave up trying to access salt-master"
+            return 1
+        fi
+    done
+	current_time="$(date '+%b %d %H:%M:%S')"
+	echo "Successfully accessed and salt master ready at: ${current_time}"
+    return 0
+}
+
+# this is only intended to be used to check the status of the minion from a salt master
+check_salt_minion_status() {
+	local minion="$1"
+	local timeout="${2:-5}"
+	local logfile="${3:-'/dev/stdout'}"
+	echo "Checking if the salt minion: $minion will respond to jobs" >> "$logfile" 2>&1
+	salt "$minion" test.ping -t $timeout > /dev/null 2>&1
+	local status=$?
+	if [ $status -gt 0 ]; then
+		echo "  Minion did not respond" >> "$logfile" 2>&1
+	else
+		echo "  Received job response from salt minion" >> "$logfile" 2>&1
+	fi
+
+	return $status
+}
+
+# Compare es versions and return the highest version
+compare_es_versions() {
+    # Save the original IFS
+    local OLD_IFS="$IFS"
+
+    IFS=.
+    local i ver1=($1) ver2=($2)
+
+    # Restore the original IFS
+    IFS="$OLD_IFS"
+
+    # Determine the maximum length between the two version arrays
+    local max_len=${#ver1[@]}
+    if [[ ${#ver2[@]} -gt $max_len ]]; then
+        max_len=${#ver2[@]}
+    fi
+
+    # Compare each segment of the versions
+    for ((i=0; i<max_len; i++)); do
+		# If a segment in ver1 or ver2 is missing, set it to 0
+        if [[ -z ${ver1[i]} ]]; then
+            ver1[i]=0
+        fi
+        if [[ -z ${ver2[i]} ]]; then
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]})); then
+            echo "$1"
+            return 0
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]})); then
+            echo "$2"
+            return 0
+        fi
+    done
+
+    echo "$1"  # If versions are equal, return either
+    return 0
+}
+
+copy_new_files() {
+  # Copy new files over to the salt dir
+  cd $UPDATE_DIR
+  rsync -a salt $DEFAULT_SALT_DIR/ --delete
+  rsync -a pillar $DEFAULT_SALT_DIR/ --delete
+  chown -R socore:socore $DEFAULT_SALT_DIR/
+  chmod 755 $DEFAULT_SALT_DIR/pillar/firewall/addfirewall.sh
+  cd /tmp
+}
+
+create_local_directories() {
+	echo "Creating local pillar and salt directories if needed"
+	PILLARSALTDIR=$1
+	local_salt_dir="/opt/so/saltstack/local"
+	for i in "pillar" "salt"; do
+		for d in $(find $PILLARSALTDIR/$i -type d); do
+			suffixdir=${d//$PILLARSALTDIR/}
+			if [ ! -d "$local_salt_dir/$suffixdir" ]; then
+				mkdir -p $local_salt_dir$suffixdir
+			fi
+		done
+		chown -R socore:socore $local_salt_dir/$i
+	done
+}
+
+disable_fastestmirror() {
+	sed -i 's/enabled=1/enabled=0/' /etc/yum/pluginconf.d/fastestmirror.conf
+}
+
+download_and_verify() {
+	source_url=$1
+	source_md5_url=$2
+	dest_file=$3
+	md5_file=$4
+	expand_dir=$5
+
+	if [[ -n "$expand_dir" ]]; then
+		mkdir -p "$expand_dir"
+	fi
+
+	if ! verify_md5_checksum "$dest_file" "$md5_file"; then
+		retry 15 10 "curl --fail --retry 5 --retry-delay 15 -L '$source_url' --output '$dest_file'" "" ""
+		retry 15 10 "curl --fail --retry 5 --retry-delay 15 -L '$source_md5_url' --output '$md5_file'"  "" ""
+
+		if verify_md5_checksum "$dest_file" "$md5_file"; then
+		  echo "Source file and checksum are good."
+		else
+		  echo "Unable to download and verify the source file and checksum."
+		  return 1
+		fi
+	fi
+
+	if [[ -n "$expand_dir" ]]; then
+		tar -xf "$dest_file" -C "$expand_dir"
+	fi
+}
+
+elastic_license() {
+
+read -r -d '' message <<- EOM
+\n
+Elastic Stack binaries and Security Onion components are only available under the Elastic License version 2 (ELv2):
+https://securityonion.net/license/
+
+Do you agree to the terms of ELv2?
+
+If so, type AGREE to accept ELv2 and continue. Otherwise, press Enter to exit this program without making any changes.
+EOM
+
+	AGREED=$(whiptail --title "$whiptail_title" --inputbox \
+	"$message" 20 75 3>&1 1>&2 2>&3)
+
+	if [ "${AGREED^^}" = 'AGREE' ]; then
+		mkdir -p /opt/so/state
+		touch /opt/so/state/yeselastic.txt 
+	else
+		echo "Starting in 2.3.40 you must accept the Elastic license if you want to run Security Onion."
+		exit 1
+	fi
+
+}
+
+fail() {
+	msg=$1
+	echo "ERROR: $msg"
+	echo "Exiting."
+	exit 1
+}
+
+get_agent_count() {
+	if [ -f /opt/so/log/agents/agentstatus.log ]; then
+		AGENTCOUNT=$(cat /opt/so/log/agents/agentstatus.log | grep -wF active | awk '{print $2}' | sed 's/,//')
+		[[ -z "$AGENTCOUNT" ]] && AGENTCOUNT="0"
+	else
+		AGENTCOUNT=0
+	fi
+}
+
+get_elastic_agent_vars() {
+	local path="${1:-/opt/so/saltstack/default}"
+	local defaultsfile="${path}/salt/elasticsearch/defaults.yaml"
+
+	if [ -f "$defaultsfile" ]; then
+		ELASTIC_AGENT_TARBALL_VERSION=$(egrep " +version: " $defaultsfile | awk -F: '{print $2}' | tr -d '[:space:]')
+		ELASTIC_AGENT_URL="https://repo.securityonion.net/file/so-repo/prod/2.4/elasticagent/elastic-agent_SO-$ELASTIC_AGENT_TARBALL_VERSION.tar.gz"
+		ELASTIC_AGENT_MD5_URL="https://repo.securityonion.net/file/so-repo/prod/2.4/elasticagent/elastic-agent_SO-$ELASTIC_AGENT_TARBALL_VERSION.md5"
+		ELASTIC_AGENT_FILE="/nsm/elastic-fleet/artifacts/elastic-agent_SO-$ELASTIC_AGENT_TARBALL_VERSION.tar.gz"
+		ELASTIC_AGENT_MD5="/nsm/elastic-fleet/artifacts/elastic-agent_SO-$ELASTIC_AGENT_TARBALL_VERSION.md5"
+		ELASTIC_AGENT_EXPANSION_DIR=/nsm/elastic-fleet/artifacts/beats/elastic-agent
+	else
+		fail "Could not find salt/elasticsearch/defaults.yaml"
+	fi
+}
+
+get_random_value() {
+	length=${1:-20}
+	head -c 5000 /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1
+}
+
+gpg_rpm_import() {
+	if [[ $is_oracle ]]; then
+	    if [[ "$WHATWOULDYOUSAYYAHDOHERE" == "setup" ]]; then
+	        local RPMKEYSLOC="../salt/repo/client/files/$OS/keys"
+	    else
+	        local RPMKEYSLOC="$UPDATE_DIR/salt/repo/client/files/$OS/keys"
+	    fi
+		RPMKEYS=('RPM-GPG-KEY-oracle' 'RPM-GPG-KEY-EPEL-9' 'SALT-PROJECT-GPG-PUBKEY-2023.pub' 'docker.pub' 'securityonion.pub')
+		for RPMKEY in "${RPMKEYS[@]}"; do
+    	        rpm --import $RPMKEYSLOC/$RPMKEY
+	        echo "Imported $RPMKEY"
+	    done
+	elif [[ $is_rpm ]]; then
+		echo "Importing the security onion GPG key"
+		rpm --import ../salt/repo/client/files/oracle/keys/securityonion.pub
+	fi
+}
+
+header() {
+	printf '%s\n' "" "$banner" " $*" "$banner" 
+}
+
+init_monitor() {
+	MONITORNIC=$1
+	
+	if [[ $MONITORNIC == "bond0" ]]; then 
+	  BIFACES=$(lookup_bond_interfaces)
+	  for i in rx tx sg tso ufo gso gro lro rx-vlan-offload tx-vlan-offload generic-receive-offload generic-segmentation-offload tcp-segmentation-offload; do
+	    ethtool -K "$MONITORNIC" "$i" off;
+  	  done
+	else
+	  BIFACES=$MONITORNIC
+	fi
+
+	for DEVICE_IFACE in $BIFACES; do
+	  for i in rx tx sg tso ufo gso gro lro rx-vlan-offload tx-vlan-offload generic-receive-offload generic-segmentation-offload tcp-segmentation-offload; do
+	    ethtool -K "$DEVICE_IFACE" "$i" off;
+  	  done
+	  ip link set dev "$DEVICE_IFACE" arp off multicast off allmulticast off promisc on
+	done
+}
+
+is_manager_node() {
+	grep "role: so-" /etc/salt/grains | grep -E "manager|eval|managersearch|standalone|import" &> /dev/null
+}
+
+is_sensor_node() {
+	# Check to see if this is a sensor (forward) node
+	is_single_node_grid && return 0
+	grep "role: so-" /etc/salt/grains | grep -E "sensor|heavynode" &> /dev/null
+}
+
+is_single_node_grid() {
+	grep "role: so-" /etc/salt/grains | grep -E "eval|standalone|import" &> /dev/null
+}
+
+lookup_bond_interfaces() {
+	cat /proc/net/bonding/bond0 | grep "Slave Interface:" | sed -e "s/Slave Interface: //g"
+}
+
+lookup_salt_value() {
+	key=$1
+	group=$2
+	kind=$3
+	output=${4:-newline_values_only}
+	local=$5
+
+	if [ -z "$kind" ]; then
+		kind=pillar
+	fi
+
+	if [ -n "$group" ]; then
+		group=${group}:
+	fi
+
+	if [[ "$local" == "--local" ]] || [[ "$local" == "local" ]]; then
+		local="--local"
+	else
+		local=""
+	fi
+
+	salt-call -lerror --no-color  ${kind}.get ${group}${key} --out=${output} ${local}
+}
+
+lookup_pillar() {
+	key=$1
+	pillar=$2
+	if [ -z "$pillar" ]; then
+		pillar=global
+	fi
+	lookup_salt_value "$key" "$pillar" "pillar"
+}
+
+lookup_pillar_secret() {
+	lookup_pillar "$1" "secrets"
+}
+
+lookup_grain() {
+	lookup_salt_value "$1" "" "grains"
+}
+
+lookup_role() {
+	id=$(lookup_grain id)
+	echo "${id##*_}"
+}
+
+is_feature_enabled() {
+	feature=$1
+	enabled=$(lookup_salt_value features)
+	for cur in $enabled; do
+		if [[ "$feature" == "$cur" ]]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+read_feat() {
+	if [ -f /opt/so/log/sostatus/lks_enabled ]; then
+		lic_id=$(cat /opt/so/saltstack/local/pillar/soc/license.sls | grep license_id: | awk '{print $2}')
+		echo "$lic_id/$(cat /opt/so/log/sostatus/lks_enabled)/$(cat /opt/so/log/sostatus/fps_enabled)"
+	fi
+}
+
+require_manager() {
+	if is_manager_node; then
+		echo "This is a manager, so we can proceed."
+	else
+		echo "Please run this command on the manager; the manager controls the grid."
+		exit 1
+	fi
+}
+
+retry() {
+        maxAttempts=$1
+        sleepDelay=$2
+        cmd=$3
+        expectedOutput=$4
+        failedOutput=$5
+        attempt=0
+        local exitcode=0
+        while [[ $attempt -lt $maxAttempts ]]; do
+                attempt=$((attempt+1))
+                echo "Executing command with retry support: $cmd"
+                output=$(eval "$cmd")
+                exitcode=$?
+                echo "Results: $output ($exitcode)"
+                if [ -n "$expectedOutput" ]; then
+                        if [[ "$output" =~ "$expectedOutput" ]]; then
+                                return $exitcode
+                        else
+                                echo "Did not find expectedOutput: '$expectedOutput' in the output below from running the command: '$cmd'"
+								echo "<Start of output>"
+								echo "$output"
+								echo "<End of output>"
+								if [[ $exitcode -eq 0 ]]; then
+									echo "Forcing exit code to 1"
+									exitcode=1
+								fi
+                        fi
+                elif [ -n "$failedOutput" ]; then
+                        if [[ "$output" =~ "$failedOutput" ]]; then
+                                echo "Found failedOutput: '$failedOutput' in the output below from running the command: '$cmd'"
+								echo "<Start of output>"
+								echo "$output"
+								echo "<End of output>"
+								if [[ $exitcode -eq 0 ]]; then
+									echo "Forcing exit code to 1"
+									exitcode=1
+								fi
+                        else
+                                return $exitcode
+                        fi
+                elif [[ $exitcode -eq 0 ]]; then
+                        return $exitcode
+                fi
+                echo "Command failed with exit code $exitcode; will retry in $sleepDelay seconds ($attempt / $maxAttempts)..."
+                sleep $sleepDelay
+        done
+        echo "Command continues to fail; giving up."
+        return $exitcode
+}
+
+run_check_net_err() {
+	local cmd=$1
+	local err_msg=${2:-"Unknown error occured, please check /root/$WHATWOULDYOUSAYYAHDOHERE.log for details."} # Really need to rename that variable
+	local no_retry=$3
+
+	local exit_code
+	if [[ -z $no_retry ]]; then
+		retry 5 60 "$cmd"
+		exit_code=$?
+	else
+		eval "$cmd"
+		exit_code=$?
+	fi
+	
+	if [[ $exit_code -ne 0 ]]; then
+		ERR_HANDLED=true
+		[[ -z $no_retry ]] || echo "Command failed with error $exit_code"
+		echo "$err_msg"
+		exit $exit_code
+	fi
+}
+
+wait_for_salt_minion() {
+	local minion="$1"
+	local timeout="${2:-5}"
+	local logfile="${3:-'/dev/stdout'}"
+	retry 60 5 "journalctl -u salt-minion.service | grep 'Minion is ready to receive requests'" >> "$logfile" 2>&1 || fail
+	local attempt=0
+	# each attempts would take about 15 seconds
+	local maxAttempts=20
+	until check_salt_minion_status "$minion" "$timeout" "$logfile"; do
+		attempt=$((attempt+1))
+		if [[ $attempt -eq $maxAttempts ]]; then
+			return 1
+		fi
+		sleep 10
+	done
+	return 0
+}
+
+salt_minion_count() {
+	local MINIONDIR="/opt/so/saltstack/local/pillar/minions"
+	MINIONCOUNT=$(ls -la $MINIONDIR/*.sls | grep -v adv_ | wc -l)
+
+}
+
+set_os() {
+	if [ -f /etc/redhat-release ]; then
+		if grep -q "Rocky Linux release 9" /etc/redhat-release; then
+			OS=rocky
+			OSVER=9
+			is_rocky=true
+			is_rpm=true
+		elif grep -q "CentOS Stream release 9" /etc/redhat-release; then
+			OS=centos
+			OSVER=9
+			is_centos=true
+			is_rpm=true
+		elif grep -q "AlmaLinux release 9" /etc/redhat-release; then
+			OS=alma
+			OSVER=9
+			is_alma=true
+			is_rpm=true
+		elif grep -q "Red Hat Enterprise Linux release 9" /etc/redhat-release; then
+			if [ -f /etc/oracle-release ]; then
+				OS=oracle
+				OSVER=9
+				is_oracle=true
+				is_rpm=true
+			else
+				OS=rhel
+				OSVER=9
+				is_rhel=true
+				is_rpm=true
+			fi
+		fi
+		cron_service_name="crond"
+	elif [ -f /etc/os-release ]; then
+		if grep -q "UBUNTU_CODENAME=focal" /etc/os-release; then
+			OSVER=focal
+			UBVER=20.04
+			OS=ubuntu
+			is_ubuntu=true
+			is_deb=true
+		elif grep -q "UBUNTU_CODENAME=jammy" /etc/os-release; then
+			OSVER=jammy
+			UBVER=22.04
+			OS=ubuntu
+			is_ubuntu=true
+			is_deb=true
+		elif grep -q "VERSION_CODENAME=bookworm" /etc/os-release; then
+			OSVER=bookworm
+			DEBVER=12
+			is_debian=true
+			OS=debian
+			is_deb=true
+		fi
+		cron_service_name="cron"
+	fi
+}
+
+set_minionid() {
+	MINIONID=$(lookup_grain id)
+}
+
+set_palette() {
+	if [[ $is_deb ]]; then
+	    update-alternatives --set newt-palette /etc/newt/palette.original
+    fi
+}
+
+set_version() {
+	CURRENTVERSION=0.0.0
+	if [ -f /etc/soversion ]; then
+		CURRENTVERSION=$(cat /etc/soversion)
+	fi
+	if [ -z "$VERSION" ]; then
+		if [ -z "$NEWVERSION" ]; then
+			if [ "$CURRENTVERSION" == "0.0.0" ]; then
+				echo "ERROR: Unable to detect Security Onion version; terminating script."
+				exit 1
+			else
+				VERSION=$CURRENTVERSION
+			fi
+		else
+			VERSION="$NEWVERSION"
+		fi
+	fi
+}
+
+status () {
+    printf "\n=========================================================================\n$(date) | $1\n=========================================================================\n"
+}
+
+sync_options() {
+	set_version
+	set_os
+	salt_minion_count
+	get_agent_count
+	
+	echo "$VERSION/$OS/$(uname -r)/$MINIONCOUNT:$AGENTCOUNT/$(read_feat)"
+}
+
+systemctl_func() {
+	local action=$1
+	local echo_action=$1
+	local service_name=$2
+
+	if [[ "$echo_action" == "stop" ]]; then
+		echo_action="stopp"
+	fi
+
+	echo ""
+	echo "${echo_action^}ing $service_name service at $(date +"%T.%6N")"
+    systemctl $action $service_name && echo "Successfully ${echo_action}ed $service_name." || echo "Failed to $action $service_name."
+	echo ""
+}
+
+has_uppercase() {
+	local string=$1
+
+	echo "$string" | grep -qP '[A-Z]' \
+		&& return 0 \
+		|| return 1
+}
+
+update_elastic_agent() {
+	local path="${1:-/opt/so/saltstack/default}"
+	get_elastic_agent_vars "$path"
+	echo "Checking if Elastic Agent update is necessary..."
+	download_and_verify "$ELASTIC_AGENT_URL" "$ELASTIC_AGENT_MD5_URL" "$ELASTIC_AGENT_FILE" "$ELASTIC_AGENT_MD5" "$ELASTIC_AGENT_EXPANSION_DIR"
+}
+
+valid_cidr() {
+	# Verify there is a backslash in the string
+	echo "$1" | grep -qP "^[^/]+/[^/]+$" || return 1
+
+	valid_ip4_cidr_mask "$1" && return 0 || return 1
+	
+	local cidr="$1"
+	local ip
+	ip=$(echo "$cidr" | sed 's/\/.*//' )
+	
+	if valid_ip4 "$ip"; then
+		local ip1 ip2 ip3 ip4 N
+		IFS="./" read -r ip1 ip2 ip3 ip4 N <<< "$cidr"
+		ip_total=$((ip1 * 256 ** 3 + ip2 * 256 ** 2 + ip3 * 256 + ip4))
+		[[ $((ip_total % 2**(32-N))) == 0 ]] && return 0 || return 1
+	else
+		return 1
+	fi
+}
+
+valid_cidr_list() {
+	local all_valid=0
+
+	IFS="," read -r -a net_arr <<< "$1"
+
+	for net in "${net_arr[@]}"; do
+		valid_cidr "$net" || all_valid=1
+	done
+
+	return $all_valid
+}
+
+valid_dns_list() {
+	local all_valid=0
+
+	IFS="," read -r -a dns_arr <<< "$1"
+
+	for addr in "${dns_arr[@]}"; do
+		valid_ip4 "$addr" || all_valid=1
+	done
+
+	return $all_valid
+}
+
+valid_fqdn() {
+	local fqdn=$1
+
+	echo "$fqdn" | grep -qP '(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)' \
+		&& return 0 \
+		|| return 1
+}
+
+valid_hostname() {
+	local hostname=$1
+
+	[[ $hostname =~ ^[a-zA-Z0-9\-]+$ ]] && [[ $hostname != 'localhost' ]] && return 0 || return 1
+}
+
+verify_ip4() {
+        local ip=$1
+        # Is this an IP or CIDR?
+        if grep -qP "^[^/]+/[^/]+$" <<< $ip; then
+                # Looks like a CIDR
+                valid_ip4_cidr_mask "$ip"
+        else
+                # We know this is not a CIDR - Is it an IP?
+                valid_ip4 "$ip"
+        fi
+}
+
+valid_ip4() {
+	local ip=$1
+
+	echo "$ip" | grep -qP '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' && return 0 || return 1
+}
+
+valid_ip4_cidr_mask() {
+	# Verify there is a backslash in the string
+	echo "$1" | grep -qP "^[^/]+/[^/]+$" || return 1
+
+	local cidr
+	local ip
+
+	cidr=$(echo "$1" | sed 's/.*\///')
+	ip=$(echo "$1" | sed 's/\/.*//' )
+
+	if valid_ip4 "$ip"; then
+		[[ $cidr =~ ^([0-9]|[1-2][0-9]|3[0-2])$ ]] && return 0 || return 1
+	else
+		return 1
+	fi
+}
+
+valid_int() {
+	local num=$1
+	local min=${2:-1}
+	local max=${3:-1000000000}
+
+	[[ $num =~ ^[0-9]*$ ]] && [[ $num -ge $min ]] && [[ $num -le $max ]] && return 0 || return 1
+}
+
+# {% raw %}
+
+valid_proxy() {
+	local proxy=$1
+	local url_prefixes=( 'http://' 'https://' )
+
+	local has_prefix=false
+	for prefix in "${url_prefixes[@]}"; do
+		echo "$proxy" | grep -q "$prefix" && has_prefix=true && proxy=${proxy#"$prefix"} && break
+	done
+	
+	local url_arr
+	mapfile -t url_arr <<< "$(echo "$proxy" | tr ":" "\n")"
+
+	local valid_url=true
+	if ! valid_ip4 "${url_arr[0]}" && ! valid_fqdn "${url_arr[0]}" && ! valid_hostname "${url_arr[0]}"; then
+		valid_url=false
+	fi
+
+	[[ $has_prefix == true ]] && [[ $valid_url == true ]] && return 0 || return 1
+}
+
+valid_ntp_list() {
+	local string=$1
+	local ntp_arr
+	IFS="," read -r -a ntp_arr <<< "$string"
+
+	for ntp in "${ntp_arr[@]}"; do
+		if ! valid_ip4 "$ntp" && ! valid_hostname "$ntp" && ! valid_fqdn "$ntp"; then
+			return 1
+		fi
+	done
+
+	return 0
+}
+
+valid_string() {
+	local str=$1
+	local min_length=${2:-1}
+	local max_length=${3:-64}
+
+	echo "$str" | grep -qP '^\S+$' && [[ ${#str} -ge $min_length ]] && [[ ${#str} -le $max_length ]] && return 0 || return 1
+}
+
+# {% endraw %}
+
+valid_username() {
+	local user=$1
+
+	echo "$user" | grep -qP '^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$' && return 0 || return 1
+}
+
+verify_md5_checksum() {
+	data_file=$1
+	md5_file=${2:-${data_file}.md5}
+
+	if [[ ! -f "$dest_file" || ! -f "$md5_file" ]]; then
+		return 2
+	fi
+
+	SOURCEHASH=$(md5sum "$data_file" | awk '{ print $1 }')
+	HASH=$(cat "$md5_file")
+
+	if [[ "$HASH" == "$SOURCEHASH" ]]; then
+		return 0
+	fi
+	return 1
+}
+
+wait_for_web_response() {
+	url=$1
+	expected=$2
+	maxAttempts=${3:-300}
+	curlcmd=${4:-curl}
+	logfile=/root/wait_for_web_response.log
+	truncate -s 0 "$logfile"
+	attempt=0
+	while [[ $attempt -lt $maxAttempts ]]; do
+		attempt=$((attempt+1))
+		echo "Waiting for value '$expected' at '$url' ($attempt/$maxAttempts)"
+		result=$($curlcmd -ks -L $url)
+		exitcode=$?
+
+		echo "--------------------------------------------------" >> $logfile
+		echo "$(date) - Checking web URL: $url ($attempt/$maxAttempts)" >> $logfile
+		echo "$result" >> $logfile
+		echo "exit code=$exitcode" >> $logfile
+		echo "" >> $logfile
+
+		if [[ $exitcode -eq 0 && "$result" =~ $expected ]]; then
+			echo "Received expected response; proceeding."
+			return 0
+		fi
+		echo "Server is not ready"
+		sleep 1
+	done
+	echo "Server still not ready after $maxAttempts attempts; giving up."
+	return 1
+}

@@ -1,0 +1,45 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=objection
+pkgver=1.12.2
+_pyver=3.13
+pkgrel=1
+pkgdesc='Instrumented Mobile Pentest Framework.'
+groups=('blackarch' 'blackarch-mobile' 'blackarch-reversing' 'blackarch-binary')
+arch=('any')
+url='https://pypi.org/project/objection/#files'
+license=('custom:unknown')
+depends=('python' 'python-frida' 'python-frida-tools' 'python-prompt_toolkit'
+         'python-click' 'python-tabulate' 'python-requests' 'python-flask'
+         'python-delegator.py' 'python-pexpect' 'python-litecli' 'python-semver'
+         'python-sqlparse' 'python-packaging' 'python-pygments')
+makedepends=('python-pip' 'python-build' 'python-wheel')
+source=("https://files.pythonhosted.org/packages/source/${pkgname::1}/$pkgname/$pkgname-$pkgver.tar.gz")
+sha512sums=('c714e6979035b398ca286a7072b06ad551a6ba819620c71e204b954f85a7c2002a5838e1cd412bbe4880b66934815fb3691953f0289bc27c57b6f96ceadf03c8')
+
+build() {
+  cd "$pkgname-$pkgver"
+
+  python -m build --wheel --outdir="$startdir/dist"
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  pip install \
+    --verbose \
+    --disable-pip-version-check \
+    --no-warn-script-location \
+    --ignore-installed \
+    --no-compile \
+    --no-deps \
+    --root="$pkgdir" \
+    --prefix=/usr \
+    --no-index \
+    --find-links="file://$startdir/dist" \
+    $pkgname
+
+  rm -rf "$pkgdir/usr/lib/python$_pyver/site-packages/tests"
+}
+

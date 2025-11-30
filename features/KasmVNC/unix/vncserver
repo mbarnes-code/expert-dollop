@@ -1,0 +1,3089 @@
+#!/usr/bin/env perl
+#
+#  Copyright (C) 2009-2010 D. R. Commander.  All Rights Reserved.
+#  Copyright (C) 2005-2006 Sun Microsystems, Inc.  All Rights Reserved.
+#  Copyright (C) 2002-2003 Constantin Kaplinsky.  All Rights Reserved.
+#  Copyright (C) 2002-2005 RealVNC Ltd.
+#  Copyright (C) 1999 AT&T Laboratories Cambridge.  All Rights Reserved.
+#
+#  This is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This software is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License along
+#  with this program; if not, write to the Free Software Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+
+#
+# vncserver - wrapper script to start an X VNC server.
+#
+
+use v5.10;
+use warnings;
+use utf8;
+
+sub DEVENV() { $ENV{KASMVNC_DEVELOPMENT} };
+use if DEVENV, Devel::StackTrace;
+
+use Time::HiRes qw (sleep);
+use Switch;
+use File::Basename;
+use List::Util qw(first);
+use List::MoreUtils qw(any uniq);
+use Data::Dumper;
+use Try::Tiny;
+use DateTime;
+use DateTime::TimeZone;
+
+use KasmVNC::CliOption;
+use KasmVNC::ConfigSetting;
+use KasmVNC::ConfigKey;
+use KasmVNC::PatternValidator;
+use KasmVNC::EnumValidator;
+use KasmVNC::CallbackValidator;
+use KasmVNC::Config;
+use KasmVNC::Users;
+use KasmVNC::TextOption;
+use KasmVNC::TextUI;
+use KasmVNC::Utils;
+use KasmVNC::Logger;
+
+use KasmVNC::ConfigEnvVars;
+
+use constant {
+  NO_ARG_VALUE => 0,
+  REQUIRED_ARG_VALUE => 1,
+  OPTIONAL_ARG_VALUE => 2
+};
+
+UseUtfStdio();
+InitLogger();
+
+CheckWeCanRunInThisEnvironment();
+
+DefineFilePathsAndStuff();
+
+ParseAndProcessCliOptions();
+
+PrepareLoggingAndXvncKillingFramework();
+CreateUserConfigIfNeeded();
+
+DefinePossibleConfigSettings();
+
+LoadConfigs();
+OverrideConfigWithConfigEnvVars();
+InterpolateEnvVarsIntoConfigValues();
+ValidateConfigValues();
+CheckForUnsupportedConfigEnvVars();
+CheckForUnsupportedConfigKeys();
+
+ActivateConfigToCLIConversion();
+
+SetAppSettingsFromConfigAndCli();
+DisableLegacyVncAuth();
+AllowXProgramsToConnectToXvnc();
+EnsureAtLeastOneKasmUserExists();
+ConfigureDeToRun();
+
+StartXvncOrExit();
+
+PrintLogFilenameAndConfiguredUsersAndStuff();
+
+if (! $skipxstartup) {
+  CreateXstartupIfNeeded();
+  RunXstartup();
+}
+
+PrintBrowserUrl();
+
+exit;
+
+###############################################################################
+# Functions
+###############################################################################
+
+#
+# CheckGeometryAndDepthAreSensible simply makes sure that the geometry and depth
+# values are sensible.
+#
+
+sub CheckGeometryAndDepthAreSensible
+{
+  if ($geometry =~ /^(\d+)x(\d+)$/) {
+    $width = $1; $height = $2;
+
+    if (($width<1) || ($height<1)) {
+      die "$prog: geometry $geometry is invalid\n";
+    }
+
+    $geometry = "${width}x$height";
+  } else {
+    die "$prog: geometry $geometry is invalid\n";
+  }
+
+  if ($depth && (($depth < 8) || ($depth > 32))) {
+    die "Depth must be between 8 and 32\n";
+  }
+}
+
+
+#
+# GetLowestAvailableDisplayNumber gets the lowest available display number.  A
+# display number n is taken if something is listening on the VNC server port
+# (5900+n) or the X server port (6000+n).
+#
+
+sub GetLowestAvailableDisplayNumber
+{
+  foreach $n (1..99) {
+    if (CheckVncIsntRunningOnDisplay($n)) {
+      return $n+0; # Bruce Mah's workaround for bug in perl 5.005_02
+    }
+  }
+
+  die "$prog: no free display number on $host.\n";
+}
+
+
+#
+# CheckVncIsntRunningOnDisplay checks if the given display number is available.  A
+# display number n is taken if something is listening on the VNC server port
+# (5900+n) or the X server port (6000+n).
+#
+
+sub CheckVncIsntRunningOnDisplay
+{
+  local ($n) = @_;
+
+  socket(S, $AF_INET, $SOCK_STREAM, 0) || die "$prog: socket failed: $!\n";
+  eval 'setsockopt(S, &SOL_SOCKET, &SO_REUSEADDR, pack("l", 1))';
+  if (!bind(S, pack('S n x12', $AF_INET, 6000 + $n))) {
+    close(S);
+    return 0;
+  }
+  close(S);
+
+  socket(S, $AF_INET, $SOCK_STREAM, 0) || die "$prog: socket failed: $!\n";
+  eval 'setsockopt(S, &SOL_SOCKET, &SO_REUSEADDR, pack("l", 1))';
+  if (!bind(S, pack('S n x12', $AF_INET, 5900 + $n))) {
+    close(S);
+    return 0;
+  }
+  close(S);
+
+  if (-e "/tmp/.X$n-lock") {
+    $logger->warn("\nWarning: $host:$n is taken because of /tmp/.X$n-lock");
+    $logger->warn("Remove this file if there is no X server $host:$n");
+    return 0;
+  }
+
+  if (-e "/tmp/.X11-unix/X$n") {
+    $logger->warn("\nWarning: $host:$n is taken because of /tmp/.X11-unix/X$n");
+    $logger->warn("Remove this file if there is no X server $host:$n");
+    return 0;
+  }
+
+  return 1;
+}
+
+
+#
+# GetXDisplayDefaults uses xdpyinfo to find out the geometry, depth and pixel
+# format of the current X display being used.  If successful, it sets the
+# options as appropriate so that the X VNC server will use the same settings
+# (minus an allowance for window manager decorations on the geometry).  Using
+# the same depth and pixel format means that the VNC server won't have to
+# translate pixels when the desktop is being viewed on this X display (for
+# TrueColor displays anyway).
+#
+
+sub GetXDisplayDefaults
+{
+  local (@lines, @matchlines, $width, $height, $defaultVisualId, $i,
+    $red, $green, $blue);
+
+  $wmDecorationWidth = 4;     # a guess at typical size for window manager
+  $wmDecorationHeight = 24;   # decoration size
+
+  return if (!defined($ENV{DISPLAY}));
+
+  @lines = `xdpyinfo 2>/dev/null`;
+
+  return if ($? != 0);
+
+  @matchlines = grep(/dimensions/, @lines);
+  if (@matchlines) {
+    ($width, $height) = ($matchlines[0] =~ /(\d+)x(\d+) pixels/);
+
+    $width -= $wmDecorationWidth;
+    $height -= $wmDecorationHeight;
+
+    $geometry = "${width}x$height";
+  }
+
+  @matchlines = grep(/default visual id/, @lines);
+  if (@matchlines) {
+    ($defaultVisualId) = ($matchlines[0] =~ /id:\s+(\S+)/);
+
+    for ($i = 0; $i < @lines; $i++) {
+      if ($lines[$i] =~ /^\s*visual id:\s+$defaultVisualId$/) {
+        if (($lines[$i+1] !~ /TrueColor/) ||
+          ($lines[$i+2] !~ /depth/) ||
+          ($lines[$i+4] !~ /red, green, blue masks/))
+        {
+          return;
+        }
+        last;
+      }
+    }
+
+    return if ($i >= @lines);
+
+    ($depth) = ($lines[$i+2] =~ /depth:\s+(\d+)/);
+    ($red,$green,$blue)
+    = ($lines[$i+4]
+      =~ /masks:\s+0x([0-9a-f]+), 0x([0-9a-f]+), 0x([0-9a-f]+)/);
+
+    $red = hex($red);
+    $green = hex($green);
+    $blue = hex($blue);
+
+    if ($red > $blue) {
+      $red = int(log($red) / log(2)) - int(log($green) / log(2));
+      $green = int(log($green) / log(2)) - int(log($blue) / log(2));
+      $blue = int(log($blue) / log(2)) + 1;
+      $pixelformat = "rgb$red$green$blue";
+    } else {
+      $blue = int(log($blue) / log(2)) - int(log($green) / log(2));
+      $green = int(log($green) / log(2)) - int(log($red) / log(2));
+      $red = int(log($red) / log(2)) + 1;
+      $pixelformat = "bgr$blue$green$red";
+    }
+  }
+}
+
+
+#
+# quotedString returns a string which yields the original string when parsed
+# by a shell.
+#
+
+sub quotedString
+{
+  local ($in) = @_;
+
+  $in =~ s/\'/\'\"\'\"\'/g;
+
+  return "'$in'";
+}
+
+
+#
+# removeSlashes turns slashes into underscores for use as a file name.
+#
+
+sub removeSlashes
+{
+  local ($in) = @_;
+
+  $in =~ s|/|_|g;
+
+  return "$in";
+}
+
+
+#
+# Usage
+#
+
+sub Usage
+{
+  die("\nusage: $prog [:<number>] [-desktop <desktop-name>] [-depth <depth>]\n".
+    "                 [-geometry <width>x<height>]\n".
+    "                 [-pixelformat rgbNNN|bgrNNN]\n".
+    "                 [-fp <font-path>]\n".
+    "                 [-fg]\n".
+    "                 [-autokill]\n".
+    "                 [-noxstartup]\n".
+    "                 [-xstartup <file>]\n".
+    "                 <Xvnc-options>...\n\n".
+    "       $prog -kill <X-display>\n\n".
+    "       $prog -list\n\n");
+}
+
+
+#
+# List
+#
+
+sub List
+{
+  opendir(dirHandle, $vncUserDir);
+  my @filelist = readdir(dirHandle);
+  closedir(dirHandle);
+  print "\nKasmVNC server sessions:\n\n";
+  print "X DISPLAY #\tPROCESS ID\n";
+  foreach my $file (@filelist) {
+    if ($file =~ /$host:(\d+).pid/) {
+      chop($tmp_pid = `cat $vncUserDir/$file`);
+      if (IsProcessRunning($tmp_pid)) {
+        print ":".$1."\t\t".`cat $vncUserDir/$file`;
+      } else {
+        unlink ($vncUserDir . "/" . $file);
+      }
+    }
+  }
+  exit 1;
+}
+
+
+#
+# Kill
+#
+
+sub Kill
+{
+  $opt{'-kill'} =~ s/(:\d+)\.\d+$/$1/; # e.g. turn :1.0 into :1
+
+  if ($opt{'-kill'} =~ /^:\d+$/) {
+    $pidFile = "$vncUserDir/$host$opt{'-kill'}.pid";
+  } else {
+    if ($opt{'-kill'} !~ /^$host:/) {
+      die "\nCan't tell if $opt{'-kill'} is on $host\n".
+      "Use -kill :<number> instead\n\n";
+    }
+    $pidFile = "$vncUserDir/$opt{'-kill'}.pid";
+  }
+
+  if (! -r $pidFile) {
+    die "\nCan't find file $pidFile\n".
+    "You'll have to kill the Xvnc process manually\n\n";
+  }
+
+  $SIG{'HUP'} = 'IGNORE';
+  chop($pid = `cat $pidFile`);
+  $logger->warn("Killing Xvnc process ID $pid");
+
+  if (IsProcessRunning($pid)) {
+    system("kill $pid");
+    WaitForTimeLimitOrSubReturningTrue(1, sub {
+        !IsProcessRunning($pid)
+      });
+    if (IsProcessRunning($pid)) {
+      print "Xvnc seems to be deadlocked.  Kill the process manually and then re-run\n";
+      print "    ".$0." -kill ".$opt{'-kill'}."\n";
+      print "to clean up the socket files.\n";
+      exit
+    }
+
+  } else {
+    $logger->warn("Xvnc process ID $pid already killed");
+    $opt{'-kill'} =~ s/://;
+
+    if (-e "/tmp/.X11-unix/X$opt{'-kill'}") {
+      print "Xvnc did not appear to shut down cleanly.";
+      print " Removing /tmp/.X11-unix/X$opt{'-kill'}\n";
+      unlink "/tmp/.X11-unix/X$opt{'-kill'}";
+    }
+    if (-e "/tmp/.X$opt{'-kill'}-lock") {
+      print "Xvnc did not appear to shut down cleanly.";
+      print " Removing /tmp/.X$opt{'-kill'}-lock\n";
+      unlink "/tmp/.X$opt{'-kill'}-lock";
+    }
+  }
+
+  unlink $pidFile;
+  exit;
+}
+
+
+#
+# ParseOptionsAndRemoveMatchesFromARGV takes a list of possible options. Each
+# option has a matching argument, indicating whether the option has a value
+# following (can be required or optional), and sets up an associative array %opt
+# of the values of the options given on the command line.  It removes all the
+# arguments it uses from @ARGV and returns them in @optArgs.
+#
+
+sub ParseOptionsAndRemoveMatchesFromARGV
+{
+  local (@optval) = @_;
+  local ($opt, @opts, %valFollows, @newargs);
+
+  while (@optval) {
+    $opt = shift(@optval);
+    push(@opts,$opt);
+    $valFollows{$opt} = shift(@optval);
+  }
+
+  @optArgs = ();
+  %opt = ();
+
+  arg: while (defined($arg = shift(@ARGV))) {
+    foreach $opt (@opts) {
+      if ($arg eq $opt) {
+        push(@optArgs, $arg);
+        switch($valFollows{$opt}) {
+          case NO_ARG_VALUE {
+            $opt{$opt} = 1;
+            next arg;
+          }
+          case REQUIRED_ARG_VALUE {
+            if (@ARGV == 0) {
+              Usage();
+            }
+
+            $opt{$opt} = shift(@ARGV);
+            push(@optArgs, $opt{$opt});
+
+            next arg;
+          }
+          case OPTIONAL_ARG_VALUE {
+            if (scalar @ARGV == 0 || $ARGV[0] =~ /^-/) {
+              $opt{$opt} = 1;
+              next arg;
+            }
+
+            $opt{$opt} = shift(@ARGV);
+            push(@optArgs, $opt{$opt});
+
+            next arg;
+          }
+        }
+      }
+    }
+    push(@newargs,$arg);
+  }
+
+  @ARGV = @newargs;
+}
+
+
+# Routine to make sure we're operating in a sane environment.
+sub CheckRequiredDependenciesArePresent
+{
+  local ($cmd);
+
+  # Get the program name
+  ($prog) = ($0 =~ m|([^/]+)$|);
+
+  #
+  # Check we have all the commands we'll need on the path.
+  #
+
+  cmd:
+  foreach $cmd ("uname","xauth","hostname","whoami") {
+    for (split(/:/,$ENV{PATH})) {
+      if (-x "$_/$cmd") {
+        next cmd;
+      }
+    }
+    die "$prog: couldn't find \"$cmd\" on your PATH.\n";
+  }
+
+  if($exedir eq "") {
+    cmd2:
+    foreach $cmd ("Xvnc","vncpasswd") {
+      for (split(/:/,$ENV{PATH})) {
+        if (-x "$_/$cmd") {
+          next cmd2;
+        }
+      }
+      die "$prog: couldn't find \"$cmd\" on your PATH.\n";
+    }
+  }
+  else {
+    cmd3:
+    foreach $cmd ($exedir."Xvnc",$exedir."vncpasswd") {
+      for (split(/:/,$ENV{PATH})) {
+        if (-x "$cmd") {
+          next cmd3;
+        }
+      }
+      die "$prog: couldn't find \"$cmd\".\n";
+    }
+  }
+
+  if (!defined($ENV{HOME})) {
+    die "$prog: The HOME environment variable is not set.\n";
+  }
+
+  #
+  # Find socket constants. 'use Socket' is a perl5-ism, so we wrap it in an
+  # eval, and if it fails we try 'require "sys/socket.ph"'.  If this fails,
+  # we just guess at the values.  If you find perl moaning here, just
+  # hard-code the values of AF_INET and SOCK_STREAM.  You can find these out
+  # for your platform by looking in /usr/include/sys/socket.h and related
+  # files.
+  #
+
+  chop($os = `uname`);
+  chop($osrev = `uname -r`);
+
+  eval 'use Socket';
+  if ($@) {
+    eval 'require "sys/socket.ph"';
+    if ($@) {
+      if (($os eq "SunOS") && ($osrev !~ /^4/)) {
+        $AF_INET = 2;
+        $SOCK_STREAM = 2;
+      } else {
+        $AF_INET = 2;
+        $SOCK_STREAM = 1;
+      }
+    } else {
+      $AF_INET = &AF_INET;
+      $SOCK_STREAM = &SOCK_STREAM;
+    }
+  } else {
+    $AF_INET = &AF_INET;
+    $SOCK_STREAM = &SOCK_STREAM;
+  }
+}
+
+sub CheckSslCertReadable {
+  return if IsDryRun();
+
+  RequireSslCertsToBeReadable();
+}
+
+sub IsDebian {
+  return -f "/etc/debian_version";
+}
+
+sub RequireSslCertsToBeReadable {
+  my $certFilename = DerivedValue("network.ssl.pem_certificate");
+  my $certKeyFilename = DerivedValue("network.ssl.pem_key");
+
+  @certs = ($certFilename, $certKeyFilename);
+  @certs = grep defined, @certs;
+  @certs = uniq @certs;
+
+  my @unreadableCertFiles = map { -r $_ ? () : $_ } @certs;
+  return if (scalar @unreadableCertFiles == 0);
+
+  foreach my $unreadableCert (@unreadableCertFiles) {
+    GuideUserToMakeCertFileReadable($unreadableCert);
+  }
+  exit 1;
+}
+
+sub FileGroupName {
+  my $file = shift;
+  my $grpId = (stat($file))[5];
+
+  getgrgid($grpId);
+}
+
+sub AddUserToGroupCmd {
+  my $certGroup = shift;
+
+  if (IsRpmSystem()) {
+    "usermod -a -G $certGroup \$USER"
+  } else {
+    "addgroup \$USER $certGroup"
+  }
+}
+
+sub GuideUserToMakeCertFileReadable {
+  my $certFile = shift;
+  if (! -f $certFile) {
+    $logger->warn("$certFile: certificate file doesn't exist or isn't a file");
+    return;
+  }
+
+  my $certGroup = FileGroupName $certFile;
+  my $addUserToGroupCmd = AddUserToGroupCmd $certGroup;
+
+  $logger->warn(<<EOF);
+$certFile: certificate isn't readable.
+Make the certificate readable by adding your user to group "$certGroup":
+  '$addUserToGroupCmd'
+EOF
+}
+
+sub IsRpmSystem {
+  system("command -v rpm >/dev/null 2>&1") == 0;
+}
+
+sub RequireUserToHaveKasmvncCertGroup {
+  my $certGroup = 'kasmvnc-cert';
+  if (system("groups | grep -qw $certGroup") != 0) {
+    $logger->warn(<<EOF);
+  Can't access TLS certificate.
+  Please add your user to $certGroup via 'usermod -a -G $certGroup \$USER'
+EOF
+    exit(1);
+  }
+}
+
+sub CreateXstartupIfNeeded
+{
+  if ((-e "$xstartupFile")) {
+    return;
+  }
+
+  my $defaultXStartup
+  = ("#!/bin/sh\n\n".
+    "unset SESSION_MANAGER\n".
+    "unset DBUS_SESSION_BUS_ADDRESS\n".
+    "OS=`uname -s`\n".
+    "if [ \$OS = 'Linux' ]; then\n".
+    "  case \"\$WINDOWMANAGER\" in\n".
+    "    \*gnome\*)\n".
+    "      if [ -e /etc/SuSE-release ]; then\n".
+    "        PATH=\$PATH:/opt/gnome/bin\n".
+    "        export PATH\n".
+    "      fi\n".
+    "      ;;\n".
+    "  esac\n".
+    "fi\n".
+    "if [ -x /etc/X11/xinit/xinitrc ]; then\n".
+    "  exec /etc/X11/xinit/xinitrc\n".
+    "fi\n".
+    "if [ -f /etc/X11/xinit/xinitrc ]; then\n".
+    "  exec sh /etc/X11/xinit/xinitrc\n".
+    "fi\n".
+    "[ -r \$HOME/.Xresources ] && xrdb \$HOME/.Xresources\n".
+    "xsetroot -solid grey\n".
+    "xterm -geometry 80x24+10+10 -ls -title \"\$VNCDESKTOP Desktop\" &\n".
+    "twm\n");
+
+  $logger->warn("Creating default startup script $xstartupFile");
+  open(XSTARTUP, ">$xstartupFile");
+  print XSTARTUP $defaultXStartup;
+  close(XSTARTUP);
+  chmod 0755, "$xstartupFile";
+}
+
+sub DetectAndExportDisplay {
+  # If the unix domain socket exists then use that (DISPLAY=:n) otherwise use
+  # TCP (DISPLAY=host:n)
+
+  if (-e "/tmp/.X11-unix/X$displayNumber" ||
+    -e "/usr/spool/sockets/X11/$displayNumber")
+  {
+    $ENV{DISPLAY}= ":$displayNumber";
+  } else {
+    $ENV{DISPLAY}= "$host:$displayNumber";
+  }
+}
+
+sub RunXstartup {
+  $logger->warn("Starting applications specified in $xstartupFile");
+  DetectAndExportDisplay();
+  $ENV{VNCDESKTOP}= $desktopName;
+
+  my $xstartupCmd = "{ echo 'Running $xstartupFile'; $xstartupFile; }";
+  if ($opt{'-fg'}) {
+    if (! $skipxstartup) {
+      system("$xstartupCmd >> " . quotedString($desktopLog) . " 2>&1");
+    }
+    if (IsXvncRunning()) {
+      $opt{'-kill'} = ':'.$displayNumber;
+      Kill();
+    }
+  } else {
+    if ($opt{'-autokill'}) {
+      if (! $skipxstartup) {
+        system("($xstartupCmd; $0 -kill :$displayNumber) >> "
+          . quotedString($desktopLog) . " 2>&1 &");
+      }
+    } else {
+      if (! $skipxstartup) {
+        system("$xstartupCmd >> " . quotedString($desktopLog)
+          . " 2>&1 &");
+      }
+    }
+  }
+}
+
+sub DetectBinariesDir {
+  my $result = "";
+  my $slashndx = rindex($0, "/");
+
+  if($slashndx>=0) {
+    $result = substr($0, 0, $slashndx+1);
+  }
+  if ($result =~ m!unix/!) {
+    $result = "/usr/bin/";
+  }
+
+  return $result;
+}
+
+sub DetectFontPath {
+  if (-d "/etc/X11/fontpath.d") {
+    $fontPath = "catalogue:/etc/X11/fontpath.d";
+  }
+
+  @fontpaths = ('/usr/share/X11/fonts', '/usr/share/fonts', '/usr/share/fonts/X11/');
+  if (! -l "/usr/lib/X11") {push(@fontpaths, '/usr/lib/X11/fonts');}
+  if (! -l "/usr/X11") {push(@fontpaths, '/usr/X11/lib/X11/fonts');}
+  if (! -l "/usr/X11R6") {push(@fontpaths, '/usr/X11R6/lib/X11/fonts');}
+  push(@fontpaths, '/usr/share/fonts/default');
+
+  @fonttypes = ('misc',
+    '75dpi',
+    '100dpi',
+    'Speedo',
+    'Type1');
+
+  foreach $_fpath (@fontpaths) {
+    foreach $_ftype (@fonttypes) {
+      if (-f "$_fpath/$_ftype/fonts.dir") {
+        if (! -l "$_fpath/$_ftype") {
+          $defFontPath .= "$_fpath/$_ftype,";
+        }
+      }
+    }
+  }
+
+  if ($defFontPath) {
+    if (substr($defFontPath, -1, 1) eq ',') {
+      chop $defFontPath;
+    }
+  }
+
+  if (!defined($fontPath) || $fontPath eq "") {
+    $fontPath = $defFontPath;
+  }
+}
+
+sub ProcessCliOptions {
+  Usage() if ($opt{'-help'} || $opt{'-h'} || $opt{'--help'});
+
+  Kill() if ($opt{'-kill'});
+
+  List() if ($opt{'-list'});
+
+  # Uncomment this line if you want default geometry, depth and pixelformat
+  # to match the current X display:
+  # GetXDisplayDefaults();
+
+  if ($opt{'-geometry'}) {
+    $geometry = $opt{'-geometry'};
+  }
+  if ($opt{'-noxstartup'}) {
+    $skipxstartup = 1;
+  }
+  if ($opt{'-xstartup'}) {
+    $xstartupFile = $opt{'-xstartup'};
+  }
+  if ($opt{'-fp'}) {
+    $fontPath = $opt{'-fp'};
+    $fpArgSpecified = 1;
+  }
+  if ($opt{'-debug'}) {
+    $debug = 1;
+    delete $opt{'-debug'};
+    $opt{'-Log'} = '*:stderr:100';
+  }
+  if ($opt{'-config'}) {
+    @configFiles = split ",", $opt{'-config'};
+    delete $opt{'-config'};
+  }
+  $testOutputTopic = $opt{'-test-output-topic'};
+}
+
+sub CreateDotVncDir {
+  if (!(-e $vncUserDir)) {
+    if (!mkdir($vncUserDir,0755)) {
+      die "$prog: Could not create $vncUserDir.\n";
+    }
+  }
+}
+
+sub DeWasSelectedEarlier {
+  -e $de_was_selected_file;
+}
+
+sub DeWasSpecifiedOnCommandLine {
+  defined($opt{'-select-de'}) && $opt{'-select-de'} ne "1";
+}
+
+sub PromptingForDeWasRequestedOnCommandLine {
+ return unless defined($opt{'-select-de'});
+
+ $opt{'-select-de'} == 1;
+}
+
+sub WarnIfShouldPromptForDe {
+  return unless shouldPromptUserToSelectDe();
+
+  $logger->warn(<<WARNING);
+
+Warning: the Desktop Environment to run wasn't selected, but prompting to select
+a Desktop Environment was disabled.
+WARNING
+}
+
+sub DeWasntSelectedYet() {
+  !DeWasSelectedEarlier();
+}
+
+sub shouldPromptUserToSelectDe() {
+  return 1 if DeWasntSelectedYet();
+
+  PromptingForDeWasRequestedOnCommandLine();
+}
+
+sub SelectDe {
+  $selectDeCmd = ConstructSelectDeCmd();
+  system($selectDeCmd) == 0 || die("Failed to execute $selectDeCmd\n");
+}
+
+sub ConfigureDeToRun {
+  if (DeWasSpecifiedOnCommandLine()) {
+    SelectDe();
+    return;
+  }
+
+  AskUserToChooseDeOrManualXstartup();
+}
+
+sub AskUserToChooseDeOrManualXstartup {
+  return if IsDryRun();
+
+  if (PromptingDisabled()) {
+    WarnIfShouldPromptForDe();
+    return;
+  }
+  return unless shouldPromptUserToSelectDe();
+
+  ForgetSelectedDe();
+  SelectDe();
+}
+
+sub ConstructSelectDeCmd {
+  my $cmd = "$selectDeBin";
+  my $specifiedDe = $opt{'-select-de'};
+
+  if ($specifiedDe) {
+    $cmd .= " --select-de";
+    if ($specifiedDe ne "1") {
+      $cmd .= " $specifiedDe";
+    }
+  }
+
+  $cmd;
+}
+
+sub ForgetSelectedDe {
+  unlink $de_was_selected_file;
+}
+
+sub DetectDisplayNumberFromCliArgs {
+  if (@ARGV == 0) {
+    return;
+  }
+
+  my $displayNumber;
+  if ($ARGV[0] =~ /^:(\d+)$/) {
+    $displayNumber = $1;
+    shift(@ARGV);
+    if (!CheckVncIsntRunningOnDisplay($displayNumber)) {
+      die "A VNC server is already running as :$displayNumber\n";
+    }
+  }
+
+  $displayNumber;
+}
+
+sub CheckCliOptionsForBeingValid {
+  if (@ARGV == 0) {
+    return;
+  }
+
+  if (! IsCliOption($ARGV[0])) {
+    Usage();
+  }
+}
+
+sub IsCliOption {
+  my $arg = shift;
+
+  ($arg =~ /^-/) || ($arg =~ /^\+/);
+}
+
+sub DisableLegacyVncAuth {
+  # Disable vnc auth, kasmvnc uses https basic auth
+  system("echo 'WrLNwLrcrxM=' | base64 -d > $vncUserDir/passwd");
+}
+
+sub TellUserToSetupUserAndPassword {
+  if (AtLeastOneUserConfigured()) {
+    return;
+  }
+
+  $logger->warn("\nYou need to create a KasmVNC user to access your desktops.\n");
+  system($exedir."kasmvncpasswd $kasmPasswdFile");
+  if (($? >> 8) != 0) {
+    exit 1;
+  }
+}
+
+sub DefaultKasmUsername {
+  my $defaultUsername = $systemUser;
+  return if ($users->userExists($defaultUsername));
+
+  $defaultUsername;
+}
+
+sub PromptForUsernameToCreate {
+  my $defaultKasmUsername = DefaultKasmUsername();
+  my $prompt;
+
+  if ($defaultKasmUsername) {
+    $prompt = "Enter username (default: $defaultKasmUsername): ";
+  } else {
+    $prompt = "Enter username: ";
+  }
+
+  Prompt($prompt) || $defaultKasmUsername;
+}
+
+sub GuideUserToEnterUserToCreate {
+  my $userToCreate;
+
+  print(<<"NEEDTOCREATEUSER");
+
+Let's create a user.
+
+NEEDTOCREATEUSER
+
+  while (1) {
+    $userToCreate = PromptForUsernameToCreate();
+    next if !defined($userToCreate) || $userToCreate =~ /^\s+$/;
+
+    if ($users->userExists($userToCreate)) {
+      say "User already exists: \"$userToCreate\"";
+      next;
+    }
+    last;
+  };
+
+  $userToCreate;
+}
+
+sub GuideUserToSetupKasmPasswdUser {
+  my $userToCreate = GuideUserToEnterUserToCreate();
+
+  unless ($users->addUser($userToCreate, "w")) {
+    die("\nFailed to setup user \"$userToCreate\"\n");
+  }
+  print("Created user \"$userToCreate\"\n");
+}
+
+
+sub AtLeastOneUserConfigured {
+  $users->count() > 0;
+}
+
+sub MakeXCookie {
+  # Make an X server cookie and set up the Xauthority file
+  # mcookie is a part of util-linux, usually only GNU/Linux systems have it.
+  my $cookie = `mcookie`;
+  # Fallback for non GNU/Linux OS - use /dev/urandom on systems that have it,
+  # otherwise use perl's random number generator, seeded with the sum
+  # of the current time, our PID and part of the encrypted form of the password.
+  if ($cookie eq "" && open(URANDOM, '<', '/dev/urandom')) {
+    my $randata;
+    if (sysread(URANDOM, $randata, 16) == 16) {
+      $cookie = unpack 'h*', $randata;
+    }
+    close(URANDOM);
+  }
+  if ($cookie eq "") {
+    srand(time+$$+unpack("L",`cat $vncUserDir/passwd`));
+    for (1..16) {
+      $cookie .= sprintf("%02x", int(rand(256)) % 256);
+    }
+  }
+
+  return $cookie;
+}
+
+sub SetupXauthorityFile {
+  my $cookie = MakeXCookie();
+
+  open(XAUTH, "|xauth -f $xauthorityFile source -");
+  print XAUTH "add $host:$displayNumber . $cookie\n";
+  print XAUTH "add $host/unix:$displayNumber . $cookie\n";
+  close(XAUTH);
+}
+
+sub UserSpecifiedArgsToCmd {
+  my $cmd = "";
+
+  foreach my $arg (@ARGV) {
+    $cmd .= " " . quotedString($arg);
+    noteXvncOption($arg) if $arg =~ /^-/;
+  }
+
+  $cmd;
+}
+
+sub ConstructXvncCmd {
+  my $cmd = $exedir."Xvnc :$displayNumber";
+
+  $cmd .= UserSpecifiedArgsToCmd();
+  $cmd .= SwallowedArgsToCmd();
+  $cmd .= ConfigToCmd();
+  $cmd .= LegacyModeArgsToCmd();
+
+  $cmd .= " >> " . quotedString($desktopLog) . " 2>&1";
+
+  return $cmd;
+}
+
+sub LegacyModeArgsToCmd {
+  my %legacyOptions = (
+    -rfbauth => "$vncUserDir/passwd",
+    -rfbport => 5901,
+    -rfbwait => 30000
+  );
+  my @cmd = ();
+
+  while(my($optionName, $optionArg) = each %legacyOptions) {
+    next if WasOptionSpecifiedViaCli($optionName);
+
+    my $optionText = "$optionName " . quotedString($optionArg);
+    push(@cmd, $optionText);
+    noteXvncOption($optionName);
+  }
+
+  my $legacyCmd = join " ", @cmd;
+  " $legacyCmd";
+}
+
+sub noteXvncOption {
+  my $optionName = shift;
+
+  $addedXvncOptions{$optionName} = 1;
+}
+
+sub WasOptionSpecifiedViaCli {
+  my $optionName = shift;
+
+  $addedXvncOptions{$optionName};
+}
+
+sub SwallowedArgsToCmd {
+  my @swallowedOptions = qw(-fp -interface -websocketPort -Log);
+  my @optionsInCliFormat = map { SwallowedOptionToCLI($_) } @swallowedOptions;
+  " " . join " ", @optionsInCliFormat;
+}
+
+sub SwallowedOptionToCLI {
+  my $optionName = shift;
+
+  return unless ($opt{$optionName});
+
+  noteXvncOption($optionName);
+  "$optionName " . quotedString($opt{$optionName});
+}
+
+sub StartXvncAndRecordPID {
+  system("$cmd & echo \$! >$pidFile");
+}
+
+sub DeleteLogLeftFromPreviousXvncRun {
+  unlink($desktopLog);
+}
+
+sub StartXvncWithSafeFontPath {
+  if ($fpArgSpecified) {
+    $logger->warn("\nWARNING: The first attempt to start Xvnc failed, probably because the font");
+    $logger->warn("path you specified using the -fp argument is incorrect.  Attempting to");
+    $logger->warn("determine an appropriate font path for this system and restart Xvnc using");
+    $logger->warn("that font path ...");
+  } else {
+    $logger->warn("\nWARNING: The first attempt to start Xvnc failed, possibly because the font");
+    $logger->warn("catalog is not properly configured.  Attempting to determine an appropriate");
+    $logger->warn("font path for this system and restart Xvnc using that font path ...");
+  }
+  $cmd =~ s@-fp [^ ]+@@;
+  $cmd .= " -fp $defFontPath" if ($defFontPath);
+  StartXvncAndRecordPID();
+}
+
+sub IsXvncRunning {
+  IsProcessRunning(`cat $pidFile`);
+}
+
+sub WarnUserXvncNotStartedAndExit {
+  $logger->warn("Could not start Xvnc.\n");
+  unlink $pidFile;
+  open(LOG, "<$desktopLog");
+  while (<LOG>) { print; }
+  close(LOG);
+  die "\n";
+}
+
+sub WaitForXvncToRespond {
+  my $sleepSlice = 0.1;
+  my $sleptFor = 0;
+  my $sleepLimit = 3;
+
+  until (IsXvncResponding() || $sleptFor >= $sleepLimit) {
+    sleep($sleepSlice);
+    $sleptFor += $sleepSlice;
+  }
+}
+
+sub IsXvncResponding {
+  `xdpyinfo -display :$displayNumber >/dev/null 2>&1`;
+  $? == 0;
+}
+
+sub UsingSafeFontPath {
+  $fontPath eq $defFontPath
+}
+
+sub CreateUserConfigIfNeeded {
+  my $configFilename = "$vncUserDir/kasmvnc.yaml";
+  if (-e $configFilename) {
+    return;
+  }
+
+  $logger->warn("Creating default config $configFilename");
+  open(VNCUSERCONFIG, ">$configFilename");
+  print VNCUSERCONFIG $defaultConfig;
+  close(VNCUSERCONFIG);
+  chmod 0644, "$configFilename";
+}
+
+sub PrintKasmUsers {
+  $logger->warn("\nUsers configured:");
+  $logger->warn($users->toString());
+  $logger->warn("");
+}
+
+sub CheckWeCanRunInThisEnvironment {
+  $exedir = DetectBinariesDir();
+  CheckRequiredDependenciesArePresent();
+}
+
+sub DefineFilePathsAndStuff {
+  #
+  # Global variables.  You may want to configure some of these for
+  # your site
+  #
+
+  $geometry = "1024x768";
+
+  $vncUserDir = "$ENV{HOME}/.vnc";
+  $vncUserConfig = "$vncUserDir/config";
+  $kasmPasswdFile = "$ENV{HOME}/.kasmpasswd";
+
+  $selectDeBin = DetectSelectDeBin();
+  $de_was_selected_file="$ENV{HOME}/.vnc/.de-was-selected";
+
+  $KasmVNC::Users::vncPasswdBin = $exedir . "kasmvncpasswd";
+  $KasmVNC::Users::logger = $logger;
+  $KasmVNC::Config::logger = $logger;
+  $KasmVNC::ConfigEnvVars::logger = $logger;
+  $KasmVNC::ConfigEnvVars::SupportedAbsoluteKeys = \&SupportedAbsoluteKeys;
+  $KasmVNC::ConfigEnvVars::ConfigValue = \&ConfigValue;
+  $KasmVNC::ConfigEnvVars::SetConfigValue = \&SetConfigValue;
+  $KasmVNC::ConfigEnvVars::ShouldPrintTopic = \&ShouldPrintTopic;
+
+  $vncSystemConfigDir = "/etc/kasmvnc";
+  if ($ENV{KASMVNC_DEVELOPMENT}) {
+    $vncDefaultsConfig = "/src/unix/kasmvnc_defaults.yaml";
+    $vncSystemConfig = "/src/unix/kasmvnc.yaml";
+  } else {
+    $vncDefaultsConfig = "/usr/share/kasmvnc/kasmvnc_defaults.yaml";
+    $vncSystemConfig = "$vncSystemConfigDir/kasmvnc.yaml";
+  }
+
+  $vncUserConfig = "$ENV{HOME}/.vnc/kasmvnc.yaml";
+  @configFiles = ($vncDefaultsConfig, $vncSystemConfig, $vncUserConfig);
+  $defaultWebsocketPort = 8443;
+
+  $skipxstartup = 0;
+  $xauthorityFile = $ENV{XAUTHORITY} // "$ENV{HOME}/.Xauthority";
+
+  $xstartupFile = $vncUserDir . "/xstartup";
+  $defaultConfig = <<TEXT;
+logging:
+  log_writer_name: all
+  log_dest: logfile
+  level: 100
+TEXT
+  %appSettings = ();
+  %addedXvncOptions = ();
+
+  chop($host = `uname -n`);
+  chop($hostIPs = `hostname -i`);
+  @hostIPs = split ' ', $hostIPs;
+
+  chop($systemUser = `whoami`);
+
+  DetectFontPath();
+}
+
+sub limitVncModeOptions {
+  my $self = shift;
+  my $protocol = ConfigValue("network.protocol");
+
+  return 1 if isBlank($protocol) || $protocol eq "http";
+
+  my @allowedVncModeOptions = qw(network.protocol
+    server.advanced.x_authority_file legacy.desktop_name
+    server.advanced.x_font_path desktop.resolution.width);
+  first { $self->hasKey($_) } @allowedVncModeOptions;
+}
+
+sub DefineConfigToCLIConversion {
+  $KasmVNC::CliOption::ConfigValue = \&ConfigValue;
+  $KasmVNC::ConfigSetting::ConfigValue = \&ConfigValue;
+  $KasmVNC::ConfigKey::ConfigValue = \&ConfigValue;
+
+  my $regionValidator = KasmVNC::PatternValidator->new({
+    pattern => qr/^(-)?\d+(%)?$/,
+    errorMessage => "must be an integer or percentage"
+  });
+  my $clipboardSizeValidator = KasmVNC::PatternValidator->new({
+    pattern => qr/^(unlimited|\d+)$/,
+    errorMessage => "must be 'unlimited' or a number"
+  });
+  my $autoNumberValidator = KasmVNC::PatternValidator->new({
+    pattern => qr/^(auto|\d+)$/,
+    errorMessage => "must be 'auto' or a number"
+  });
+  my $secondsValidator = KasmVNC::PatternValidator->new({
+    pattern => qr/^(never|\d+)$/,
+    errorMessage => "must be a number or 'never'"
+  });
+  my $percentValidator = KasmVNC::PatternValidator->new({
+    pattern => qr/^(\d+%)$/,
+    errorMessage => "must be a number, followed by %"
+  });
+  my $allConfigKeysValidatorSub = sub {
+    my @allConfigKeys = map { $_->configKeyNames() } @xvncOptions;
+
+    KasmVNC::EnumValidator->new({
+      allowedValues => [flatten(@allConfigKeys)]
+    })
+  };
+  my $deriveValueStripPercentSub = sub {
+    $self = shift;
+
+    my $value = $self->configValue();
+    $value =~ s/%$//;
+
+    $value;
+  };
+  KasmVNC::CliOption::beforeIsActive(\&limitVncModeOptions);
+  my $ipv4_regexp = '((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}';
+  my $ipv6_regexp = '(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))';
+
+  @xvncOptions = (
+    KasmVNC::CliOption->new({
+        name => 'geometry',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "desktop.resolution.width",
+            type => KasmVNC::ConfigKey::INT
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "desktop.resolution.height",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $width = $self->{'desktop.resolution.width'};
+          my $height = $self->{'desktop.resolution.height'};
+          if (defined($width) && defined($height)) {
+            return $width . "x" . $height;
+          }
+
+          $geometry;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'AcceptSetDesktopSize',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "desktop.allow_resize",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'depth',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "desktop.pixel_depth",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(16 24 32)]
+            })
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          $value || $depth;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'noWebsocket',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.protocol",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(http vnc)]
+            })
+          })
+        ],
+        isActiveSub => sub {
+          my $self = shift;
+          my $protocol = $self->{"network.protocol"};
+          return unless defined($protocol);
+
+          $protocol eq "vnc";
+        },
+        deriveValueSub => sub { 1 }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'websocketPort',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.websocket_port",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|\d+)$/,
+              errorMessage => "must be one a number or 'auto'"
+            }),
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+
+          my $value = $self->configValue();
+          if ($value eq 'auto' || !defined($value)) {
+            return GenerateWebsocketPortFromDisplayNumber();
+          }
+
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'interface',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.interface",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'UseIPv4',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.use_ipv4",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'UseIPv6',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.use_ipv6",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'cert',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.ssl.pem_certificate",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'key',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.ssl.pem_key",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'sslOnly',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.ssl.require_ssl",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'UnixRelay',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.unix_relay.name",
+            type => KasmVNC::ConfigKey::ANY
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "network.unix_relay.path",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+
+          $self->{"network.unix_relay.name"} . ":" . $self->{"network.unix_relay.path"};
+        },
+    }),
+    KasmVNC::CliOption->new({
+        name => 'AlwaysShared',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "user_session.session_type",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(shared exclusive)]
+            })
+          })
+        ],
+        deriveValueSub => sub {
+          1;
+        },
+        isActiveSub => sub {
+          my $self = shift;
+          my $sessionType =  $self->configValue();
+          return unless defined($sessionType);
+
+          $sessionType eq "shared";
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DisconnectClients',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "user_session.new_session_disconnects_existing_exclusive_session",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+
+          $self->configValue() eq "true" ? 1 : 0;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'NeverShared',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "user_session.session_type",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        deriveValueSub => sub {
+          1;
+        },
+        isActiveSub => sub {
+          my $self = shift;
+          my $sessionType =  $self->configValue();
+          return unless defined($sessionType);
+
+          $sessionType eq "exclusive";
+        },
+    }),
+    KasmVNC::CliOption->new({
+        name => 'QueryConnect',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "user_session.concurrent_connections_prompt",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'IdleTimeout',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "user_session.idle_timeout",
+            validator => $secondsValidator
+          })
+        ],
+        deriveValueSub => \&deriveSeconds
+    }),
+    KasmVNC::CliOption->new({
+        name => 'RemapKeys',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "keyboard.remap_keys",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^0x[[:xdigit:]]+->0x[[:xdigit:]]+$/,
+              errorMessage => "must be in the format 0x<hex_number>->0x<hex_number>"
+            }),
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'AvoidShiftNumLock',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "keyboard.ignore_numlock",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'RawKeyboard',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "keyboard.raw_keyboard",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'AcceptPointerEvents',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "pointer.enabled",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'Log',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "logging.log_writer_name",
+            type => KasmVNC::ConfigKey::ANY
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "logging.log_dest",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(logfile syslog)]
+            })
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "logging.level",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+
+          my $writerName = $self->{"logging.log_writer_name"};
+          if ($writerName eq "all") {
+            $writerName = "*";
+          }
+
+          my $log_dest = $self->{"logging.log_dest"};
+          if ($log_dest eq "logfile") {
+            $log_dest = "stdout";
+          }
+          my $level = $self->{"logging.level"};
+
+          "$writerName:$log_dest:$level";
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'BlacklistThreshold',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "security.brute_force_protection.blacklist_threshold",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'BlacklistTimeout',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "security.brute_force_protection.blacklist_timeout",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_Region',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.visible_region.top",
+            validator => $regionValidator
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.visible_region.left",
+            validator => $regionValidator
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.visible_region.right",
+            validator => $regionValidator
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.visible_region.bottom",
+            validator => $regionValidator
+          }),
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+
+          join ",", ($self->{"data_loss_prevention.visible_region.left"},
+            $self->{"data_loss_prevention.visible_region.top"},
+            $self->{"data_loss_prevention.visible_region.right"},
+            $self->{"data_loss_prevention.visible_region.bottom"}
+          );
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_RegionAllowClick',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.visible_region.concealed_region.allow_click_down",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_RegionAllowRelease',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.visible_region.concealed_region.allow_click_release",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_ClipDelay',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.delay_between_operations",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(none|\d+)$/,
+              errorMessage => "must be 'none' or a number in milliseconds"
+            }),
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if ($value eq "none") {
+            $value = 0;
+          }
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'SendCutText',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.server_to_client.enabled",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_ClipSendMax',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.server_to_client.size",
+            validator => $clipboardSizeValidator
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if ($value eq "unlimited") {
+            $value = 0;
+          }
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'SendPrimary',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.server_to_client.primary_clipboard_enabled",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'AcceptCutText',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.client_to_server.enabled",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_ClipAcceptMax',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.client_to_server.size",
+            validator => $clipboardSizeValidator
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if ($value eq "unlimited") {
+            $value = 0;
+          }
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'AcceptKeyEvents',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.keyboard.enabled",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_KeyRateLimit',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.keyboard.rate_limit",
+            validator => $clipboardSizeValidator
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if ($value eq "unlimited") {
+            $value = 0;
+          }
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkImage',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.image",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkLocation',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.location",
+            type => KasmVNC::ConfigKey::ANY,
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^\d+,\d+$/,
+              errorMessage => "Must be an x and y offset separated by a comma: 10,10"
+            })
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkTint',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.tint",
+            type => KasmVNC::ConfigKey::ANY,
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^\d{1,3},\d{1,3},\d{1,3},\d{1,3}$/,
+              errorMessage => "Must be RBGA formatted: 255,255,255,128"
+            })
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkRepeatSpace',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.repeat_spacing",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkText',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.text.template",
+            validator => KasmVNC::CallbackValidator->new({
+              isValidCallback => sub {
+                my $value = shift;
+
+                isBlank(ConfigValue("data_loss_prevention.watermark.image"));
+              },
+              errorMessage => "Watermark image and text can't be used at the same time"
+            }),
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkFont',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.text.font",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value ne "auto";
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkFontSize',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.text.font_size",
+            validator => KasmVNC::CallbackValidator->new({
+              isValidCallback => sub {
+                my $value = shift;
+
+                return 0 unless $value =~ /^\d+$/;
+
+                $value >= 8 && $value <= 256;
+              },
+              errorMessage => "must be in range 8..256"
+            }),
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkTimeOffsetMinutes',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.text.timezone_name",
+            validator => KasmVNC::CallbackValidator->new({
+              isValidCallback => sub {
+                my $timezone_name = shift;
+
+                DateTime::TimeZone->is_valid_name($timezone_name);
+              },
+              errorMessage => "must be a valid timezone name like Australia/Adelaide"
+            })
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $timezone_name = $self->configValue();
+          my $dt = DateTime->now(time_zone => $timezone_name);
+          my $offset_in_seconds = $dt->offset();
+
+          $offset_in_seconds/60;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_WatermarkTextAngle',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.watermark.text.angle",
+            validator => KasmVNC::CallbackValidator->new({
+              isValidCallback => sub {
+                my $value = shift;
+
+                return 0 unless $value =~ /^-?\d+$/;
+
+                $value >= -359 && $value <= 359;
+              },
+              errorMessage => "must be in range -359..359"
+            }),
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_Log',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.logging.level",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(off info verbose)]
+            })
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'FrameRate',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.max_frame_rate",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DynamicQualityMin',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.rect_encoding_mode.min_quality",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DynamicQualityMax',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.rect_encoding_mode.max_quality",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'TreatLossless',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.rect_encoding_mode.consider_lossless_quality",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'RectThreads',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.rect_encoding_mode.rectangle_compress_threads",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|\d+)$/,
+              errorMessage => "must be 'auto' or a number in milliseconds"
+            }),
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if ($value eq "auto") {
+            $value = 0;
+          }
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'JpegVideoQuality',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.jpeg_quality",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'WebpVideoQuality',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.webp_quality",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'MaxVideoResolution',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.max_resolution.width",
+            type => KasmVNC::ConfigKey::INT
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.max_resolution.height",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          $self->{'encoding.video_encoding_mode.max_resolution.width'} . "x"
+            . $self->{'encoding.video_encoding_mode.max_resolution.height'};
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'VideoTime',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.enter_video_encoding_mode.time_threshold",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'VideoArea',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.enter_video_encoding_mode.area_threshold",
+            validator => $percentValidator
+          })
+        ],
+        deriveValueSub => $deriveValueStripPercentSub
+    }),
+    KasmVNC::CliOption->new({
+        name => 'VideoOutTime',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.exit_video_encoding_mode.time_threshold",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'PrintVideoArea',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.logging.level",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(off info)]
+            })
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          switch($value) {
+            case 'off' { return 0 }
+            case 'info' { return 1 }
+          }
+
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'VideoScaling',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.scaling_algorithm",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(nearest bilinear progressive_bilinear)]
+            })
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          switch($value) {
+            case 'nearest' { return 0 }
+            case 'bilinear' { return 1 }
+            case 'progressive_bilinear' { return 2 }
+          }
+
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'WebpEncodingTime',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.video_encoding_mode.webp_encoding_time",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'CompareFB',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.compare_framebuffer",
+            validator => KasmVNC::EnumValidator->new({
+              allowedValues => [qw(off always auto)]
+            })
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          switch($value) {
+            case 'off' { return 0 }
+            case 'always' { return 1 }
+            case 'auto' { return 2 }
+          }
+
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'ZlibLevel',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.zrle_zlib_level",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|[0-9])$/,
+              errorMessage => "must be 'auto' or a number in 0..9"
+            }),
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value ne "auto";
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'ImprovedHextile',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.hextile_improved_compression",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'httpd',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.http.httpd_directory",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'http-header',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.http.headers",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        toStringSub => sub {
+          $self = shift;
+
+          my @values = @{ listify($self->configValues()) };
+
+          my $valuesStr = "";
+          foreach $value (@values) {
+            $valuesStr = $valuesStr . "-http-header '$value' "
+          }
+          chop($valuesStr);
+          return $valuesStr;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'IgnoreClientSettingsKasm',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "runtime_configuration.allow_client_to_override_kasm_server_settings",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+
+          switch($value) {
+            case 'true' {
+              $value = 0;
+            }
+            case 'false' {
+              $value = 1;
+            }
+          }
+
+          $value;
+      }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'fp',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.advanced.x_font_path",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          return $value if isPresent($value) && $value ne 'auto';
+
+          $fontPath;
+        },
+        isActiveSub => sub {
+          my $self = shift;
+
+          my $value = $self->configValue();
+          return 1 if isPresent($value) && $value ne 'auto';
+
+          $fontPath;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'KasmPasswordFile',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.advanced.kasm_password_file",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'MaxDisconnectionTime',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.auto_shutdown.no_user_session_timeout",
+            validator => $secondsValidator
+          })
+        ],
+        deriveValueSub => \&deriveSeconds
+    }),
+    KasmVNC::CliOption->new({
+        name => 'MaxConnectionTime',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.auto_shutdown.active_user_session_timeout",
+            validator => $secondsValidator
+          })
+        ],
+        deriveValueSub => \&deriveSeconds
+    }),
+    KasmVNC::CliOption->new({
+        name => 'MaxIdleTime',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.auto_shutdown.inactive_user_session_timeout",
+            validator => $secondsValidator
+          })
+        ],
+        deriveValueSub => \&deriveSeconds
+    }),
+    KasmVNC::CliOption->new({
+        name => 'auth',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "server.advanced.x_authority_file",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          return $value if isPresent($value) && $value ne 'auto';
+
+          $xauthorityFile;
+        },
+        isActiveSub => sub { 1; }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'desktop',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "legacy.desktop_name",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if (isBlank($value) || $value eq "default") {
+            $desktopName = DefaultDesktopName();
+            return $desktopName;
+          }
+
+          $desktopName = $value;
+        },
+        isActiveSub => sub { 1; }
+     }),
+     KasmVNC::CliOption->new({
+        name => 'AllowOverride',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "runtime_configuration.allow_override_standard_vnc_server_settings",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          }),
+          KasmVNC::ConfigKey->new({
+            name => "runtime_configuration.allow_override_list",
+            validator => $allConfigKeysValidatorSub
+          })
+        ],
+        deriveValueSub => sub {
+          $self = shift;
+
+          my @overrideList = @{
+            listify($self->{'runtime_configuration.allow_override_list'})
+          };
+
+          my @cliOptionList = map { cliOptionForConfigKey($_) } @overrideList;
+          @cliOptionList = map { $_->{name} } @cliOptionList;
+
+          join ",", @cliOptionList;
+        },
+        isActiveSub => sub {
+          $self = shift;
+
+          my $allowOverride = $self->{'runtime_configuration.allow_override_standard_vnc_server_settings'};
+          return unless defined($allowOverride);
+
+          $allowOverride eq "true";
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DLP_ClipTypes',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "data_loss_prevention.clipboard.allow_mimetypes",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'QueryConnectTimeout',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "user_session.concurrent_connections_prompt_timeout",
+            type => KasmVNC::ConfigKey::INT
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'PublicIP',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.udp.public_ip",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|$ipv4_regexp|$ipv6_regexp)$/,
+              errorMessage => "must be 'auto' or a valid IPv4 or IPv6 address"
+            }),
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value ne 'auto';
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'udpFullFrameFrequency',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.full_frame_updates",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(none|\d+)$/,
+              errorMessage => "must be 'none' or an integer"
+            }),
+          })
+        ],
+        deriveValueSub => sub {
+          my $self = shift;
+          my $value = $self->configValue();
+
+          if ($value eq "none") {
+            $value = 0;
+          }
+          $value;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'udpSize',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.udp.payload_size",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|\d+)$/,
+              errorMessage => "must be 'auto' or an integer"
+            }),
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value ne 'auto';
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'udpPort',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.udp.port",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|\d+)$/,
+              errorMessage => "must be 'auto' or an integer"
+            }),
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value ne 'auto';
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'StunServer',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "network.udp.stun_server",
+            validator => KasmVNC::PatternValidator->new({
+              pattern => qr/^(auto|\S+)$/,
+              errorMessage => "must be 'auto' or an IP address/hostname"
+            }),
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value ne 'auto';
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'hw3d',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "desktop.gpu.hw3d",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ],
+        toStringSub => sub {
+          $self = shift;
+          my $value = $self->configValue();
+
+          switch($value) {
+            case 'true' {
+              $valuesStr = '-hw3d ';
+            }
+            case 'false' {
+              $valuesStr = ' ';
+            }
+          }
+
+          return $valuesStr;
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'drinode',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "desktop.gpu.drinode",
+            type => KasmVNC::ConfigKey::ANY
+          })
+        ]
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DetectScrolling',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.scrolling.detect_vertical_scrolling",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value eq 'true';
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'DetectHorizontal',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.scrolling.detect_horizontal_scrolling",
+            type => KasmVNC::ConfigKey::BOOLEAN,
+            validator => KasmVNC::CallbackValidator->new({
+              isValidCallback => sub {
+                my $value = shift;
+
+                return 1 if $value eq "false";
+
+                ConfigValue("encoding.scrolling.detect_vertical_scrolling") eq "true";
+              },
+              errorMessage => "Detection of horizontal scrolling requires detection of vertical scrolling enabled"
+            }),
+          })
+        ],
+        isActiveSub => sub {
+          $self = shift;
+
+          my $value = $self->configValue();
+          isPresent($value) && $value eq 'true';
+        }
+    }),
+    KasmVNC::CliOption->new({
+        name => 'ScrollDetectLimit',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "encoding.scrolling.scroll_detect_threshold",
+            validator => $percentValidator
+          })
+        ],
+        deriveValueSub => $deriveValueStripPercentSub
+    }),
+  );
+
+  %cliArgMap = map { ("-" . $_->{name}) => $_ } @xvncOptions;
+  %configKeyToXvncOptionMap = map {
+    my $option = $_;
+
+    map { $_->{name} => $option } @{ $option->{configKeys} };
+  } @xvncOptions;
+  # my $xvncDoc = "./Xvnc.md";
+  # open(FH, '<', $xvncDoc) or die $!;
+
+  # while(<FH>){
+  #   if (m/\* \*\*-(\w+)/) {
+  #     my $optionName = $1;
+  #     if ($optionName) {
+  #       $optionName = "-$optionName";
+  #       my $cliOption = $cliArgMap{$optionName};
+  #       if ($cliOption) {
+  #         my @keys = @{ $cliOption->configKeyNames() };
+  #         say '### ' . join(", ", @keys);
+  #       }
+  #     }
+  #   }
+  #   print $_;
+  # }
+
+  # close(FH);
+  # exit 0;
+}
+
+sub PromptingAllowed {
+  $appSettings{prompt}
+}
+
+sub PromptingDisabled {
+  !PromptingAllowed();
+}
+
+sub cliOptionForConfigKey {
+  my $configKey = shift;
+
+  my $cliOptionForConfigKey = first { $_->hasKey($configKey) } @xvncOptions;
+}
+
+sub deriveSeconds {
+  my $self = shift;
+
+  my $value = $self->configValue();
+  return 0 if $value eq 'never';
+
+  $value;
+}
+
+sub deriveFromConfigAndLocalCli {
+  my $self = shift;
+
+  my $cliOptionName = "-" . $self->{name};
+  my $cliOptionValue = $opt{$cliOptionName};
+  my $configValue = deriveBoolean($self->configValue());
+
+  return $configValue unless defined($cliOptionValue);
+
+  $cliOptionValue;
+}
+
+sub ParseAndProcessCliOptions {
+  my @supportedOptions = ("-geometry",1,"-kill",1,"-help",0,"-h",0,"--help",0,"-fp",1,"-list",0,"-fg",0,"-autokill",0,"-noxstartup",0,"-xstartup",1,"-select-de",OPTIONAL_ARG_VALUE, "-interface", REQUIRED_ARG_VALUE, '-debug', NO_ARG_VALUE, '-websocketPort', REQUIRED_ARG_VALUE, "-dry-run", NO_ARG_VALUE, '-config', REQUIRED_ARG_VALUE, '-test-output-topic', REQUIRED_ARG_VALUE, '-prompt', REQUIRED_ARG_VALUE);
+  @vncserverOptions = (
+    KasmVNC::CliOption->new({
+        name => 'prompt',
+        configKeys => [
+          KasmVNC::ConfigKey->new({
+            name => "command_line.prompt",
+            type => KasmVNC::ConfigKey::BOOLEAN
+          })
+        ],
+        deriveValueSub => \&deriveFromConfigAndLocalCli
+    })
+  );
+  ParseOptionsAndRemoveMatchesFromARGV(@supportedOptions);
+  ProcessCliOptions();
+  CheckGeometryAndDepthAreSensible();
+
+  $displayNumber = DetectDisplayNumberFromCliArgs();
+  if (!defined($displayNumber)) {
+    $displayNumber = GetLowestAvailableDisplayNumber();
+  }
+  CheckCliOptionsForBeingValid();
+}
+
+sub CheckBrowserHostDefined {
+  return if IsDryRun();
+
+  scalar DeduceBrowserHosts() > 0 || \
+    die "-interface has no default value and wasn't passed by user";
+}
+
+sub DefaultDesktopName {
+  "$host:$displayNumber ($systemUser)";
+}
+
+sub GenerateWebsocketPortFromDisplayNumber {
+  $defaultWebsocketPort + $displayNumber;
+}
+
+sub LoadUsers {
+  $users = KasmVNC::Users->loadFrom($kasmPasswdFile);
+}
+
+sub EnsureAtLeastOneKasmUserExists {
+  return if IsDryRun();
+
+  LoadUsers();
+
+  unless (PromptingAllowed()) {
+    return unless $users->is_empty();
+
+    $logger->warn(<<TEXT);
+No users configured and prompting is prohitibed, exiting.
+Use vncpasswd(1) to add a user or enable command_line.prompt in config.
+TEXT
+    exit 1;
+  }
+
+  return if AtLeastOneUserWithWriteAccessConfigured();
+
+  GuideUserToAddWritePermissionsToExistingUser();
+  $users->reload();
+}
+
+sub GuideUserToAddWritePermissionsToExistingUser {
+  my @options = ();
+
+  my @users = sort $users->users();
+  foreach my $user (@users) {
+    my $name = $user->name();
+    push(@options, KasmVNC::TextOption->new({
+        description =>
+          "Provide user '$name' with write access",
+        callback => sub {
+          $users->addPermissions($name, "w");
+          say "Added write permissions for user '$name'";
+        }
+    }));
+  }
+  push(@options, KasmVNC::TextOption->new({
+      description => "Create a new user with write access",
+      callback => sub {
+        GuideUserToSetupKasmPasswdUser();
+        $users->reload();
+      }
+  }));
+  push(@options, KasmVNC::TextOption->new({
+      description => "Start KasmVNC without a user with write access"
+  }));
+
+  my $banner = <<"NEEDTOADDWRITEPERMISSIONS";
+
+In order to control your desktop, you need a KasmVNC user with write
+permissions. Select what action to take:
+NEEDTOADDWRITEPERMISSIONS
+
+  my $option = askUserToChooseOption(
+    banner => $banner,
+    prompt => 'Provide selection number',
+    options => \@options,
+  );
+
+  &{ $option->callback() }();
+}
+
+sub AtLeastOneUserWithWriteAccessConfigured {
+  $users->findByPermissions("w") > 0;
+}
+
+sub ShouldPrintTopic {
+  my $topic = shift;
+
+  return 1 unless ($testOutputTopic);
+  return 1 if ($testOutputTopic eq "all");
+
+  $topic eq $testOutputTopic;
+}
+
+sub SupportedAbsoluteKeys {
+  my @supportedAbsoluteKeys =
+    map { $_->configKeyNames() } (@allCliOptions, @configSettings);
+  @supportedAbsoluteKeys = flatten(@supportedAbsoluteKeys);
+  my %result = map { $_ => 1 } @supportedAbsoluteKeys;
+
+  \%result;
+}
+
+sub SupportedSectionsFromAbsoluteKey {
+  my $absoluteKey = shift;
+  my @sections = ();
+
+  return @sections unless ($absoluteKey =~ /\./);
+
+  while ($absoluteKey =~ /\./) {
+    $absoluteKey =~ s/\.[^\.]+$//;
+    push @sections, $absoluteKey;
+  }
+  push @sections, $absoluteKey;
+
+  @sections;
+}
+
+sub StartXvncOrExit {
+  $cmd = ConstructXvncCmd();
+  CheckSslCertReadable();
+  say $cmd if ($debug || IsDryRun()) && ShouldPrintTopic("xvnc-cmd");
+
+  exit(0) if IsDryRun();
+
+  CheckBrowserHostDefined();
+  DeleteLogLeftFromPreviousXvncRun();
+  StartXvncAndRecordPID();
+  WaitForXvncToRespond();
+
+  if (!IsXvncRunning() && !UsingSafeFontPath())  {
+    StartXvncWithSafeFontPath();
+    WaitForXvncToRespond();
+  }
+
+  unless (IsXvncRunning()) {
+    WarnUserXvncNotStartedAndExit();
+  }
+}
+
+sub WaitForTimeLimitOrSubReturningTrue {
+  my ($timeLimit, $sub) = @_;
+  my $sleepSlice = 0.05;
+  my $sleptFor = 0;
+
+  until (&$sub() || $sleptFor >= $timeLimit) {
+    sleep($sleepSlice);
+    $sleptFor += $sleepSlice;
+  }
+}
+
+sub IsProcessRunning {
+  my $pid = shift;
+  unless ($pid) { return 0 };
+
+  kill 0, $pid;
+}
+
+sub DefineLogAndPidFilesForDisplayNumber {
+  $desktopLog = "$vncUserDir/$host:$displayNumber.log";
+  $pidFile = "$vncUserDir/$host:$displayNumber.pid";
+}
+
+sub PrepareLoggingAndXvncKillingFramework {
+  CreateDotVncDir();
+  DefineLogAndPidFilesForDisplayNumber();
+}
+
+sub AllowXProgramsToConnectToXvnc {
+  SetupXauthorityFile();
+}
+
+sub PrintLogFilenameAndConfiguredUsersAndStuff {
+  $logger->warn("\nNew '$desktopName' desktop is $host:$displayNumber");
+  PrintKasmUsers();
+  $logger->warn("Log file is $desktopLog\n");
+}
+
+sub PrintBrowserUrl {
+  my $browserUrls = ConstructBrowserUrl();
+  $logger->warn("\nPaste this url in your browser:\n$browserUrls");
+}
+
+sub IsAllInterfaces {
+  my $interface = shift;
+
+  $interface eq "0.0.0.0";
+}
+
+sub DeduceBrowserHosts {
+  my @browserHosts;
+  my $interface = $opt{"-interface"} || $optFromConfig{"-interface"};
+
+  if (IsAllInterfaces($interface)) {
+    @browserHosts = @hostIPs;
+  } else {
+    @browserHosts = ($interface);
+  }
+
+  @browserHosts;
+}
+
+sub ConstructBrowserUrl {
+  my @browserHosts = DeduceBrowserHosts();
+  my $browserPort = $opt{"-websocketPort"} || $optFromConfig{"-websocketPort"};
+
+  my @urls = map { "https://$_:$browserPort" } @browserHosts;
+  join "\n", @urls;
+}
+
+sub IsThisSystemBinary {
+  $0 =~ m!^/usr!;
+}
+
+sub DetectSelectDeBin {
+  if (IsThisSystemBinary()) {
+    "/usr/lib/kasmvncserver/select-de.sh";
+  } else {
+    LocalSelectDePath();
+  }
+}
+
+sub LocalSelectDePath {
+  my $dirname = dirname($0);
+  "$dirname/../builder/startup/deb/select-de.sh";
+}
+
+sub IsDryRun {
+  $opt{"-dry-run"};
+}
+
+sub LoadConfig {
+  my $filename = shift;
+
+  return if IsConfigOptionalAndNotReadable($filename);
+
+  my $config = KasmVNC::Config->new({ filename => $filename });
+
+  $config;
+}
+
+sub FailIfConfigNotReadable {
+  my $config = shift;
+
+  -r $config || die "Couldn't load config: $config";
+}
+
+sub IsConfigOptionalAndNotReadable {
+  my $config = shift;
+
+  $config eq $vncUserConfig && ! -r $config;
+}
+
+sub TrimEmptyNodes {
+  my $config = shift;
+  my @supportedSections = @{ listify(SupportedSections()) };
+  my @sectionsToCheck = reverse sort @supportedSections;
+
+  foreach my $section (@sectionsToCheck) {
+    if ($config->isEmpty($section)) {
+      $config->delete($section);
+    }
+  }
+}
+
+sub ConfigValue {
+  my ($absoluteKey, $configRef) = @_;
+  $configRef ||= $mergedConfig;
+
+  return $configRef->get($absoluteKey);
+}
+
+sub SetConfigValue {
+  my ($absoluteKey, $value, $configRef) = @_;
+  $configRef ||= $mergedConfig;
+
+  $configRef->set($absoluteKey, $value);
+}
+
+sub DerivedValue {
+  my $absoluteKey = shift;
+
+  $configKeyToXvncOptionMap{$absoluteKey}->toValue();
+}
+
+sub LoadConfigs {
+  @allCliOptions = (@xvncOptions, @vncserverOptions);
+
+  my @configs = map { LoadConfig $_ } @configFiles;
+  foreach my $config (@configs) {
+    TrimEmptyNodes($config);
+  }
+  $mergedConfig = KasmVNC::Config::merge(@configs);
+}
+
+sub SupportedSections {
+  my %supportedAbsoluteKeys = %{ SupportedAbsoluteKeys() };
+  my @supportedSections = map { SupportedSectionsFromAbsoluteKey($_) }
+    (keys %supportedAbsoluteKeys);
+  @supportedSections = uniq(flatten(@supportedSections));
+
+  @supportedSections;
+}
+
+sub EmptySectionsDefinedInConfig {
+  my @supportedSections = @{ listify(SupportedSections()) };
+  my %configAbsoluteKeys = %{ ConfigAbsoluteKeys() };
+
+  my @emptySections = grep($configAbsoluteKeys{$_} && isBlank(ConfigValue($_)),
+    @supportedSections);
+  uniq @emptySections;
+}
+
+sub ConfigAbsoluteKeys {
+  my %configAbsoluteKeys = map { $_ => 1 }
+    (ConfigToAbsoluteKeyList("", $mergedConfig->{data}));
+  \%configAbsoluteKeys;
+}
+
+sub CheckForUnsupportedConfigKeys {
+  my %supportedAbsoluteKeys = %{ SupportedAbsoluteKeys() };
+  my @configAbsoluteKeys = ConfigToAbsoluteKeyList("", $mergedConfig->{data});
+  my @unsupportedAbsoluteKeys =
+    grep(!defined($supportedAbsoluteKeys{$_}), @configAbsoluteKeys);
+
+  return if (scalar @unsupportedAbsoluteKeys == 0);
+
+  if (ShouldPrintTopic("validation")) {
+    $logger->warn("Unsupported config keys found:");
+    $logger->warn(join("\n", @unsupportedAbsoluteKeys));
+    $logger->warn();
+  }
+
+  exit 1;
+}
+
+sub ConstructOptFromConfig{
+  my %result;
+
+  foreach my $cliOption (values %cliArgMap) {
+    my $cliArg = "-$cliOption->{name}";
+    next if WasOptionSpecifiedViaCli($cliArg);
+
+    my $optionValue = $cliOption->toValue();
+    next unless defined($cliOption->toString());
+
+    $result{$cliArg} = $optionValue;
+  }
+
+  \%result;
+}
+
+sub ConfigToCmd {
+  %optFromConfig = %{ ConstructOptFromConfig() };
+
+  my @cmd = map { $cliArgMap{$_}->toString() } (keys %optFromConfig);
+  my $cmdStr = " " . join " ", @cmd;
+
+  return $cmdStr;
+}
+
+sub ValidateConfigValues {
+  foreach my $setting (@allCliOptions, @configSettings) {
+    ValidateSetting($setting);
+  }
+}
+
+sub ValidateSetting {
+  my $setting = $_[0];
+
+  return if ($setting->isValid());
+
+  if (ShouldPrintTopic("validation")) {
+    $logger->warn("config errors:");
+    $logger->warn($setting->errorMessages());
+    $logger->warn();
+  }
+
+  exit 1;
+}
+
+sub ConfigToAbsoluteKeyList {
+  my $keyPrefix = $_[0];
+  my %configPart = %{ $_[1] };
+
+  my @absoluteKeys;
+
+  foreach my $key (keys %configPart) {
+    my $absoluteKey;
+    if ($keyPrefix) {
+      $absoluteKey = "$keyPrefix.$key";
+    } else {
+      $absoluteKey = $key;
+    }
+
+    if (!defined($configPart{$key})) {
+      push @absoluteKeys, $absoluteKey;
+      next;
+    }
+
+    if (ref $configPart{$key} ne "HASH") {
+      push @absoluteKeys, $absoluteKey;
+      next;
+    }
+
+    push @absoluteKeys,
+      ConfigToAbsoluteKeyList($absoluteKey, \% { $configPart{$key} });
+  }
+
+  @absoluteKeys;
+}
+
+sub ActivateConfigToCLIConversion {
+  foreach my $option (@xvncOptions){
+    $option->activate();
+  }
+}
+
+sub SetAppSettingsFromConfigAndCli {
+  foreach my $option (@vncserverOptions) {
+    my $value = $option->deriveValue();
+
+    $appSettings{$option->{name}} = $value;
+  }
+}
+
+sub InitLogger {
+  my $debugEnabled = any { $_ eq "-debug" } @ARGV;
+  $logger = KasmVNC::Logger->new({ level => $debugEnabled ? "debug" : "warn" });
+}
+
+sub UseUtfStdio {
+  use open qw( :std :encoding(UTF-8) );
+}
+
+sub DefinePossibleConfigSettings {
+  DefineConfigToCLIConversion();
+  DefineConfigSettings();
+}
+
+sub  DefineConfigSettings {
+  @configSettings = (
+    KasmVNC::ConfigSetting->new({
+        configKey => KasmVNC::ConfigKey->new({
+          name => "server.allow_environment_variables_to_override_config_settings",
+          type => KasmVNC::ConfigKey::BOOLEAN
+        })
+    }),
+  );
+}
+
+sub InterpolateEnvVarsIntoConfigValues {
+  my @interpolationDenylist = (
+    "server.allow_environment_variables_to_override_config_settings"
+  );
+  my %supportedAbsoluteKeys = %{ SupportedAbsoluteKeys() };
+
+  delete @supportedAbsoluteKeys{@interpolationDenylist};
+
+  for my $absoluteKey (keys %supportedAbsoluteKeys) {
+    my $value = ConfigValue($absoluteKey);
+    my $interpolatedValue = interpolateEnvVars($value);
+    SetConfigValue($absoluteKey, $interpolatedValue);
+  }
+}

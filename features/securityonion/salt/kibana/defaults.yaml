@@ -1,0 +1,39 @@
+kibana:
+  enabled: False
+  config:
+    server:
+      name: kibana
+      host: "0.0.0.0"
+      basePath: /kibana
+      rewriteBasePath: false
+    elasticsearch:
+      ssl:
+        verificationMode: none
+      requestTimeout: 90000
+    logging:
+      appenders:
+        file:
+          type: file
+          fileName: /var/log/kibana/kibana.log
+          layout:
+            type: json
+      root:
+        appenders: 
+          - default
+          - file
+    migrations:
+      discardCorruptObjects: "8.18.8"
+    telemetry:
+      enabled: False
+    security:
+      showInsecureClusterWarning: False
+    xpack:
+      security:
+        secureCookies: true
+      reporting:
+        kibanaServer:
+          hostname: localhost
+      fleet:
+        registryUrl: ""
+      apm:
+        enabled: false

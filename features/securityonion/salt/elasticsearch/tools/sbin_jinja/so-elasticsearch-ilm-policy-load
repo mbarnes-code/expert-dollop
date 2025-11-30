@@ -1,0 +1,35 @@
+#!/bin/bash
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+. /usr/sbin/so-common
+
+{%- from 'elasticsearch/template.map.jinja' import ES_INDEX_SETTINGS %}
+
+{%- for index, settings in ES_INDEX_SETTINGS.items() %}
+{%-   if settings.policy is defined %}
+{%-     if index == 'so-logs-detections.alerts' %}
+  echo
+  echo "Setting up so-logs-detections.alerts-so policy..."
+  curl -K /opt/so/conf/elasticsearch/curl.config -b "sid=$SESSIONCOOKIE" -s -k -L -X PUT "https://localhost:9200/_ilm/policy/{{ index }}-so" -H 'Content-Type: application/json' -d'{ "policy": {{ settings.policy | tojson(true) }} }'
+  echo
+{%-     elif index == 'so-logs-soc' %}
+  echo
+  echo "Setting up so-soc-logs policy..."
+  curl -K /opt/so/conf/elasticsearch/curl.config -b "sid=$SESSIONCOOKIE" -s -k -L -X PUT "https://localhost:9200/_ilm/policy/so-soc-logs" -H 'Content-Type: application/json' -d'{ "policy": {{ settings.policy | tojson(true) }} }'
+  echo
+  echo
+  echo "Setting up {{ index }}-logs policy..."
+  curl -K /opt/so/conf/elasticsearch/curl.config -b "sid=$SESSIONCOOKIE" -s -k -L -X PUT "https://localhost:9200/_ilm/policy/{{ index }}-logs" -H 'Content-Type: application/json' -d'{ "policy": {{ settings.policy | tojson(true) }} }'
+  echo
+{%-     else %}
+  echo
+  echo "Setting up {{ index }}-logs policy..."
+  curl -K /opt/so/conf/elasticsearch/curl.config -b "sid=$SESSIONCOOKIE" -s -k -L -X PUT "https://localhost:9200/_ilm/policy/{{ index }}-logs" -H 'Content-Type: application/json' -d'{ "policy": {{ settings.policy | tojson(true) }} }'
+  echo
+{%-     endif %}
+{%-   endif %}
+{%- endfor %}
+echo

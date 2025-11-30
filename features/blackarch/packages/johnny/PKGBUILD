@@ -1,0 +1,38 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=johnny
+pkgver=20120424
+pkgrel=9
+groups=('blackarch' 'blackarch-cracker')
+pkgdesc='GUI for John the Ripper.'
+url='http://openwall.info/wiki/john/johnny'
+arch=('x86_64' 'aarch64')
+license=('GPL')
+depends=('qt4>=4.7.0' 'john')
+makedepends=('git')
+source=("git+http://github.com/AlekseyCherepanov/$pkgname.git"
+        "$pkgname-128.png"
+        "$pkgname.desktop")
+sha512sums=('SKIP'
+            'e67c16802b19b5fa169cc9c804b0ea295f4b39ef9cf7af4693c8b8e490eedfcf7e1edef6e52c19120a7d2ae4fac618bdabb359d3900afdfe9c23d9f6069fd4d0'
+            '72d367b12f4ae0acf3b3dee055527a3cafba6e507645d94ec659e1e34d8c707bc79eeda9e641bc9cec51ddd11f23c27e50722357d5fc3a03753ea4b55f03d828')
+
+build() {
+  cd $pkgname
+
+  /usr/lib/qt4/bin/qmake
+
+  make
+}
+
+package() {
+  cd $pkgname
+
+  install -Dm 755 "$srcdir/$pkgname/$pkgname" "$pkgdir/usr/bin/$pkgname"
+  install -Dm 644 "$srcdir/$pkgname-128.png" \
+    "$pkgdir/usr/share/pixmaps/$pkgname.png"
+  install -Dm 644 "$srcdir/$pkgname.desktop" \
+    "$pkgdir/usr/share/applications/$pkgname.desktop"
+}
+

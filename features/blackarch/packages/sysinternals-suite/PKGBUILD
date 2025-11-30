@@ -1,0 +1,35 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=sysinternals-suite
+pkgver=6.9
+pkgrel=1
+epoch=1
+groups=('blackarch' 'blackarch-windows')
+pkgdesc='Sysinternals tools suite.'
+url='http://sysinternals.com/'
+license=('custom:unknown')
+arch=('any')
+source=('http://download.sysinternals.com/files/SysinternalsSuite.zip')
+sha512sums=('b6cf715b9cc856325b2dd7e70c1edc8a65fcb25c4b01ebba54c9a7b4001097b0818610c59885e457994fbf3e63f41baba64614c5534edea0ef368d935a1099b8')
+
+package() {
+  install -dm 755 "$pkgdir/usr/share/windows/$pkgname"
+
+  find . -type l -exec rm {} \;
+
+  # Transform all files to lowercase
+  for f in * ; do
+    lc=$(echo $f | tr '[A-Z]' '[a-z]')
+
+    if [ ! -f $f -o -f $lc ]; then
+      continue
+    fi
+
+    mv -i $f $lc
+  done
+
+  install -m 755 *.exe *.sys "$pkgdir/usr/share/windows/$pkgname"
+  install -m 644 *.chm *.txt "$pkgdir/usr/share/windows/$pkgname"
+}
+

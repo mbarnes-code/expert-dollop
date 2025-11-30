@@ -1,0 +1,48 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgbase=python-tracer
+pkgname=('python2-tracer' 'python-tracer')
+_pkgname=tracer
+pkgver=2.0.0
+pkgrel=1
+pkgdesc='Centralized sys.settrace management.'
+arch=('any')
+url='https://pypi.python.org/pypi/tracer/'
+license=('GPL3')
+makedepends=('python2-setuptools' 'python-setuptools')
+source=("https://pypi.python.org/packages/41/7c/73012494a7aa0d2e693ef0dc29304ea7968ac86a034ce8c0b0acd83640e3/$_pkgname-$pkgver.tar.gz")
+sha512sums=('e25856063df777edce8b0bd49a273a7d77fab60d1114b70a22274e8fad9de5367d2c30d20eabdd48b3a66887c2542967ee6d9219c2d1d4fcbd2898294a6ed665')
+
+prepare() {
+  cp -a "$_pkgname-$pkgver"{,-2}
+}
+
+build() {
+  cd "$_pkgname-$pkgver-2"
+
+  python2 setup.py build
+
+  cd "$srcdir/$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package_python2-tracer() {
+  depends=('python2')
+
+  cd "$_pkgname-$pkgver-2"
+
+  python2 setup.py install --prefix=/usr --root="$pkgdir" --optimize=1 \
+    --skip-build
+}
+
+package_python-tracer() {
+  depends=('python')
+
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --prefix=/usr --root="$pkgdir" --optimize=1 \
+    --skip-build
+}
+

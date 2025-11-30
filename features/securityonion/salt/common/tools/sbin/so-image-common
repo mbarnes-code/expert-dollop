@@ -1,0 +1,207 @@
+#!/bin/bash
+#
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+
+
+# NOTE: This script depends on so-common
+IMAGEREPO=security-onion-solutions
+STATUS_CONF='/opt/so/conf/so-status/so-status.conf'
+
+# shellcheck disable=SC2120
+container_list() {
+  MANAGERCHECK=$1
+  
+  if [ -z "$MANAGERCHECK" ]; then
+    MANAGERCHECK=so-unknown
+    if [ -f /etc/salt/grains ]; then
+      MANAGERCHECK=$(cat /etc/salt/grains | grep role | awk '{print $2}')
+    fi
+  fi
+
+  if [ $MANAGERCHECK == 'so-import' ]; then
+    TRUSTED_CONTAINERS=(
+      "so-elasticsearch"
+      "so-idstools"
+      "so-influxdb"
+      "so-kibana"
+      "so-kratos"
+      "so-hydra"
+      "so-nginx"
+      "so-pcaptools"
+      "so-soc"
+      "so-steno"
+      "so-suricata"
+      "so-telegraf"
+      "so-zeek"
+      "so-elastic-agent"
+      "so-elastic-agent-builder"
+      "so-elastic-fleet-package-registry"
+    )
+  elif [ $MANAGERCHECK != 'so-helix' ]; then
+    TRUSTED_CONTAINERS=(
+      "so-elastalert"
+      "so-elastic-agent"
+      "so-elastic-agent-builder"
+      "so-elastic-fleet-package-registry"
+      "so-elasticsearch"
+      "so-idh"
+      "so-idstools"
+      "so-influxdb"
+      "so-kafka"
+      "so-kibana"
+      "so-kratos"
+      "so-hydra"
+      "so-logstash"
+      "so-nginx"
+      "so-pcaptools"
+      "so-redis"
+      "so-soc"
+      "so-steno"
+      "so-strelka-backend"
+      "so-strelka-filestream"
+      "so-strelka-frontend"
+      "so-strelka-manager"
+      "so-suricata"
+      "so-telegraf"
+      "so-zeek"
+    )
+  else
+    TRUSTED_CONTAINERS=(
+      "so-idstools"
+      "so-elasticsearch"
+      "so-logstash"
+      "so-nginx"
+      "so-redis"
+      "so-steno"
+      "so-suricata"
+      "so-soc"
+      "so-telegraf"
+      "so-zeek" 
+    )
+  fi
+}
+
+update_docker_containers() {
+  local CURLTYPE=$1
+  local IMAGE_TAG_SUFFIX=$2
+  local PROGRESS_CALLBACK=$3
+  local LOG_FILE=$4
+
+  local CONTAINER_REGISTRY=ghcr.io
+  local SIGNPATH=/root/sosigs
+  
+  if [ -z "$CURLTYPE" ]; then
+    CURLTYPE=unknown
+  fi
+
+  if [ -z "$LOG_FILE" ]; then
+    if [ -c /dev/tty ]; then
+      LOG_FILE=/dev/tty
+    else
+      LOG_FILE=/dev/null
+    fi
+  fi
+
+  # Recheck the version for scenarios were the VERSION wasn't known before this script was imported
+  set_version
+  set_os
+
+  if [ -z "$TRUSTED_CONTAINERS" ]; then
+    container_list
+  fi
+
+  # all the images using ELASTICSEARCHDEFAULTS.elasticsearch.version
+  # does not include so-elastic-fleet since that container uses so-elastic-agent image
+  local IMAGES_USING_ES_VERSION=("so-elasticsearch")
+
+  rm -rf $SIGNPATH >> "$LOG_FILE" 2>&1 
+  mkdir -p $SIGNPATH >> "$LOG_FILE" 2>&1 
+
+  # Let's make sure we have the public key
+  run_check_net_err \
+  "curl --retry 5 --retry-delay 60 -sSL https://raw.githubusercontent.com/Security-Onion-Solutions/securityonion/master/KEYS -o $SIGNPATH/KEYS" \
+  "Could not pull signature key file, please ensure connectivity to https://raw.githubusercontent.com" \
+  noretry >> "$LOG_FILE" 2>&1
+  result=$?
+  if [[ $result -eq 0 ]]; then
+    cat $SIGNPATH/KEYS | gpg --import - >> "$LOG_FILE" 2>&1
+  fi
+
+  # If downloading for soup, check if any optional images need to be pulled
+  if [[ $CURLTYPE == 'soup' ]]; then
+    grep -q "so-logscan" "$STATUS_CONF" && TRUSTED_CONTAINERS+=("so-logscan")
+  fi
+  
+  # Download the containers from the interwebs
+  for i in "${TRUSTED_CONTAINERS[@]}"
+  do
+    if [ -z "$PROGRESS_CALLBACK" ]; then
+      echo "Downloading $i" >> "$LOG_FILE" 2>&1
+    else
+      $PROGRESS_CALLBACK $i
+    fi
+
+    if [[ " ${IMAGES_USING_ES_VERSION[*]} " =~ [[:space:]]${i}[[:space:]] ]]; then
+      # this is an es container so use version defined in elasticsearch defaults.yaml
+      local UPDATE_DIR='/tmp/sogh/securityonion'
+      if [ ! -d "$UPDATE_DIR" ]; then
+        UPDATE_DIR=/securityonion
+      fi
+      local v1=0
+      local v2=0
+      if [[ -f "$UPDATE_DIR/salt/elasticsearch/defaults.yaml" ]]; then
+        v1=$(egrep " +version: " "$UPDATE_DIR/salt/elasticsearch/defaults.yaml" | awk -F: '{print $2}' | tr -d '[:space:]')
+      fi
+      if [[ -f "$DEFAULT_SALT_DIR/salt/elasticsearch/defaults.yaml" ]]; then
+        v2=$(egrep " +version: " "$DEFAULT_SALT_DIR/salt/elasticsearch/defaults.yaml" | awk -F: '{print $2}' | tr -d '[:space:]')
+      fi
+      local highest_es_version=$(compare_es_versions "$v1" "$v2")
+      local image=$i:$highest_es_version$IMAGE_TAG_SUFFIX
+      local sig_url=https://sigs.securityonion.net/es-$highest_es_version/$image.sig
+    else
+      # this is not an es container so use the so version for the version
+      local image=$i:$VERSION$IMAGE_TAG_SUFFIX
+      local sig_url=https://sigs.securityonion.net/$VERSION/$image.sig
+    fi
+    # Pull down the trusted docker image
+    run_check_net_err \
+    "docker pull $CONTAINER_REGISTRY/$IMAGEREPO/$image" \
+    "Could not pull $image, please ensure connectivity to $CONTAINER_REGISTRY" >> "$LOG_FILE" 2>&1 
+    
+    # Get signature
+    run_check_net_err \
+    "curl --retry 5 --retry-delay 60 -A '$CURLTYPE/$CURRENTVERSION/$OS/$(uname -r)' $sig_url --output $SIGNPATH/$image.sig" \
+    "Could not pull signature file for $image, please ensure connectivity to https://sigs.securityonion.net " \
+    noretry >> "$LOG_FILE" 2>&1
+    # Dump our hash values
+    DOCKERINSPECT=$(docker inspect $CONTAINER_REGISTRY/$IMAGEREPO/$image)
+       
+    echo "$DOCKERINSPECT" | jq ".[0].RepoDigests[] | select(. | contains(\"$CONTAINER_REGISTRY\"))" > $SIGNPATH/$image.txt
+    echo "$DOCKERINSPECT" | jq ".[0].Created, .[0].RootFS.Layers" >> $SIGNPATH/$image.txt
+        
+    if [[ $? -ne 0 ]]; then
+      echo "Unable to inspect $image" >> "$LOG_FILE" 2>&1 
+      exit 1
+    fi
+    GPGTEST=$(gpg --verify $SIGNPATH/$image.sig $SIGNPATH/$image.txt 2>&1)
+    if [[ $? -eq 0 ]]; then
+      if [[ -z "$SKIP_TAGPUSH" ]]; then
+        # Tag it with the new registry destination
+        if [ -z "$HOSTNAME" ]; then
+          HOSTNAME=$(hostname)
+        fi
+        docker tag $CONTAINER_REGISTRY/$IMAGEREPO/$image $HOSTNAME:5000/$IMAGEREPO/$image >> "$LOG_FILE" 2>&1 
+        docker push $HOSTNAME:5000/$IMAGEREPO/$image >> "$LOG_FILE" 2>&1 
+      fi
+    else
+      echo "There is a problem downloading the $image image. Details: " >> "$LOG_FILE" 2>&1 
+      echo "" >> "$LOG_FILE" 2>&1 
+      echo $GPGTEST >> "$LOG_FILE" 2>&1 
+      exit 1
+    fi
+  done
+}

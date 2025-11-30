@@ -1,0 +1,157 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    {% include 'admin/spellbook/includes/card_state_imports.html' %}
+    <script>
+        'use strict';
+        {
+            django.jQuery(function() {
+                // Initialize all autocomplete widgets except the one in the template
+                // form used when a new formset is added.
+                django.jQuery('.admin-autocomplete[data-field-name=card]').not('[name*=__prefix__]').select2CardsPreview();
+            });
+
+            document.addEventListener('formset:added', (event) => {
+                django.jQuery(event.target).find('.admin-autocomplete[data-field-name=card]').select2CardsPreview();
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block after-content %}
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Child features</th>
+                {% if adminform.form.child_feature_combos.exists %}
+                    <th class="column-variant">Child features combos</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in adminform.form.child_feature_combos %}
+                <tr class="form-row">
+                    {% with child=item.produces.first %}
+                        <td class="field-feature">
+                            <p>
+                                <a href="{% url 'admin:spellbook_feature_change' child.id %}">{{ child }}</a>
+                            </p>
+                        </td>
+                    {% endwith %}
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% if original.pk %}
+                <tr class="form-row">
+                    <td class="field-combo" colspan="2">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_add' %}?parent_feature={{ original.pk }}">Add a child feature...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Parent features</th>
+                {% if adminform.form.parent_feature_combos.exists %}
+                    <th class="column-variant">Parent features combos</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in adminform.form.parent_feature_combos %}
+                <tr class="form-row">
+                    {% with parent=item.needs.first %}
+                        <td class="field-feature">
+                            <p>
+                                <a href="{% url 'admin:spellbook_feature_change' parent.id %}">{{ parent }}</a>
+                            </p>
+                        </td>
+                    {% endwith %}
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% if original.pk %}
+                <tr class="form-row">
+                    <td class="field-combo" colspan="2">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_add' %}?child_feature={{ original.pk }}">Add a parent feature...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Needed by combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in adminform.form.needed_by_combos|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combo_count=original.needed_by_combos.count %}
+            {% if combo_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?needs__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is needed...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Produced by combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in adminform.form.produced_by_combos|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combo_count=original.produced_by_combos.count %}
+            {% if combo_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?produces__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is produced...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+    </table>
+{% endblock %}

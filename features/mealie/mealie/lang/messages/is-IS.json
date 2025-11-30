@@ -1,0 +1,83 @@
+{
+    "generic": {
+        "server-error": "Óvænt villa kom upp"
+    },
+    "recipe": {
+        "unique-name-error": "Nöfn uppskrifta þurfa að vera einstök",
+        "recipe-created": "Uppskrift stofnuð",
+        "recipe-image-deleted": "Mynd af uppskrift eytt",
+        "recipe-defaults": {
+            "ingredient-note": "1 bolli hveiti",
+            "step-text": "Hægt er að nota markdown málskipan (syntax) í uppskriftinni og öðrum reitum.\n\n**Bæta við tengli**\n\n[Minn tengill](https://demo.mealie.io)\n"
+        },
+        "servings-text": {
+            "makes": "Framkvæmir",
+            "serves": "Skammtar",
+            "serving": "Skammtur",
+            "servings": "Skammtar",
+            "yield": "Skilar",
+            "yields": "Skilar"
+        }
+    },
+    "mealplan": {
+        "no-recipes-match-your-rules": "Eingin uppskrift passar við settar reglur"
+    },
+    "user": {
+        "user-updated": "Notandaupplýsingar uppfærðar",
+        "password-updated": "Lykilorð uppfært",
+        "invalid-current-password": "Núverandi lykilorð er rangt",
+        "ldap-update-password-unavailable": "Ekki var hægt að uppfæra lykilorð, notanda er stjórnað af LDAP"
+    },
+    "group": {
+        "report-deleted": "Skýrslu eytt."
+    },
+    "exceptions": {
+        "permission_denied": "Þú hefur ekki réttindi til að framkvæma þessa aðgerð",
+        "recursive-recipe-link": "Uppskrift getur ekki vísað í sjálfa sig, hvorki beint né óbeint",
+        "no-entry-found": "Umbeðin síða fannst ekki",
+        "integrity-error": "Villa í gagnagrunni",
+        "username-conflict-error": "Notandanafn er þegar í notkun",
+        "email-conflict-error": "Tölvupóstur er þegar í notkun"
+    },
+    "notifications": {
+        "generic-created": "{name} var stofnað",
+        "generic-updated": "{name} var uppfært",
+        "generic-created-with-url": "{name} hefur verið stofnað, {url}",
+        "generic-updated-with-url": "{name} hefur verið uppfært, {url}",
+        "generic-duplicated": "{name} hefur verið afritað",
+        "generic-deleted": "{name} hefur verið eytt",
+        "logged-out": "Skráður út"
+    },
+    "datetime": {
+        "year": "ár",
+        "day": "dagur|dagar",
+        "hour": "klukkustund|klukkustundir",
+        "minute": "mínluta|mínútur",
+        "second": "sekúnda|sekúndur",
+        "millisecond": "millisekúnda|millisekúndur",
+        "microsecond": "míkrósekúnda|míkrósekúndur"
+    },
+    "emails": {
+        "password": {
+            "subject": "Mealie Gleymt Lykilorð",
+            "header_text": "Gleymt Lykilorð",
+            "message_top": "Þú hefur óskað eftir að endursetja lykilorðið þitt.",
+            "message_bottom": "Vinsamlegast smelltu á hnappinn hér að ofan til að endursetja lykilorðið þitt.",
+            "button_text": "Endursetja lykilorð"
+        },
+        "invitation": {
+            "subject": "Boð um að skoða Mealie",
+            "header_text": "Þér er boðið!",
+            "message_top": "Þér hefur verið boðið að skoða Mealie.",
+            "message_bottom": "Vinsamlegast ýttu á takkann hér að ofan til að samþykkja boðið.",
+            "button_text": "Samþykkja boð"
+        },
+        "test": {
+            "subject": "Mealie prufupóstur",
+            "header_text": "Prufupóstur",
+            "message_top": "Þetta er prufupóstur.",
+            "message_bottom": "Vinsamlegast ýttu á takkan hér fyrir ofan til að prófa póstinn.",
+            "button_text": "Opna Mealie"
+        }
+    }
+}

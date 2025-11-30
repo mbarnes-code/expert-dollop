@@ -1,0 +1,429 @@
+package util
+
+import (
+	"context"
+	"crypto/md5" // #nosec
+	"database/sql/driver"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"math"
+	"net"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/blang/semver"
+	"github.com/google/go-github/github"
+	"github.com/google/uuid"
+	"github.com/spf13/afero"
+)
+
+var (
+	privateIPBlocks           []Subnet
+	PublicNetworkUUID         = uuid.MustParse("ffffffff-ffff-ffff-ffff-ffffffffffff")
+	PublicNetworkName         = "Public"
+	UnknownPrivateNetworkUUID = uuid.MustParse("ffffffff-ffff-ffff-ffff-fffffffffffe")
+	UnknownPrivateNetworkName = "Unknown Private"
+
+	ErrFileSystemIsNil = errors.New("filesystem is nil")
+	ErrInvalidPath     = errors.New("path cannot be empty string")
+
+	ErrFileDoesNotExist = errors.New("file does not exist")
+	ErrFileIsEmtpy      = errors.New("file is empty")
+	ErrPathIsDir        = errors.New("given path is a directory, not a file")
+
+	ErrDirDoesNotExist = errors.New("directory does not exist")
+	ErrDirIsEmpty      = errors.New("directory is empty")
+	ErrPathIsNotDir    = errors.New("given path is not a directory")
+
+	ErrFetchingLatestRelease = errors.New("error fetching latest release")
+	ErrParsingCurrentVersion = errors.New("error parsing current version")
+	ErrParsingLatestVersion  = errors.New("error parsing latest version")
+
+	// aliased for mocking in tests
+	readFile       = afero.ReadFile
+	pathExists     = afero.Exists
+	isDirectory    = afero.IsDir
+	isEmpty        = afero.IsEmpty
+	getUserHomeDir = os.UserHomeDir
+	getWorkingDir  = os.Getwd
+)
+
+type FixedString struct {
+	val  string
+	Data [16]byte
+}
+
+func init() {
+	// parse private IPs
+	privateIPs, _ := NewSubnetList(
+		[]string{
+			// "127.0.0.0/8",    // IPv4 Loopback; handled by ip.IsLoopback
+			// "::1/128",        // IPv6 Loopback; handled by ip.IsLoopback
+			// "169.254.0.0/16", // RFC3927 link-local; handled by ip.IsLinkLocalUnicast()
+			// "fe80::/10",      // IPv6 link-local; handled by ip.IsLinkLocalUnicast()
+			"10.0.0.0/8",     // RFC1918
+			"172.16.0.0/12",  // RFC1918
+			"192.168.0.0/16", // RFC1918
+			"fc00::/7",       // IPv6 unique local addr
+		})
+	// if err != nil {
+	// 	// TODO: should we replace this panic with something else?
+	// 	panic(fmt.Sprintf("error defining private IPs: %v", err.Error()))
+	// }
+	privateIPBlocks = privateIPs
+}
+
+// NewFixedStringHash creates a FixedString from a hash of all the passed in strings
+func NewFixedStringHash(args ...string) (FixedString, error) {
+	if len(args) == 0 {
+		return FixedString{}, errors.New("no arguments provided")
+	}
+
+	joined := strings.Join(args, "")
+	if joined == "" {
+		return FixedString{}, errors.New("joined string is empty")
+	}
+
+	// #nosec
+	hash := md5.Sum([]byte(strings.Join(args, "")))
+
+	fs := FixedString{
+		Data: hash,
+	}
+	return fs, nil
+}
+
+// NewFixedStringFromString creates a FixedString from a passed in hex string
+func NewFixedStringFromHex(h string) (FixedString, error) {
+	if h == "" {
+		return FixedString{}, errors.New("hex string is empty")
+	}
+
+	data, err := hex.DecodeString(h)
+	if err != nil {
+		return FixedString{}, fmt.Errorf("error decoding hex string: %w", err)
+	}
+	var fixed [16]byte
+	copy(fixed[:], data)
+	return FixedString{
+		Data: fixed,
+	}, nil
+}
+
+func (bin *FixedString) Hex() string {
+	return strings.ToUpper(hex.EncodeToString(bin.Data[:]))
+}
+
+//  override functions called by database driver
+
+// Returns expected type for writing to the database
+func (bin FixedString) MarshalBinary() ([]byte, error) {
+	return bin.Data[:], nil
+}
+
+// Returns expected type for reading from the database
+func (bin *FixedString) UnmarshalBinary(b []byte) error {
+	copy(bin.Data[:], b)
+	return nil
+}
+
+// Returns value of FixedString as a pointer, used when sometimes writing to database
+func (bin FixedString) Value() (driver.Value, error) {
+	return &bin.val, nil
+}
+
+func ValidFQDN(value string) bool {
+	// Regular expression for validating FQDN
+	// This pattern requires at least two labels (separated by dots), with each label starting and ending with an alphanumeric character.
+	// Labels in between can have hyphens. The last label (TLD) must be at least two characters long, with only letters.
+	re := regexp.MustCompile(`^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
+	return re.MatchString(value)
+}
+
+// ContainsIP checks if a collection of subnets contains an IP
+func ContainsIP(subnets []Subnet, ip net.IP) bool {
+	// cache IPv4 conversion so it not performed every in every Contains call
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+
+	for _, block := range subnets {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// IPIsPubliclyRoutable checks if an IP address is publicly routable
+func IPIsPubliclyRoutable(ip net.IP) bool {
+	// check if the IP is a loopback, link-local unicast, or link-local multicast address
+	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return false
+	}
+
+	// check if the IP is in the user-defined private IP blocks
+	if ContainsIP(privateIPBlocks, ip) {
+		return false
+	}
+	return true
+}
+
+// ParseNetworkID returns the network ID for a given IP address and agent ID
+func ParseNetworkID(ip net.IP, agentID string) uuid.UUID {
+	if IPIsPubliclyRoutable(ip) {
+		return PublicNetworkUUID
+	}
+
+	if len(agentID) == 0 {
+		return UnknownPrivateNetworkUUID
+	}
+
+	networkID, err := uuid.Parse(agentID)
+	if err != nil {
+		return UnknownPrivateNetworkUUID
+	}
+	return networkID
+}
+
+// ContainsDomain checks if a given host is in a list of domains
+func ContainsDomain(domains []string, host string) bool {
+
+	for _, entry := range domains {
+
+		// check for wildcard
+		if strings.Contains(entry, "*") {
+
+			// trim asterisk from the wildcard domain
+			wildcardDomain := strings.TrimPrefix(entry, "*")
+
+			// This would match a.mydomain.com, b.mydomain.com etc.,
+			if strings.HasSuffix(host, wildcardDomain) {
+				return true
+			}
+
+			// check match of top domain of wildcard
+			// if a user added *.mydomain.com, this will include mydomain.com
+			// in the filtering
+			wildcardDomain = strings.TrimPrefix(wildcardDomain, ".")
+
+			if host == wildcardDomain {
+				return true
+			}
+
+			// match on exact
+		} else if host == entry {
+			return true
+
+		}
+
+	}
+	return false
+}
+
+// UInt32sAreSorted returns true if a slice of uint32 is sorted in ascending order
+func UInt32sAreSorted(data []uint32) bool {
+	return sort.SliceIsSorted(data, func(i, j int) bool { return data[i] < data[j] })
+}
+
+// SortUInt32s sorts a slice of uint32 in ascending order
+func SortUInt32s(data []uint32) {
+	sort.Slice(data, func(i, j int) bool { return data[i] < data[j] })
+}
+
+func ValidateTimestamp(timestamp time.Time) (time.Time, bool) {
+	if timestamp.UTC().Unix() > 0 && timestamp.UTC().Unix() < math.MaxInt64 {
+		return timestamp, false
+	}
+	return time.Unix(0, 1), true
+}
+
+// GetRelativeFirstSeenTimestamp returns the timestamp to use for first seen calculation/display.
+// This is a shortcut for a commonly used if statement
+func GetRelativeFirstSeenTimestamp(useCurrentTime bool, maxTimestamp time.Time) time.Time {
+	if !useCurrentTime {
+		// use the max timestamp to score against
+		return maxTimestamp
+	}
+	return time.Now()
+}
+
+// ParseRelativePath parses a given directory path and returns the absolute path
+func ParseRelativePath(dir string) (string, error) {
+	// validate parameters
+	if dir == "" {
+		return "", ErrInvalidPath
+	}
+
+	switch {
+	// if path is home, parse and set home dir
+	case dir[:2] == "~/":
+		home, err := getUserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, dir[2:]), nil
+	// if the path starts with a dot, get the path relative to the current working directory
+	case strings.HasPrefix(dir, "."):
+		currentDir, err := getWorkingDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(currentDir, dir), nil
+	default:
+		// otherwise, return the directory as is
+		return dir, nil
+
+	}
+}
+
+// ValidateDirectory returns whether a directory exists and is empty
+func ValidateDirectory(afs afero.Fs, dir string) error {
+	// validate path
+	exists, isDir, empty, err := validatePath(afs, dir)
+	if err != nil {
+		return err
+	}
+
+	// check if dirctory exists
+	if !exists {
+		return fmt.Errorf("%w: %s", ErrDirDoesNotExist, dir)
+	}
+
+	// check if path is a directory
+	if !isDir {
+		return fmt.Errorf("%w: %s", ErrPathIsNotDir, dir)
+	}
+
+	// check if file is empty
+	if empty {
+		return fmt.Errorf("%w: %s", ErrDirIsEmpty, dir)
+	}
+
+	return nil
+}
+
+// Validate File
+func ValidateFile(afs afero.Fs, file string) error {
+	// validate path
+	exists, isDir, empty, err := validatePath(afs, file)
+	if err != nil {
+		return err
+	}
+
+	// check if file exists
+	if !exists {
+		return fmt.Errorf("%w: %s", ErrFileDoesNotExist, file)
+	}
+
+	// check if path is a directory
+	if isDir {
+		return fmt.Errorf("%w: %s", ErrPathIsDir, file)
+	}
+
+	// check if file is empty
+	if empty {
+		return fmt.Errorf("%w: %s", ErrFileIsEmtpy, file)
+	}
+
+	return nil
+}
+
+// validatePath validates a given path
+func validatePath(afs afero.Fs, path string) (bool, bool, bool, error) {
+	var exists, isDir, empty bool
+
+	// validate parameters
+	if afs == nil {
+		return exists, isDir, empty, ErrFileSystemIsNil
+	}
+	if path == "" {
+		return exists, isDir, empty, ErrInvalidPath
+	}
+
+	// check if path exists
+	exists, err := pathExists(afs, path)
+	if err != nil {
+		return exists, isDir, empty, err
+	}
+
+	if exists {
+		// check if path is a directory
+		isDir, err = isDirectory(afs, path)
+		if err != nil {
+			return exists, isDir, empty, err
+		}
+
+		// check if directory is empty
+		empty, err = isEmpty(afs, path)
+		if err != nil {
+			return exists, isDir, empty, err
+		}
+	}
+
+	return exists, isDir, empty, nil
+}
+
+// GetFileContents reads the contents of a file at the specified path
+func GetFileContents(afs afero.Fs, path string) ([]byte, error) {
+	// validate file
+	err := ValidateFile(afs, path)
+	if err != nil {
+		return nil, err
+	}
+
+	// get file contents
+	file, err := readFile(afs, path)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+// CheckForNewerVersion checks if a newer version of the project is available on the GitHub repository
+func CheckForNewerVersion(client *github.Client, currentVersion string) (bool, string, error) {
+	// get the latest version
+	latestVersion, err := GetLatestReleaseVersion(client, "activecm", "rita")
+	if err != nil {
+		return false, "", err
+	}
+
+	// parse the current version
+	currentSemver, err := semver.ParseTolerant(currentVersion)
+	if err != nil {
+		return false, "", fmt.Errorf("%w: %w", ErrParsingCurrentVersion, err)
+	}
+
+	// parse the latest version
+	latestSemver, err := semver.ParseTolerant(latestVersion)
+	if err != nil {
+		return false, "", fmt.Errorf("%w: %w", ErrParsingLatestVersion, err)
+	}
+
+	// compare the versions
+	if latestSemver.GT(currentSemver) {
+		return true, latestVersion, nil
+	}
+
+	return false, latestVersion, nil
+}
+
+// GetLatestReleaseVersion gets the latest release version from the GitHub repository
+func GetLatestReleaseVersion(client *github.Client, owner, repo string) (string, error) {
+	// get the latest release
+	latestRelease, _, err := client.Repositories.GetLatestRelease(context.Background(), owner, repo)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrFetchingLatestRelease, err)
+	}
+
+	// get the latest version from release tag name
+	latestVersion := latestRelease.GetTagName()
+
+	return latestVersion, nil
+}

@@ -1,0 +1,35 @@
+#!/bin/bash
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+# Usage: Run with --force to update the Elastic Defend integration policy
+
+. /usr/sbin/so-elastic-fleet-common
+
+ERROR=false
+# Manage Elastic Defend Integration for Initial Endpoints Policy
+for INTEGRATION in /opt/so/conf/elastic-fleet/integrations/elastic-defend/*.json
+do
+  printf "\n\nInitial Endpoints Policy - Loading $INTEGRATION\n"
+  elastic_fleet_integration_check "endpoints-initial" "$INTEGRATION"
+  if [ -n "$INTEGRATION_ID" ]; then
+      printf "\n\nIntegration $NAME exists - Upgrading integration policy\n"
+      if ! elastic_fleet_integration_policy_upgrade "$INTEGRATION_ID"; then
+        echo -e "\nFailed to upgrade integration policy for ${INTEGRATION##*/}"
+        ERROR=true
+        continue
+      fi
+  else
+    printf "\n\nIntegration does not exist - Creating integration\n"
+    if ! elastic_fleet_integration_create "@$INTEGRATION"; then
+        echo -e "\nFailed to create integration for ${INTEGRATION##*/}"
+        ERROR=true
+        continue
+    fi
+  fi
+done
+if [[ "$ERROR" == "true" ]]; then
+    exit 1
+fi

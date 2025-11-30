@@ -1,0 +1,53 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=harpoon
+pkgver=386.52c1071
+pkgrel=2
+pkgdesc='CLI tool for open source and threat intelligence.'
+groups=('blackarch' 'blackarch-automation' 'blackarch-recon')
+arch=('any')
+url='https://github.com/Te-k/harpoon'
+license=('GPL3')
+depends=('python' 'python-virtualenv')
+makedepends=('git' 'libxml2' 'libxslt')
+source=("git+https://github.com/Te-k/$pkgname.git"
+        'harpoon.install')
+sha512sums=('SKIP'
+            '688c2993b1e56ff7b579d19041c0b04f4cf1ca85db6d8518914818e64581544af187afd068234e28919c91f60ad6aae80359df01e96bda986fa2c3c9ff46daa1')
+install="$pkgname.install"
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+package() {
+  cd $pkgname
+
+  install -dm 755 "$pkgdir/usr/bin"
+  install -dm 755 "$pkgdir/usr/share/$pkgname"
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  rm -r LICENSE tests
+
+  cp -a * "$pkgdir/usr/share/$pkgname/"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+cd /usr/share/$pkgname
+source venv/bin/activate
+exec python $pkgname/main.py "\$@"
+EOF
+
+  chmod a+x "$pkgdir/usr/bin/$pkgname"
+}
+

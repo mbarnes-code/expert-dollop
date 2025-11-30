@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0; you may not use
+# this file except in compliance with the Elastic License 2.0.
+{%- import_yaml 'elasticfleet/defaults.yaml' as ELASTICFLEETDEFAULTS %}
+{%- set SUPPORTED_PACKAGES = salt['pillar.get']('elasticfleet:packages', default=ELASTICFLEETDEFAULTS.elasticfleet.packages, merge=True) %}
+
+. /usr/sbin/so-elastic-fleet-common
+
+{%- for PACKAGE in SUPPORTED_PACKAGES %}
+echo "Upgrading {{ PACKAGE }} package..."
+if VERSION=$(elastic_fleet_package_latest_version_check "{{ PACKAGE }}"); then
+    if ! elastic_fleet_package_install "{{ PACKAGE }}" "$VERSION"; then
+        # exit 1 on failure to upgrade a default package, allow salt to handle retries
+        echo -e "\nERROR: Failed to upgrade $PACKAGE to version: $VERSION"
+        exit 1
+    fi
+else
+    echo -e "\nERROR: Failed to get version information for integration $PACKAGE"
+fi
+echo
+{%- endfor %}
+echo
+/usr/sbin/so-elasticsearch-templates-load

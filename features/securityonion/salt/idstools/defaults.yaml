@@ -1,0 +1,10 @@
+idstools:
+  enabled: False
+  config:
+    urls: []
+    ruleset: ETOPEN
+    oinkcode: ""
+  sids:
+    enabled: []
+    disabled: []
+    modify: []

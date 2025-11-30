@@ -1,0 +1,42 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=angr-management
+pkgver=9.2.179
+pkgrel=2
+pkgdesc='The official angr GUI.'
+groups=('blackarch' 'blackarch-binary' 'blackarch-disassembler'
+        'blackarch-reversing')
+arch=('any')
+url='https://github.com/angr/angr-management'
+license=('BSD-2-Clause')
+depends=('python')
+makedepends=('python-setuptools' 'python-pip')
+source=("https://github.com/angr/$pkgname/archive/refs/tags/v$pkgver.tar.gz")
+sha512sums=('3e6416725a458e4018efd1cd33caeb38d4c2255b4594a72876ae2b9a7f7b12586cfa9e5e72badf326da8a15eab1797f6626f3d1491efffd8055bca23f932a826')
+install="$pkgname.install"
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -dm 755 "$pkgdir/usr/bin"
+  install -dm 755 "$pkgdir/usr/share/$pkgname"
+  install -dm 755 "$pkgdir/usr/share/applications"
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md docs/*.rst
+  install -Dm 644 "$pkgname.desktop" \
+    "$pkgdir/usr/share/applications/$pkgname.desktop"
+
+  rm -rf LICENSE *.md .gitignore
+
+  cp -a * "$pkgdir/usr/share/$pkgname/"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+source /usr/share/$pkgname/venv/bin/activate
+exec python -m angrmanagement "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname"
+}
+

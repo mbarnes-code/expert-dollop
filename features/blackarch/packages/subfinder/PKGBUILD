@@ -1,0 +1,44 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=subfinder
+pkgver=v2.9.0.r29.gfb6b520a
+pkgrel=1
+epoch=1
+groups=('blackarch' 'blackarch-recon')
+pkgdesc='Modular subdomain discovery tool that can discover massive amounts of valid subdomains for any target.'
+arch=('x86_64' 'aarch64')
+url='https://github.com/projectdiscovery/subfinder'
+license=('MIT')
+makedepends=('git' 'go')
+source=("git+https://github.com/projectdiscovery/$pkgname.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+build() {
+  cd $pkgname
+
+  GOPATH="$srcdir" go mod download
+  GOPATH="$srcdir" go build \
+    -trimpath \
+    -buildmode=pie \
+    -mod=readonly \
+    -modcacherw \
+    -ldflags "-s -w" \
+    -o $pkgname ./cmd/$pkgname
+}
+
+package() {
+  cd $pkgname
+
+  install -Dm 755 $pkgname "$pkgdir/usr/bin/$pkgname"
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname" *.md
+  rm "$pkgdir/usr/share/doc/$pkgname/LICENSE.md"
+}
+

@@ -1,0 +1,2 @@
+{% from 'soc/merged.map.jinja' import SOCMERGED -%}
+{{ SOCMERGED.config | json(sort_keys=True, indent=4 * ' ') }}

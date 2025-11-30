@@ -1,0 +1,27 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=ruby-singleton
+_gemname=${pkgname#ruby-}
+pkgver=0.2.0
+pkgrel=4
+pkgdesc='Implement the Singleton pattern.'
+arch=('any')
+url='https://github.com/ruby/singleton'
+license=('BSD')
+depends=('ruby')
+source=("https://rubygems.org/downloads/$_gemname-$pkgver.gem")
+noextract=("$_gemname-$pkgver.gem")
+sha512sums=('a5e82cd80b893a930ec787c84ac4c3a658137a8b831ad942ff9ef1c18b77e78decf6d2d86c72c665a61c53f484241071f9c6942acd6ce7df72fa6d60a8cf7f26')
+
+package() {
+  _gemdir="$(ruby -e'puts Gem.default_dir')"
+
+  gem install --ignore-dependencies --no-user-install --no-document \
+    -i "$pkgdir/$_gemdir" -n "$pkgdir/usr/bin" "$_gemname-$pkgver.gem"
+
+  rm "$pkgdir/$_gemdir/cache/$_gemname-$pkgver.gem"
+
+  find "$pkgdir/$_gemdir/extensions/" -name *.so -delete
+}
+

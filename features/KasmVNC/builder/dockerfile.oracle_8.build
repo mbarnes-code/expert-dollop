@@ -1,0 +1,68 @@
+FROM oraclelinux:8
+
+ENV KASMVNC_BUILD_OS oracle
+ENV KASMVNC_BUILD_OS_CODENAME 8
+ENV XORG_VER 1.20.11
+
+# Install from stock repos
+RUN \
+  dnf install -y 'dnf-command(config-manager)' && \
+  dnf config-manager --set-enabled ol8_codeready_builder && \
+  dnf install -y \
+    bzip2-devel \
+    ca-certificates \
+    ninja-build \
+    cmake \
+    nasm \
+    dnf-plugins-core \
+    gcc \
+    gcc-c++ \
+    gcc-toolset-14 \
+    git \
+    gnutls-devel \
+    libjpeg-turbo-devel \
+    libpng-devel \
+    libtiff-devel \
+    libxshmfence-devel \
+    make \
+    mesa-dri-drivers \
+    mesa-libgbm-devel \
+    openssl-devel \
+    patch \
+    tigervnc-server \
+    wget \
+    xorg-x11-font-utils \
+    zlib-devel
+
+# Enable additional repos (epel, powertools, and fusion)
+RUN dnf config-manager --set-enabled ol8_codeready_builder
+RUN dnf install -y oracle-epel-release-el8
+RUN dnf install -y --nogpgcheck https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm
+
+# Install from new repos
+RUN dnf install -y \
+  ffmpeg-devel \
+  giflib-devel \
+  lbzip2 \
+  libXfont2-devel \
+  libxkbfile-devel \
+  xorg-x11-server-devel \
+  xorg-x11-xkb-utils-devel \
+  xorg-x11-xtrans-devel \
+  libXrandr-devel \
+  libXtst-devel \
+  libXcursor-devel \
+  libSM-devel
+
+ENV SCRIPTS_DIR=/tmp/scripts
+ENV PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:${PKG_CONFIG_PATH:-/opt/rh/gcc-toolset-14/root/usr/lib64/pkgconfig}
+
+COPY builder/scripts $SCRIPTS_DIR
+RUN echo "source /opt/rh/gcc-toolset-14/enable" > /etc/profile.d/gcc-toolset.sh && \
+    $SCRIPTS_DIR/build-deps.sh  && \
+    useradd -m docker && echo "docker:docker" | chpasswd
+
+COPY --chown=docker:docker . /src/
+
+USER docker
+ENTRYPOINT ["bash", "-l", "-c", "/src/builder/build.sh"]

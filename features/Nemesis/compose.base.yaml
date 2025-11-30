@@ -1,0 +1,15 @@
+# Only the base images are defined here
+# Base images are the images that are used by other images
+# and only needed to be built once
+
+name: nemesis
+services:
+  python-base-dev:
+    build:
+      context: ./infra/docker/python_base
+      dockerfile: dev.Dockerfile
+
+  python-base-prod:
+    build:
+      context: ./infra/docker/python_base
+      dockerfile: prod.Dockerfile

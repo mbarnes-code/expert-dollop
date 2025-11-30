@@ -1,0 +1,245 @@
+#!/bin/bash
+#
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+{%- set MANAGER = salt['grains.get']('master') %}
+{%- set VERSION = salt['pillar.get']('global:soversion') %}
+{%- set IMAGEREPO = salt['pillar.get']('global:imagerepo') %}
+{%- set MANAGERIP = salt['pillar.get']('global:managerip') %}
+{%- set URLBASE = salt['pillar.get']('global:url_base') %}
+{%- set ES_USER = salt['pillar.get']('elasticsearch:auth:users:so_elastic_user:user', '') %}
+{%- set ES_PASS = salt['pillar.get']('elasticsearch:auth:users:so_elastic_user:pass', '') %}
+
+INDEX_DATE=$(date +'%Y.%m.%d')
+LOG_FILE=/nsm/import/evtx-import.log
+
+. /usr/sbin/so-common
+
+function usage {
+  cat << EOF
+Usage: $0 [options] <evtx-file-1> [evtx-file-2] [evtx-file-*]
+
+Imports one or more evtx files into Security Onion. The evtx files will be analyzed and made available for review in the Security Onion toolset.
+
+Options:
+  --json      Outputs summary in JSON format. Implies --quiet.
+  --quiet     Silences progress information to stdout.
+  --shift     Adds a time shift. Accepts a single argument that is intended to be the date of the last record, and shifts the dates of the previous records accordingly.
+              Ex. sudo so-import-evtx --shift "2023-08-01 01:01:01" example.evtx 
+EOF
+}
+
+quiet=0
+json=0
+INPUT_FILES=
+while [[ $# -gt 0 ]]; do
+  param=$1
+  shift
+  case "$param" in
+    --json)
+      json=1
+      quiet=1
+      ;;
+    --quiet)
+      quiet=1
+      ;;
+    --shift)
+      SHIFTDATE=$1
+      shift
+      ;;
+    -*) 
+      echo "Encountered unexpected parameter: $param"
+      usage
+      exit 1
+      ;;
+    *) 
+      if [[ "$INPUT_FILES" != "" ]]; then
+        INPUT_FILES="$INPUT_FILES $param"
+      else
+        INPUT_FILES="$param"
+      fi
+      ;;
+  esac
+done
+
+function status {
+  msg=$1
+  [[ $quiet -eq 1 ]] && return
+  echo "$msg"
+}
+
+function evtx2es() {
+  EVTX=$1
+  HASH=$2
+  SHIFTDATE=$3
+  
+  docker run --rm \
+    -e "SHIFTTS=$SHIFTDATE" \
+    -v "$EVTX:/tmp/data.evtx" \
+    -v "/nsm/import/$HASH/evtx/:/tmp/evtx/" \
+    -v "/nsm/import/$HASH/evtx-end_newest:/tmp/newest" \
+    -v "/nsm/import/$HASH/evtx-start_oldest:/tmp/oldest" \
+    --entrypoint "/evtx_calc_timestamps.sh" \
+    {{ MANAGER }}:5000/{{ IMAGEREPO }}/so-pcaptools:{{ VERSION }} >> $LOG_FILE 2>&1
+}
+
+# if no parameters supplied, display usage
+if [ "$INPUT_FILES" == "" ]; then
+  usage
+  exit 1
+fi
+
+# ensure this is a Manager node
+require_manager @> /dev/null
+
+# verify that all parameters are files
+for i in $INPUT_FILES; do
+  if ! [ -f "$i" ]; then
+    echo "\"$i\" is not a valid file!"
+    exit 2
+  fi
+done
+
+# track oldest start and newest end so that we can generate the Kibana search hyperlink at the end
+START_OLDEST="2050-12-31"
+END_NEWEST="1971-01-01"
+
+INVALID_EVTXS_COUNT=0
+VALID_EVTXS_COUNT=0
+SKIPPED_EVTXS_COUNT=0
+
+# paths must be quoted in case they include spaces
+for EVTX in $INPUT_FILES; do
+  EVTX=$(/usr/bin/realpath "$EVTX")
+  status "Processing Import: ${EVTX}"
+  if ! [ -z "$SHIFTDATE" ]; then
+    status "- timeshifting logs to end date of $SHIFTDATE"
+  fi
+  # generate a unique hash to assist with dedupe checks
+  HASH=$(md5sum "${EVTX}" | awk '{ print $1 }')
+  HASH_DIR=/nsm/import/${HASH}
+  status "- assigning unique identifier to import: $HASH"
+
+  if [[ "$HASH_FILTERS" == "" ]]; then
+    HASH_FILTERS="import.id:${HASH}"
+    HASHES="${HASH}"
+  else
+    HASH_FILTERS="$HASH_FILTERS%20OR%20import.id:${HASH}"
+    HASHES="${HASHES} ${HASH}"
+  fi
+
+  if [ -d $HASH_DIR ]; then
+    status "- this EVTX has already been imported; skipping"
+    SKIPPED_EVTXS_COUNT=$((SKIPPED_EVTXS_COUNT + 1))
+  else
+    # create EVTX directory
+    EVTX_DIR=$HASH_DIR/evtx
+    mkdir -p $EVTX_DIR
+    # create import timestamp files
+    for i in evtx-start_oldest evtx-end_newest; do
+      if ! [ -f "$i" ]; then
+        touch /nsm/import/$HASH/$i
+      fi
+    done
+
+    # import evtx and write them to import ingest pipeline
+    status "- importing logs to Elasticsearch..."
+    evtx2es "${EVTX}" $HASH "$SHIFTDATE"
+    if [[ $? -ne 0 ]]; then
+      INVALID_EVTXS_COUNT=$((INVALID_EVTXS_COUNT + 1))
+      status "- WARNING: This evtx file may not have fully imported successfully"
+    else
+      VALID_EVTXS_COUNT=$((VALID_EVTXS_COUNT + 1))
+    fi
+
+    cp -f "${EVTX}" "${EVTX_DIR}"/data.evtx
+    chmod 644 "${EVTX_DIR}"/data.evtx
+
+  fi # end of valid evtx
+
+  # determine start and end and make sure they aren't reversed
+  START=$(cat /nsm/import/$HASH/evtx-start_oldest)
+  END=$(cat /nsm/import/$HASH/evtx-end_newest)
+  START_EPOCH=`date -d "$START" +"%s"`
+  END_EPOCH=`date -d "$END" +"%s"`
+  if [ "$START_EPOCH" -gt "$END_EPOCH" ]; then
+    TEMP=$START
+    START=$END
+    END=$TEMP
+  fi
+
+  # compare $START to $START_OLDEST
+  START_COMPARE=$(date -d $START +%s)
+  START_OLDEST_COMPARE=$(date -d $START_OLDEST +%s)
+  if [ $START_COMPARE -lt $START_OLDEST_COMPARE ]; then
+    START_OLDEST=$START
+  fi
+
+  # compare $ENDNEXT to $END_NEWEST
+  ENDNEXT=`date +%Y-%m-%d --date="$END 1 day"`
+  ENDNEXT_COMPARE=$(date -d $ENDNEXT +%s)
+  END_NEWEST_COMPARE=$(date -d $END_NEWEST +%s)
+  if [ $ENDNEXT_COMPARE -gt $END_NEWEST_COMPARE ]; then
+    END_NEWEST=$ENDNEXT
+  fi
+
+  status
+
+done # end of for-loop processing evtx files
+
+# output final messages
+if [[ $INVALID_EVTXS_COUNT -gt 0 ]]; then
+  status
+  status "Please note!  One or more evtx was invalid!  You can scroll up to see which ones were invalid."
+fi
+
+START_OLDEST_FORMATTED=`date +%Y-%m-%d --date="$START_OLDEST"`
+START_OLDEST_SLASH=$(echo $START_OLDEST_FORMATTED | sed -e 's/-/%2F/g')
+END_NEWEST_SLASH=$(echo $END_NEWEST | sed -e 's/-/%2F/g')
+
+if [[ $VALID_EVTXS_COUNT -gt 0 ]] || [[ $SKIPPED_EVTXS_COUNT -gt 0 ]]; then
+  URL="https://{{ URLBASE }}/#/dashboards?q=$HASH_FILTERS%20%7C%20groupby%20-sankey%20event.dataset%20event.category%2a%20%7C%20groupby%20-pie%20event.category%20%7C%20groupby%20-bar%20event.module%20%7C%20groupby%20event.dataset%20%7C%20groupby%20event.module%20%7C%20groupby%20event.category%20%7C%20groupby%20observer.name%20%7C%20groupby%20source.ip%20%7C%20groupby%20destination.ip%20%7C%20groupby%20destination.port&t=${START_OLDEST_SLASH}%2000%3A00%3A00%20AM%20-%20${END_NEWEST_SLASH}%2000%3A00%3A00%20AM&z=UTC"
+
+  status "Import complete!"
+  status
+  status "Use the following hyperlink to view the imported data. Triple-click to quickly highlight the entire hyperlink and then copy it into a browser:"
+  status
+  status "$URL"
+  status
+  status "or, manually set the Time Range to be (in UTC):"
+  status
+  status "From: $START_OLDEST_FORMATTED    To: $END_NEWEST"
+  status
+  status "Note: It can take 30 seconds or more for events to appear in Security Onion Console."
+  RESULT=0
+else
+  START_OLDEST=
+  END_NEWEST=
+  URL=
+  RESULT=1
+fi
+
+if [[ $json -eq 1 ]]; then
+  jq -n \
+    --arg success_count "$VALID_EVTXS_COUNT" \
+    --arg fail_count "$INVALID_EVTXS_COUNT" \
+    --arg skipped_count "$SKIPPED_EVTXS_COUNT" \
+    --arg begin_date "$START_OLDEST" \
+    --arg end_date "$END_NEWEST" \
+    --arg url "$URL" \
+    --arg hashes "$HASHES" \
+    '''{
+      success_count: $success_count,
+      fail_count: $fail_count,
+      skipped_count: $skipped_count,
+      begin_date: $begin_date,
+      end_date: $end_date,
+      url: $url,
+      hash: ($hashes / " ")
+    }'''
+fi
+
+exit $RESULT

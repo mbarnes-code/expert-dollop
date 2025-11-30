@@ -1,0 +1,34 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=can-utils
+pkgver=1253.ed7822c
+pkgrel=1
+pkgdesc='Linux-CAN / SocketCAN user space applications.'
+groups=('blackarch' 'blackarch-automobile')
+arch=('x86_64' 'aarch64')
+url='https://github.com/linux-can/can-utils'
+license=('GPL2')
+makedepends=('git' 'cmake')
+source=("git+https://github.com/linux-can/$pkgname.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  echo $(git rev-list --count HEAD).$(git rev-parse --short HEAD)
+}
+
+build() {
+  cd $pkgname
+
+  cmake -DCMAKE_INSTALL_PREFIX=/usr .
+  make
+}
+
+package() {
+  cd $pkgname
+
+  make DESTDIR="$pkgdir" install
+}
+

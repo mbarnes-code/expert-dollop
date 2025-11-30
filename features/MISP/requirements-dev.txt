@@ -1,0 +1,5 @@
+codecov
+coveralls
+nose
+requests-mock
+pytest

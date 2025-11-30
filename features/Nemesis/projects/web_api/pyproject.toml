@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "web_api"
+version = "0.1.0"
+description = "The frontend API for Nemesis"
+authors = ["SpecterOps"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+fastapi = { extras = ["all"], version = "^0.121.0" }
+structlog = "^25.1.0"
+dapr = "1.16.0"
+pydantic = "^2.10.4"
+uvicorn = "^0.34.0"
+python-multipart = "^0.0.20"
+minio = "^7.2.14"
+common = { path = "../../libs/common", develop = true }
+nemesis_dpapi = { path = "../../libs/nemesis_dpapi", develop = true }
+tomli = "^2.2.1"
+asyncpg = "^0.30.0"
+requests = "^2.32.3"
+dapr-ext-fastapi = "1.16.0"
+psycopg = {extras = ["pool"], version = "^3.2.9"}
+pytsk3 = "^20250312"
+watchdog = "^6.0.0"
+pyyaml = "^6.0.2"
+jinja2 = "^3.1.6"
+markdown = "^3.9"
+httpx = "^0.28.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+pytest-asyncio = "^1.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+

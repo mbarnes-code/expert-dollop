@@ -1,0 +1,7 @@
+dist
+dist-*
+coverage
+frontend/public/api
+frontend/out
+.next/
+external-data/

@@ -1,0 +1,63 @@
+elasticfleet:
+  enabled: False
+  enable_manager_output: True
+  config:
+    server:
+      custom_fqdn: []
+      enable_auto_configuration: True
+      endpoints_enrollment: ''
+      es_token: ''
+      grid_enrollment: ''
+    defend_filters:
+      enable_auto_configuration: False
+    subscription_integrations: False
+    auto_upgrade_integrations: False
+  logging:
+    zeek:
+      excluded:
+        - analyzer
+        - broker
+        - capture_loss
+        - cluster
+        - conn-summary
+        - console
+        - ecat_arp_info
+        - known_certs
+        - known_hosts
+        - known_services
+        - loaded_scripts
+        - ntp
+        - ocsp
+        - packet_filter
+        - reporter
+        - stats
+        - stderr
+        - stdout
+  packages:
+    - elastic_agent
+    - elasticsearch
+    - endpoint
+    - fleet_server
+    - filestream
+    - http_endpoint
+    - httpjson
+    - log
+    - osquery_manager
+    - redis
+    - system
+    - tcp
+    - udp
+    - windows
+    - winlog
+  optional_integrations:
+    sublime_platform:
+      enabled_nodes: []
+      api_key:
+      base_url: https://api.platform.sublimesecurity.com
+      poll_interval: 5m
+      limit: 100
+    kismet:
+      base_url: http://localhost:2501
+      poll_interval: 1m
+      api_key:
+      enabled_nodes: []

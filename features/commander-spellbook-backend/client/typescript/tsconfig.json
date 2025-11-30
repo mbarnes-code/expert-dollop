@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "module": "NodeNext",
+        "esModuleInterop": true,
+        "target": "es6",
+        "moduleResolution": "NodeNext",
+        "outDir": "dist",
+        "declaration": true,
+        "strict": true,
+        "sourceMap": true,
+    },
+    "lib": ["es6"],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

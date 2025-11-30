@@ -1,0 +1,40 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    {% include 'admin/spellbook/includes/card_state_imports.html' %}
+    {% include 'admin/spellbook/includes/combo_description_imports.html' %}
+    <style>
+        td.original p {
+            visibility: hidden
+        }
+
+        .inline-group .tabular tr.has_original td {
+            padding-top: 8px;
+        }
+    </style>
+    <script>
+        django.jQuery(function(){
+            django.jQuery('.card-name').each((_, e) => {
+                card_info.setup_tooltip(e.text, e);
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+    <!-- Emptied -->
+{% endblock %}

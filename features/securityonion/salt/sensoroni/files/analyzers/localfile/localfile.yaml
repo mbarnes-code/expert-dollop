@@ -1,0 +1,1 @@
+file_path: {{ salt['pillar.get']('sensoroni:analyzers:localfile:file_path', '') }}

@@ -1,0 +1,22 @@
+{% import_yaml 'firewall/ports/ports.yaml' as default_portgroups %}
+{% set default_portgroups = default_portgroups.firewall.ports %}
+{% import_yaml 'firewall/ports/ports.local.yaml' as local_portgroups %}
+{% if local_portgroups.firewall.ports %}
+  {% set local_portgroups = local_portgroups.firewall.ports %}
+{% else %}
+  {% set local_portgroups = {} %}
+{% endif %}
+{% set portgroups = salt['defaults.merge'](default_portgroups, local_portgroups, in_place=False) %}
+
+role:
+  eval:
+  fleet:
+  heavynode:
+  idh:
+  import:
+  manager:
+  managersearch:
+  receiver:
+  standalone:
+  searchnode:
+  sensor:

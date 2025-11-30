@@ -1,0 +1,51 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=aclpwn
+pkgver=4.81480cc
+pkgrel=11
+pkgdesc='Active Directory ACL exploitation with BloodHound.'
+arch=('any')
+groups=('blackarch' 'blackarch-exploitation')
+url='https://github.com/fox-it/aclpwn.py'
+license=('MIT')
+depends=('python' 'impacket' 'python-ldap3' 'python-neo4j-driver'
+         'python-requests' 'python-neotime' 'python-neobolt'
+         'python-ldapdomaindump')
+makedepends=('git' 'python-setuptools')
+source=("$pkgname::git+https://github.com/fox-it/aclpwn.py.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+prepare() {
+  cd $pkgname
+
+  sed -i 's/neo4j-driver/neo4j/g' setup.py
+  sed -i 's/from neo4j.v1/from neo4j/g' "$pkgname/database.py"
+}
+
+build() {
+  cd $pkgname
+
+  python setup.py build
+}
+
+package() {
+  cd $pkgname
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

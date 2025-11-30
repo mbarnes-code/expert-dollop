@@ -1,0 +1,221 @@
+#!/bin/bash
+
+SOVERSION=$(cat ../VERSION)
+mkdir -p /nsm
+total_mem=$(grep MemTotal /proc/meminfo | awk '{print $2}' | sed -r 's/.{3}$//')
+export total_mem
+
+total_mem_hr=$(grep MemTotal /proc/meminfo | awk '{ printf("%.0f", $2/1000/1000); }')
+export total_mem_hr
+
+num_cpu_cores=$(nproc)
+export num_cpu_cores
+
+readarray -t cpu_core_list <<< "$(grep "processor" /proc/cpuinfo | grep -v "KVM" | awk '{print $3}')"
+export cpu_core_list
+
+random_uid=$(get_random_value 16)
+export random_uid
+
+node_es_port=9200
+export node_es_port
+
+setup_log="/root/sosetup.log"
+export setup_log
+
+error_log="/root/errors.log"
+export error_log
+
+filesystem_root=$(df / | awk '$3 ~ /[0-9]+/ { print $2 * 1000 }')
+export filesystem_root
+
+filesystem_nsm=$(df /nsm | awk '$3 ~ /[0-9]+/ { print $2 * 1000 }')
+export filesystem_nsm
+
+free_space_nsm=$(df -Pk /nsm | sed 1d | grep -v used | awk '{ print $4 / 1042803 }' | awk '{ printf("%.0f", $1) }')
+export free_space_nsm
+
+free_space_root=$(df -Pk / | sed 1d | grep -v used | awk '{ print $4 / 1042803 }' | awk '{ printf("%.0f", $1) }')
+export free_space_root
+
+readarray -t mountpoints <<< "$(lsblk -nlo MOUNTPOINT)"
+readarray -t partitions <<< "$(lsblk -nlo NAME)"
+index=0
+for item in "${mountpoints[@]}"; do
+    if [[ $item == '/' ]]; then export root_part="${partitions[$index]}"
+    elif [[ $item == '/nsm' ]]; then 
+        export nsm_mount=1
+        export nsm_part="${partitions[$index]}"
+    fi
+    ((index++))
+done
+
+mkdir -p /root/installtmp/pillar/minions
+export temp_install_dir=/root/installtmp
+
+export percentage_str='Getting started'
+
+export DEBIAN_FRONTEND=noninteractive
+
+export default_salt_dir=/opt/so/saltstack/default
+
+export local_salt_dir=/opt/so/saltstack/local
+
+SCRIPTDIR=$(pwd)
+export SCRIPTDIR
+
+install_opt_file=/root/install_opt
+export install_opt_file
+
+net_init_file=/root/net_init
+export net_init_file
+
+ntp_string="0.pool.ntp.org,1.pool.ntp.org"
+export ntp_string
+
+whiptail_title="Security Onion Setup - $SOVERSION"
+export whiptail_title
+
+global_pillar_file="$local_salt_dir/pillar/global/soc_global.sls"
+export global_pillar_file
+
+adv_global_pillar_file="$local_salt_dir/pillar/global/adv_global.sls"
+export adv_global_pillar_file
+
+elasticfleet_pillar_file="$local_salt_dir/pillar/elasticfleet/soc_elasticfleet.sls"
+export elasticfleet_pillar_file
+
+adv_elasticfleet_pillar_file="$local_salt_dir/pillar/elasticfleet/adv_elasticfleet.sls"
+export adv_elasticfleet_pillar_file
+
+elasticsearch_pillar_file="$local_salt_dir/pillar/elasticsearch/soc_elasticsearch.sls"
+export elasticsearch_pillar_file
+
+adv_elasticsearch_pillar_file="$local_salt_dir/pillar/elasticsearch/adv_elasticsearch.sls"
+export adv_elasticsearch_pillar_file
+
+backup_pillar_file="$local_salt_dir/pillar/backup/soc_backup.sls"
+export backup_pillar_file
+
+adv_backup_pillar_file="$local_salt_dir/pillar/backup/adv_backup.sls"
+export adv_backup_pillar_file
+
+strelka_pillar_file="$local_salt_dir/pillar/strelka/soc_strelka.sls"
+export strelka_pillar_file
+
+adv_strelka_pillar_file="$local_salt_dir/pillar/strelka/adv_strelka.sls"
+export adv_strelka_pillar_file
+
+sensoroni_pillar_file="$local_salt_dir/pillar/sensoroni/soc_sensoroni.sls"
+export sensoroni_pillar_file
+
+adv_sensoroni_pillar_file="$local_salt_dir/pillar/sensoroni/adv_sensoroni.sls"
+export adv_sensoroni_pillar_file
+
+docker_pillar_file="$local_salt_dir/pillar/docker/soc_docker.sls"
+export docker_pillar
+
+adv_docker_pillar_file="$local_salt_dir/pillar/docker/adv_docker.sls"
+export adv_docker_pillar
+
+zeek_pillar_file="$local_salt_dir/pillar/zeek/soc_zeek.sls"
+export zeek_pillar_file
+
+adv_zeek_pillar_file="$local_salt_dir/pillar/zeek/adv_zeek.sls"
+export adv_zeek_pillar_file
+
+suricata_pillar_file="$local_salt_dir/pillar/suricata/soc_suricata.sls"
+export suricata_pillar_file
+
+adv_suricata_pillar_file="$local_salt_dir/pillar/suricata/adv_suricata.sls"
+export adv_suricata_pillar_file
+
+logstash_pillar_file="$local_salt_dir/pillar/logstash/soc_logstash.sls"
+export logstash_pillar_file
+
+adv_logstash_pillar_file="$local_salt_dir/pillar/logstash/adv_logstash.sls"
+export adv_logstash_pillar_file
+
+soc_pillar_file="$local_salt_dir/pillar/soc/soc_soc.sls"
+export soc_pillar_file
+
+adv_soc_pillar_file="$local_salt_dir/pillar/soc/adv_soc.sls"
+export adv_soc_pillar_file
+
+manager_pillar_file="$local_salt_dir/pillar/manager/soc_manager.sls"
+export manager_pillar_file
+
+adv_manager_pillar_file="$local_salt_dir/pillar/manager/adv_manager.sls"
+export adv_manager_pillar_file
+
+kibana_pillar_file="$local_salt_dir/pillar/kibana/soc_kibana.sls"
+export kibana_pillar_file
+
+adv_kibana_pillar_file="$local_salt_dir/pillar/kibana/adv_kibana.sls"
+export adv_kibana_pillar_file
+
+kratos_pillar_file="$local_salt_dir/pillar/kratos/soc_kratos.sls"
+export kratos_pillar_file
+
+adv_kratos_pillar_file="$local_salt_dir/pillar/kratos/adv_kratos.sls"
+export adv_kratos_pillar_file
+
+hydra_pillar_file="$local_salt_dir/pillar/hydra/soc_hydra.sls"
+export hydra_pillar_file
+
+adv_hydra_pillar_file="$local_salt_dir/pillar/hydra/adv_hydra.sls"
+export adv_hydra_pillar_file
+
+idstools_pillar_file="$local_salt_dir/pillar/idstools/soc_idstools.sls"
+export idstools_pillar_file
+
+adv_idstools_pillar_file="$local_salt_dir/pillar/idstools/adv_idstools.sls"
+export adv_idstools_pillar_file
+
+nginx_pillar_file="$local_salt_dir/pillar/nginx/soc_nginx.sls"
+export nginx_pillar_file
+
+adv_nginx_pillar_file="$local_salt_dir/pillar/nginx/adv_nginx.sls"
+export adv_nginx_pillar_file
+
+redis_pillar_file="$local_salt_dir/pillar/redis/soc_redis.sls"
+export redis_pillar_file
+
+adv_redis_pillar_file="$local_salt_dir/pillar/redis/adv_redis.sls"
+export adv_redis_pillar_file
+
+kafka_pillar_file="$local_salt_dir/pillar/kafka/soc_kafka.sls"
+export kafka_pillar_file
+
+adv_kafka_pillar_file="$local_salt_dir/pillar/kafka/adv_kafka.sls"
+export kafka_pillar_file
+
+idh_pillar_file="$local_salt_dir/pillar/idh/soc_idh.sls"
+export idh_pillar_file
+
+adv_idh_pillar_file="$local_salt_dir/pillar/idh/adv_idh.sls"
+export adv_idh_pillar_file
+
+telegraf_pillar_file="$local_salt_dir/pillar/telegraf/soc_telegraf.sls"
+export telegraf_pillar_file
+
+adv_telegraf_pillar_file="$local_salt_dir/pillar/telegraf/adv_telegraf.sls"
+export adv_telegraf_pillar_file
+
+influxdb_pillar_file="$local_salt_dir/pillar/influxdb/soc_influxdb.sls"
+export influxdb_pillar_file
+
+adv_influxdb_pillar_file="$local_salt_dir/pillar/influxdb/adv_influxdb.sls"
+export adv_influxdb_pillar_file
+
+logrotate_pillar_file="$local_salt_dir/pillar/logrotate/soc_logrotate.sls"
+export logrotate_pillar_file
+
+adv_logrotate_pillar_file="$local_salt_dir/pillar/logrotate/adv_logrotate.sls"
+export adv_logrotate_pillar_file
+
+patch_pillar_file="$local_salt_dir/pillar/patch/soc_patch.sls"
+export patch_pillar_file
+
+adv_patch_pillar_file="$local_salt_dir/pillar/patch/adv_patch.sls"
+export adv_patch_pillar_file

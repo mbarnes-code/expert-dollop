@@ -1,0 +1,30 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-python-crontab
+_pkgname=python-crontab
+pkgver=3.3.0
+pkgrel=1
+pkgdesc='Crontab module for reading and writing crontab files and accessing the system cron automatically and simply using a direct API.'
+arch=('any')
+url='https://pypi.org/project/python-crontab/#files'
+license=('LGPL3')
+depends=('python')
+makedepends=('python-setuptools')
+replaces=('python-crontab')
+options=(!emptydirs)
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('532969d74e840d9285348b5cb7a653b91f75a9006b7c6ead9d636a8c3ef918aaf475a76c29f035e8dad86384ea758982776bcec469ac0fcb34993f056f3ed34a')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}
+

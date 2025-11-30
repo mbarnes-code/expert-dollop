@@ -1,0 +1,24 @@
+FROM opensuse/leap:15.5
+
+ENV STARTUPDIR=/dockerstartup
+
+# base tools
+ARG RUN_TEST
+RUN [ "$RUN_TEST" = 1 ] || zypper -n install -y \
+  less \
+  vim \
+  xterm
+
+# Cache repo updates, so that package changes don't trigger it on every build.
+RUN zypper refresh
+ARG KASMVNC_PACKAGE_DIR
+COPY $KASMVNC_PACKAGE_DIR/*.rpm /tmp
+RUN zypper install -y --allow-unsigned-rpm /tmp/*.rpm
+
+RUN mkdir -p $STARTUPDIR
+COPY builder/startup/vnc_startup_barebones.sh $STARTUPDIR
+
+RUN useradd -m foo
+USER foo:kasmvnc-cert
+
+ENTRYPOINT "/$STARTUPDIR/vnc_startup_barebones.sh"

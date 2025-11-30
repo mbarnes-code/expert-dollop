@@ -1,0 +1,33 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-azure-cli-core
+_pkgname=azure-cli-core
+pkgver=2.75.0
+pkgrel=1
+pkgdesc='Microsoft Azure Command-Line Tools Core Module.'
+arch=('any')
+url='https://pypi.org/project/azure-cli-core/#files'
+license=('MIT')
+depends=('python' 'python-adal' 'python-argcomplete' 'python-colorama'
+         'python-humanfriendly' 'python-jmespath' 'python-msrest'
+         'python-msrestazure' 'python-paramiko' 'python-pygments' 'python-pyjwt'
+         'python-pyopenssl' 'python-pyaml' 'python-requests' 'python-six'
+         'python-tabulate' 'python-wheel' 'python-azure-mgmt-resource'
+         'python-antlr4' 'python-pyperclip')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('d37dc693b7be46d1fe4aedecc3e41cfd077845bbc1bd952f2e19c0f946947026fb9cdd52b58fc445ff1c35847157473dac79dc3f441969aacfd311626f9f6200')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}
+

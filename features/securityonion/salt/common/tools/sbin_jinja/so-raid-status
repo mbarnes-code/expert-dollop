@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+
+
+. /usr/sbin/so-common
+
+software_raid=("SOSMN" "SOSMN-DE02" "SOSSNNV" "SOSSNNV-DE02" "SOS10k-DE02" "SOS10KNV" "SOS10KNV-DE02" "SOS10KNV-DE02" "SOS2000-DE02" "SOS-GOFAST-LT-DE02" "SOS-GOFAST-MD-DE02" "SOS-GOFAST-HV-DE02")
+hardware_raid=("SOS1000" "SOS1000F" "SOSSN7200" "SOS5000" "SOS4000")
+
+{%- if salt['grains.get']('sosmodel', '') %}
+{%- set model = salt['grains.get']('sosmodel') %}
+model={{ model }}
+# Don't need cloud images to use this
+if [[ $model =~ ^(SO2AMI01|SO2AZI01|SO2GCI01)$ ]]; then
+    exit 0
+fi
+
+for i in "${software_raid[@]}"; do
+  if [[ "$model" == $i ]]; then
+    is_softwareraid=true
+    is_hwraid=false
+    break
+  fi
+done
+
+for i in "${hardware_raid[@]}"; do
+  if [[ "$model" == $i ]]; then
+    is_softwareraid=false
+    is_hwraid=true
+    break
+  fi
+done
+
+{%- else %}
+echo "This is not an appliance"
+exit 0
+{%- endif %}
+
+check_nsm_raid() {
+  PERCCLI=$(/opt/raidtools/perccli/perccli64 /c0/v0 show|grep RAID|grep Optl)
+  MEGACTL=$(/opt/raidtools/megasasctl |grep optimal)
+  if [[ "$model" == "SOS500" || "$model" == "SOS500-DE02" ]]; then
+    #This doesn't have raid
+    HWRAID=0
+  else
+    if [[ -n $PERCCLI ]]; then
+      HWRAID=0
+    elif [[ -n $MEGACTL ]]; then
+      HWRAID=0
+    else
+      HWRAID=1
+    fi   
+  fi
+
+}
+
+check_boss_raid() {
+  MVCLI=$(/usr/local/bin/mvcli info -o vd |grep status |grep functional)
+  MVTEST=$(/usr/local/bin/mvcli info -o vd | grep "No adapter")
+  BOSSNVMECLI=$(/usr/local/bin/mnv_cli info -o vd -i 0 | grep Functional)
+
+  # Is this NVMe Boss Raid?
+  if [[ "$model" =~ "-DE02" ]]; then
+    if [[ -n $BOSSNVMECLI ]]; then
+      BOSSRAID=0
+    else
+      BOSSRAID=1
+    fi
+  else
+    # Check to see if this is a SM based system
+    if [[ -z $MVTEST ]]; then
+      if [[ -n $MVCLI ]]; then
+        BOSSRAID=0
+      else
+        BOSSRAID=1
+      fi
+    else
+      # This doesn't have boss raid so lets make it 0
+      BOSSRAID=0
+    fi
+  fi
+}
+
+check_software_raid() {
+  SWRC=$(grep "_" /proc/mdstat)
+  if [[ -n $SWRC ]]; then
+      # RAID is failed in some way
+      SWRAID=1
+  else
+      SWRAID=0
+  fi
+}
+
+# Set everything to 0
+SWRAID=0
+BOSSRAID=0
+HWRAID=0
+
+if [[ "$is_hwraid" == "true" ]]; then
+	check_nsm_raid
+  check_boss_raid
+fi
+if [[ "$is_softwareraid" == "true" ]]; then
+	check_software_raid
+  check_boss_raid
+fi
+
+sum=$(($SWRAID + $BOSSRAID + $HWRAID))
+
+if [[ $sum == "0" ]]; then
+  RAIDSTATUS=0
+else
+  RAIDSTATUS=1
+fi
+
+echo "nsmraid=$RAIDSTATUS" > /opt/so/log/raid/status.log

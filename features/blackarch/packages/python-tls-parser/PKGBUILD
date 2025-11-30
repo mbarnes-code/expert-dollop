@@ -1,0 +1,38 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-tls-parser
+_pkgname=tls_parser
+pkgver=2.0.2
+pkgrel=2
+pkgdesc='Small library to parse TLS records.'
+arch=('x86_64' 'aarch64')
+url='https://pypi.python.org/pypi/tls-parser/'
+license=('custom:unknown')
+makedepends=('python-build' 'python-pip')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('2dd8ee70b0b406c6bd7c5d36e2041da889a631e56f26a598480650dca30daf7227eaa3339142b8ce07c4f374fc3e58bf52414511ce7c3511ea851eed5a82a40c')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python -m build --wheel --outdir="$startdir/dist"
+}
+
+package_python-tls-parser() {
+  cd "$_pkgname-$pkgver"
+
+  pip install \
+    --verbose \
+    --disable-pip-version-check \
+    --no-warn-script-location \
+    --ignore-installed \
+    --no-compile \
+    --no-deps \
+    --root="$pkgdir" \
+    --prefix=/usr \
+    --no-index \
+    --find-links="file://$startdir/dist" \
+    "$_pkgname"
+}
+

@@ -1,0 +1,24 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=underscorejs
+_script=underscore
+pkgver=1.13.7
+pkgrel=1
+pkgdesc='Utility-belt library for JavaScript that provides a lot of the functional programming support that you would expect in Prototype.js (or Ruby), but without extending any of the built-in JavaScript objects.'
+arch=('any')
+url='http://underscorejs.org/'
+license=('MIT')
+source=('http://underscorejs.org/underscore.js'
+        'http://underscorejs.org/underscore-min.js')
+sha512sums=('599483a9dfdad4fdd8f4191145ac9a178354a1e2530ef12e01e6304344b8a4dc5bdc29fa8288ed6c03f6f2c6227576a280cb3816ae0984fda9d5e5be906be1e8'
+            '76f58690b01349dc39a966f6aa8cd9051289f343a6cb660dfda177c135150b9f83d5ea9b03e4e35a93e9a23f2fa2b2b9c462cc6b666a21e582a4364fffea5019')
+
+package() {
+  install -dm 755 "$pkgdir/usr/share/$pkgname"
+
+  install -Dm 644 underscore-min.js \
+    "$pkgdir/usr/share/$pkgname/underscore-min.js"
+  install -Dm 644 underscore.js "$pkgdir/usr/share/$pkgname/underscore.js"
+}
+

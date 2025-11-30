@@ -1,0 +1,38 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=nuclei-templates
+pkgver=v10.3.4.r19.ga166273
+pkgrel=1
+epoch=1
+pkgdesc='Community curated list of template files for the nuclei engine.'
+groups=('blackarch')
+arch=('any')
+url='https://github.com/projectdiscovery/nuclei-templates'
+license=('MIT')
+makedepends=('git')
+source=("git+https://github.com/projectdiscovery/$pkgname.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+package() {
+  cd $pkgname
+
+  install -dm 755 "$pkgdir/usr/share/$pkgname"
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md
+  install -Dm 644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  find -maxdepth 1 -type d | grep -vE '\.git|\.$' |
+  xargs -I{} cp -r {} "$pkgdir/usr/share/$pkgname"
+}
+

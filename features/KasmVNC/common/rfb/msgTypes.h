@@ -1,0 +1,77 @@
+/* Copyright (C) 2002-2005 RealVNC Ltd.  All Rights Reserved.
+ * 
+ * This is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this software; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
+ * USA.
+ */
+#ifndef __RFB_MSGTYPES_H__
+#define __RFB_MSGTYPES_H__
+
+namespace rfb {
+  // server to client
+
+  const int msgTypeFramebufferUpdate = 0;
+  const int msgTypeSetColourMapEntries = 1;
+  const int msgTypeBell = 2;
+  const int msgTypeServerCutText = 3;
+
+  const int msgTypeEndOfContinuousUpdates = 150;
+
+  // kasm
+  const int msgTypeStats = 178;
+  const int msgTypeRequestFrameStats = 179;
+  const int msgTypeBinaryClipboard = 180;
+  const int msgTypeUpgradeToUdp = 181;
+  const int msgTypeSubscribeUnixRelay = 182;
+  const int msgTypeUnixRelay = 183;
+  const int msgTypeKeepAlive = 184;
+  const int msgTypeServerDisconnect = 185;
+
+  const int msgTypeServerFence = 248;
+  const int msgTypeUserAddedToSession = 253;
+  const int msgTypeUserRemovedFromSession = 254;
+
+
+  // client to server
+
+  const int msgTypeSetPixelFormat = 0;
+  const int msgTypeFixColourMapEntries = 1;
+  const int msgTypeSetEncodings = 2;
+  const int msgTypeFramebufferUpdateRequest = 3;
+  const int msgTypeKeyEvent = 4;
+  const int msgTypePointerEvent = 5;
+  const int msgTypeClientCutText = 6;
+
+  const int msgTypeEnableContinuousUpdates = 150;
+
+  // kasm
+  const int msgTypeRequestStats = 178;
+  const int msgTypeFrameStats = 179;
+  // same as the other direction
+  //const int msgTypeBinaryClipboard = 180;
+  //const int msgTypeUpgradeToUdp = 181;
+  //const int msgTypeSubscribeUnixRelay = 182;
+  //const int msgTypeUnixRelay = 183;
+  //const int msgTypeKeepAlive = 184;
+  //const int msgTypeServerDisconnect = 185;
+
+  const int msgTypeClientFence = 248;
+
+  const int msgTypeSetDesktopSize = 251;
+
+  const int msgTypeSetMaxVideoResolution = 252;
+
+  const int msgTypeQEMUClientMessage = 255;
+}
+#endif

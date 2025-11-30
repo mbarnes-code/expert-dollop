@@ -1,0 +1,57 @@
+service:
+  extensions: [jaeger_storage, jaeger_query, healthcheckv2]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [jaeger_storage_exporter]
+
+extensions:
+  healthcheckv2:
+    use_v2: true
+    http:
+      endpoint: "0.0.0.0:13133"
+
+  jaeger_query:
+    storage:
+      traces: badger_store
+    base_path: /jaeger
+
+  jaeger_storage:
+    backends:
+      badger_store:
+        badger:
+          directories:
+            keys: "/badger/keys"
+            values: "/badger/values"
+          ephemeral: false
+          consistency: false
+          maintenance_interval: 5m0s
+          read_only: false
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      # if nothing sends OTLP/HTTP to Jaeger directly, you can drop this:
+      # http:
+      #   endpoint: "0.0.0.0:4318"
+
+processors:
+  # Prevent memory issues during high load
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+  batch:
+    timeout: 5s
+    send_batch_size: 2048
+    send_batch_max_size: 4096
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: badger_store
+    # No additional retry/queue options available for jaeger_storage_exporter
+    # Backpressure is handled by the batch processor and memory_limiter

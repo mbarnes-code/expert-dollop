@@ -1,0 +1,33 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=batman-adv
+pkgver=2025.2
+pkgrel=1
+groups=('blackarch' 'blackarch-wireless')
+pkgdesc='Batman kernel module, (included upstream since .38)'
+arch=('x86_64' 'aarch64')
+url='http://www.open-mesh.net/'
+license=('GPL')
+depends=('libnl')
+makedepends=('linux-headers')
+source=("https://downloads.open-mesh.org/batman/releases/$pkgname-$pkgver/$pkgname-$pkgver.tar.gz")
+sha512sums=('b8be156f32d3a3d4c04eba9289b51aca419a64fa697bc1ef03e1cba42ecc3d156c2f5886e9e39352df0a8e458abae221c91d1ac6c01b649a35706cd67add4784')
+install="$pkgname.install"
+
+build() {
+  cd "$pkgname-$pkgver"
+
+  export CFLAGS="${CFLAGS} -fplt"
+  make KERNELPATH="/usr/lib/modules/$(uname -r)/build"
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -Dm 644 "net/$pkgname/batman-adv.ko" \
+    "$pkgdir/usr/lib/modules/$(uname -r)/updates/net/$pkgname/batman_adv.ko"
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.rst MAINTAINERS \
+    Documentation/networking/*.rst
+}
+

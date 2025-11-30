@@ -1,0 +1,28 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-zodburi
+_pkgname=zodburi
+pkgver=3.0.0
+pkgrel=1
+pkgdesc='A library which parses URIs and converts them to ZODB storage objects and database arguments.'
+arch=('any')
+url='https://pypi.org/project/zodburi/'
+license=('BSD')
+depends=('python' 'python-zodb' 'python-zeo' 'python-zconfig')
+makedepends=('python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname:0:1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('ada7566d67caf65d4ff52d79318b910d30cad7a7caa59df8736d47223158e2ea8ac815d3d6835d03d8289000de82c1b5ffde9a1394f2609212de08b716956e4b')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}
+

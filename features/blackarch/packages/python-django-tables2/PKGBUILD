@@ -1,0 +1,32 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details
+
+pkgname=python-django-tables2
+_pkgname=django-tables2
+pkgver=2.7.5
+pkgrel=1
+pkgdesc='A module for rendering Django data sets as HTML tables.'
+arch=('any')
+url='https://pypi.org/project/django-tables2/'
+license=('MIT')
+options=(!emptydirs)
+depends=('python-django')
+makedepends=('python-setuptools')
+optdepends=('python-tablib: to export table data as CSV, XLS, etc.')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('d117d2a74cbbd82d3727c0864fdac32c76557b3b884a3c293575c64b0e4c4b1664cea539b180796aec96284035188f5586649fb8c050eccdc048ed627b7ddf96')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+

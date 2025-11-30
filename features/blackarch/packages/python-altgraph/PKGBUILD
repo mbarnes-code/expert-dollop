@@ -1,0 +1,29 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-altgraph
+_pkgname=altgraph
+pkgver=0.17.5
+pkgrel=1
+pkgdesc='Python graph (network) package.'
+arch=('any')
+url='https://pypi.org/project/altgraph/#files'
+license=('MIT')
+depends=('python')
+makedepends=('python-setuptools' 'python-build' 'python-installer'
+             'python-wheel')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('1cc3878946c92f8140e62a7e51d9ec3d58f4f9dfa854312522a2763aa7ed6f9a4b5a07430331b89fc1b69ab350ff9c3fb2f396040ba05e7e7f7c60167b69fe09')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  python -m installer --destdir="$pkgdir" dist/*.whl
+}
+

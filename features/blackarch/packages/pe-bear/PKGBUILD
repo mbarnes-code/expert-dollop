@@ -1,0 +1,25 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=pe-bear
+_pkgname=PE-bear
+pkgver=0.7.1
+pkgrel=1
+pkgdesc='A freeware reversing tool for PE files.'
+url='https://github.com/hasherezade/pe-bear'
+groups=('blackarch' 'blackarch-windows' 'blackarch-malware' 'blackarch-binary'
+        'blackarch-reversing' 'blackarch-disassembler')
+license=('custom:unknown')
+arch=('any')
+source=("https://github.com/hasherezade/pe-bear/releases/download/v$pkgver/${_pkgname}_${pkgver}_qt5_x64_win_vs19.zip")
+sha512sums=('8e5d62a6f34c583baa52807399f1995397c04469c500bbcd7591ccb1f0ff05106e546734f9d887c95f4530a4461e102830607b035a0480555dad1b84037049bc')
+
+package() {
+  install -dm 755 "$pkgdir/usr/share/windows/$pkgname"
+
+  rm -f "${_pkgname}_${pkgver}_x64_win_vs17.zip" \
+    "styles/${_pkgname}_${pkgver}_x64_win_vs17.zip"
+
+  cp -a * "$pkgdir/usr/share/windows/$pkgname/"
+}
+

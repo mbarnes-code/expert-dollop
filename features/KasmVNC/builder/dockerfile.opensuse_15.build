@@ -1,0 +1,78 @@
+FROM opensuse/leap:15.5
+
+ENV KASMVNC_BUILD_OS opensuse
+ENV KASMVNC_BUILD_OS_CODENAME 15
+ENV XORG_VER 1.20.3
+
+# Install depends
+RUN zypper install -ny \
+  bdftopcf \
+  bigreqsproto-devel \
+  ninja \
+  nasm \
+  curl \
+  ffmpeg-4-libavcodec-devel \
+  ffmpeg-4-libswscale-devel \
+  ffmpeg-4-libavformat-devel \
+  fonttosfnt \
+  font-util \
+  gcc14 \
+  gcc14-c++ \
+  giflib-devel \
+  git \
+  gzip \
+  lbzip2 \
+  libbz2-devel \
+  libgbm-devel \
+  libGLw-devel \
+  libgnutls-devel \
+  libopenssl-devel \
+  libpng16-devel \
+  libpnglite0 \
+  png++-devel \
+  libtiff-devel \
+  libXfont2-devel \
+  libxkbcommon-x11-devel \
+  libxshmfence-devel \
+  make \
+  Mesa-dri \
+  Mesa-libglapi-devel \
+  mkfontdir \
+  mkfontscale \
+  patch \
+  tigervnc \
+  wget \
+  xcmiscproto-devel \
+  xorg-x11-devel \
+  xorg-x11-server-sdk \
+  xorg-x11-util-devel \
+  zlib-devel
+
+RUN useradd -u 1000 docker && \
+  groupadd -g 1000 docker && \
+  usermod -a -G docker docker
+
+RUN ARCH=$(arch) && \
+  CMAKE_URL="https://cmake.org/files/v3.22/cmake-3.22.0" && \
+  if [ "$ARCH" = "x86_64" ]; then \
+      CMAKE_URL="${CMAKE_URL}-linux-x86_64.sh"; \
+  elif [ "$ARCH" = "aarch64" ]; then \
+      CMAKE_URL="${CMAKE_URL}-linux-aarch64.sh"; \
+  else \
+      echo "Unsupported architecture: $ARCH" && exit 1; \
+  fi && \
+  curl -fsSL $CMAKE_URL -o cmake.sh && \
+  (echo y; echo n) | bash cmake.sh --prefix=/usr/local --skip-license && \
+  rm cmake.sh
+
+ENV SCRIPTS_DIR=/tmp/scripts
+ENV CC=/usr/bin/gcc-14
+ENV CXX=/usr/bin/g++-14
+
+COPY builder/scripts $SCRIPTS_DIR
+RUN $SCRIPTS_DIR/build-deps.sh
+
+COPY --chown=docker:docker . /src/
+
+USER docker
+ENTRYPOINT ["bash", "-l", "-c", "/src/builder/build.sh"]

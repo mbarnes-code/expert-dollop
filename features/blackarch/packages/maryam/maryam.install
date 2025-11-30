@@ -1,0 +1,22 @@
+post_install() {
+  set -e
+  cd /usr/share/maryam
+  python -m virtualenv venv
+  source venv/bin/activate &&
+    pip install git+https://github.com/saeeddhqan/maryam.git \
+    --isolated --root=/usr/share/maryam --prefix=venv -r requirements
+}
+
+post_upgrade() {
+  set -e
+  cd /usr/share/maryam
+  python -m virtualenv venv
+  source venv/bin/activate &&
+    pip install git+https://github.com/saeeddhqan/maryam.git \
+    --isolated --root=/usr/share/maryam --prefix=venv -r requirements -U
+}
+
+post_remove() {
+  rm -rf /usr/share/maryam
+}
+

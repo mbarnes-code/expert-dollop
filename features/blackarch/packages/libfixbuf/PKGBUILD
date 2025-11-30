@@ -1,0 +1,32 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=libfixbuf
+pkgver=3.0.0.alpha2
+pkgrel=1
+pkgdesc='IPFIX Message Format Implementation.'
+arch=('x86_64' 'aarch64')
+url='http://aircert.sourceforge.net/fixbuf'
+license=('GPL')
+depends=('glib2')
+source=("http://tools.netsa.cert.org/releases/$pkgname-$pkgver.tar.gz")
+sha512sums=('128c0ef1beeaef449158a456a57cb7a0b7bf7ee8b0ed3a7d640ea62da0929744b568f199cdb2454f95dfb87ed208659146ab07380434a6339cf42a7ebe9e3359')
+
+build() {
+  cd "$pkgname-$pkgver"
+
+  if [[ "$CARCH" == "aarch64" ]]; then
+    ./configure --prefix=/usr --build=arm
+  else
+    ./configure --prefix=/usr
+  fi
+
+  make
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  make DESTDIR="$pkgdir" install
+}
+

@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "housekeeping"
+version = "0.1.0"
+description = "Cleans up expired database entries and files."
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+fastapi = "^0.121.0"
+uvicorn = "^0.34.0"
+dapr = "1.16.0"
+dapr-ext-fastapi = "1.16.0"
+structlog = "^25.1.0"
+pydantic = "^2.10.4"
+psycopg = "^3.2.4"
+apscheduler = "^3.11.0"
+common = { path = "../../libs/common", develop = true }
+asyncpg = "^0.30.0"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.2"
+pytest = "^8.4.2"
+pytest-asyncio = "^1.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+

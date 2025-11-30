@@ -1,0 +1,31 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=scamper
+pkgver=20240920
+pkgrel=1
+pkgdesc='A tool that actively probes the Internet in order to analyze topology and performance.'
+groups=('blackarch' 'blackarch-scanner' 'blackarch-recon'
+        'blackarch-networking')
+arch=('x86_64' 'aarch64')
+url='http://www.caida.org/tools/measurement/scamper/'
+license=('GPL-2.0-or-later')
+depends=('openssl' 'zlib' 'bzip2' 'xz')
+makedepends=()
+source=("http://www.caida.org/tools/measurement/$pkgname/code/$pkgname-cvs-$pkgver.tar.gz")
+sha512sums=('6cc4a4f726f255c6a45b5a8092f38ccb8dee11a15ca26433611d75dc9396828541a912e0e11787e9ee767cf59a0670875402a1727aa089fc14551b6e31ccb32b')
+
+build() {
+  cd "$pkgname-cvs-$pkgver"
+
+  ./configure --prefix=/usr
+
+  make
+}
+
+package() {
+  cd "$pkgname-cvs-${pkgver}"
+
+  make DESTDIR="$pkgdir" install
+}
+

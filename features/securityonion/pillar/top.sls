@@ -1,0 +1,336 @@
+base:
+  '*':
+    - global.soc_global
+    - global.adv_global
+    - docker.soc_docker
+    - docker.adv_docker
+    - influxdb.token
+    - logrotate.soc_logrotate
+    - logrotate.adv_logrotate
+    - ntp.soc_ntp
+    - ntp.adv_ntp
+    - patch.needs_restarting
+    - patch.soc_patch
+    - patch.adv_patch
+    - sensoroni.soc_sensoroni
+    - sensoroni.adv_sensoroni
+    - telegraf.soc_telegraf
+    - telegraf.adv_telegraf
+    - versionlock.soc_versionlock
+    - versionlock.adv_versionlock
+    - soc.license
+
+  '* and not *_desktop':
+    - firewall.soc_firewall
+    - firewall.adv_firewall
+    - nginx.soc_nginx
+    - nginx.adv_nginx
+
+  'salt-cloud:driver:libvirt':
+    - match: grain
+    - vm.soc_vm
+    - vm.adv_vm
+
+  '*_manager or *_managersearch or *_managerhype':
+    - match: compound
+    - node_data.ips
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/elasticsearch/auth.sls') %}
+    - elasticsearch.auth
+    {% endif %}
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/kibana/secrets.sls') %}
+    - kibana.secrets
+    {% endif %}
+    - secrets
+    - manager.soc_manager
+    - manager.adv_manager
+    - idstools.soc_idstools
+    - idstools.adv_idstools
+    - logstash.nodes
+    - logstash.soc_logstash
+    - logstash.adv_logstash
+    - soc.soc_soc
+    - soc.adv_soc
+    - kibana.soc_kibana
+    - kibana.adv_kibana
+    - kratos.soc_kratos
+    - kratos.adv_kratos
+    - hydra.soc_hydra
+    - hydra.adv_hydra
+    - redis.nodes
+    - redis.soc_redis
+    - redis.adv_redis
+    - influxdb.soc_influxdb
+    - influxdb.adv_influxdb
+    - elasticsearch.nodes
+    - elasticsearch.soc_elasticsearch
+    - elasticsearch.adv_elasticsearch
+    - elasticfleet.soc_elasticfleet
+    - elasticfleet.adv_elasticfleet
+    - elastalert.soc_elastalert
+    - elastalert.adv_elastalert
+    - backup.soc_backup
+    - backup.adv_backup
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - kafka.nodes
+    - kafka.soc_kafka
+    - kafka.adv_kafka
+    - hypervisor.nodes
+    - hypervisor.soc_hypervisor
+    - hypervisor.adv_hypervisor
+    - stig.soc_stig
+
+  '*_sensor':
+    - healthcheck.sensor
+    - strelka.soc_strelka
+    - strelka.adv_strelka
+    - zeek.soc_zeek
+    - zeek.adv_zeek
+    - bpf.soc_bpf
+    - bpf.adv_bpf
+    - pcap.soc_pcap
+    - pcap.adv_pcap
+    - suricata.soc_suricata
+    - suricata.adv_suricata
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - stig.soc_stig
+
+  '*_eval':
+    - node_data.ips
+    - secrets
+    - healthcheck.eval
+    - elasticsearch.index_templates
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/elasticsearch/auth.sls') %}
+    - elasticsearch.auth
+    {% endif %}
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/kibana/secrets.sls') %}
+    - kibana.secrets
+    {% endif %}
+    - kratos.soc_kratos
+    - kratos.adv_kratos
+    - elasticsearch.soc_elasticsearch
+    - elasticsearch.adv_elasticsearch
+    - elasticfleet.soc_elasticfleet
+    - elasticfleet.adv_elasticfleet
+    - elastalert.soc_elastalert
+    - elastalert.adv_elastalert
+    - manager.soc_manager
+    - manager.adv_manager
+    - idstools.soc_idstools
+    - idstools.adv_idstools
+    - soc.soc_soc
+    - soc.adv_soc
+    - kibana.soc_kibana
+    - kibana.adv_kibana
+    - strelka.soc_strelka
+    - strelka.adv_strelka
+    - hydra.soc_hydra
+    - hydra.adv_hydra
+    - redis.soc_redis
+    - redis.adv_redis
+    - influxdb.soc_influxdb
+    - influxdb.adv_influxdb
+    - backup.soc_backup
+    - backup.adv_backup
+    - zeek.soc_zeek
+    - zeek.adv_zeek
+    - bpf.soc_bpf
+    - bpf.adv_bpf
+    - pcap.soc_pcap
+    - pcap.adv_pcap
+    - suricata.soc_suricata
+    - suricata.adv_suricata
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+
+  '*_standalone':
+    - node_data.ips
+    - logstash.nodes
+    - logstash.soc_logstash
+    - logstash.adv_logstash
+    - elasticsearch.index_templates
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/elasticsearch/auth.sls') %}
+    - elasticsearch.auth
+    {% endif %}
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/kibana/secrets.sls') %}
+    - kibana.secrets
+    {% endif %}
+    - secrets
+    - healthcheck.standalone
+    - idstools.soc_idstools
+    - idstools.adv_idstools
+    - kratos.soc_kratos
+    - kratos.adv_kratos
+    - hydra.soc_hydra
+    - hydra.adv_hydra
+    - redis.nodes
+    - redis.soc_redis
+    - redis.adv_redis
+    - influxdb.soc_influxdb
+    - influxdb.adv_influxdb
+    - elasticsearch.nodes
+    - elasticsearch.soc_elasticsearch
+    - elasticsearch.adv_elasticsearch
+    - elasticfleet.soc_elasticfleet
+    - elasticfleet.adv_elasticfleet
+    - elastalert.soc_elastalert
+    - elastalert.adv_elastalert
+    - manager.soc_manager
+    - manager.adv_manager
+    - soc.soc_soc
+    - soc.adv_soc
+    - kibana.soc_kibana
+    - kibana.adv_kibana
+    - strelka.soc_strelka
+    - strelka.adv_strelka
+    - backup.soc_backup
+    - backup.adv_backup
+    - zeek.soc_zeek
+    - zeek.adv_zeek
+    - bpf.soc_bpf
+    - bpf.adv_bpf
+    - pcap.soc_pcap
+    - pcap.adv_pcap
+    - suricata.soc_suricata
+    - suricata.adv_suricata
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - stig.soc_stig
+    - kafka.nodes
+    - kafka.soc_kafka
+    - kafka.adv_kafka
+
+  '*_heavynode':
+    - elasticsearch.auth
+    - logstash.nodes
+    - logstash.soc_logstash
+    - logstash.adv_logstash
+    - elasticsearch.soc_elasticsearch
+    - elasticsearch.adv_elasticsearch
+    - redis.soc_redis
+    - redis.adv_redis
+    - zeek.soc_zeek
+    - zeek.adv_zeek
+    - bpf.soc_bpf
+    - bpf.adv_bpf
+    - pcap.soc_pcap
+    - pcap.adv_pcap
+    - suricata.soc_suricata
+    - suricata.adv_suricata
+    - strelka.soc_strelka
+    - strelka.adv_strelka
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+
+  '*_idh':
+    - idh.soc_idh
+    - idh.adv_idh
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+
+  '*_searchnode':
+    - logstash.nodes
+    - logstash.soc_logstash
+    - logstash.adv_logstash
+    - elasticsearch.nodes
+    - elasticsearch.soc_elasticsearch
+    - elasticsearch.adv_elasticsearch
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/elasticsearch/auth.sls') %}
+    - elasticsearch.auth
+    {% endif %}
+    - redis.nodes
+    - redis.soc_redis
+    - redis.adv_redis
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - stig.soc_stig
+    - kafka.nodes
+    - kafka.soc_kafka
+    - kafka.adv_kafka
+
+  '*_receiver':
+    - logstash.nodes
+    - logstash.soc_logstash
+    - logstash.adv_logstash
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/elasticsearch/auth.sls') %}
+    - elasticsearch.auth
+    {% endif %}
+    - redis.soc_redis
+    - redis.adv_redis
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - kafka.nodes
+    - kafka.soc_kafka
+    - stig.soc_stig
+    - elasticfleet.soc_elasticfleet
+    - elasticfleet.adv_elasticfleet
+
+  '*_import':
+    - node_data.ips
+    - secrets
+    - elasticsearch.index_templates
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/elasticsearch/auth.sls') %}
+    - elasticsearch.auth
+    {% endif %}
+    {% if salt['file.file_exists']('/opt/so/saltstack/local/pillar/kibana/secrets.sls') %}
+    - kibana.secrets
+    {% endif %}
+    - kratos.soc_kratos
+    - kratos.adv_kratos
+    - elasticsearch.soc_elasticsearch
+    - elasticsearch.adv_elasticsearch
+    - elasticfleet.soc_elasticfleet
+    - elasticfleet.adv_elasticfleet
+    - elastalert.soc_elastalert
+    - elastalert.adv_elastalert
+    - manager.soc_manager
+    - manager.adv_manager
+    - soc.soc_soc
+    - soc.adv_soc
+    - kibana.soc_kibana
+    - kibana.adv_kibana
+    - backup.soc_backup
+    - backup.adv_backup
+    - hydra.soc_hydra
+    - hydra.adv_hydra
+    - redis.soc_redis
+    - redis.adv_redis
+    - influxdb.soc_influxdb
+    - influxdb.adv_influxdb
+    - zeek.soc_zeek
+    - zeek.adv_zeek
+    - bpf.soc_bpf
+    - bpf.adv_bpf
+    - pcap.soc_pcap
+    - pcap.adv_pcap
+    - suricata.soc_suricata
+    - suricata.adv_suricata
+    - strelka.soc_strelka
+    - strelka.adv_strelka
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+
+  '*_fleet':
+    - node_data.ips
+    - backup.soc_backup
+    - backup.adv_backup
+    - logstash.nodes
+    - logstash.soc_logstash
+    - logstash.adv_logstash
+    - elasticfleet.soc_elasticfleet
+    - elasticfleet.adv_elasticfleet
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - stig.soc_stig
+
+  '*_hypervisor':
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - stig.soc_stig
+
+  '*_desktop':
+    - minions.{{ grains.id }}
+    - minions.adv_{{ grains.id }}
+    - stig.soc_stig
+

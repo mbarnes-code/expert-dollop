@@ -1,0 +1,83 @@
+{
+    "generic": {
+        "server-error": "Wystąpił nieoczekiwany błąd"
+    },
+    "recipe": {
+        "unique-name-error": "Nazwy przepisów muszą być unikatowe",
+        "recipe-created": "Utworzono przepis",
+        "recipe-image-deleted": "Obrazek przepisu został usunięty ",
+        "recipe-defaults": {
+            "ingredient-note": "1 szklanka mąki",
+            "step-text": "Kroki przepisu, jak również inne pola na stronie przepisu obsługują składnię markdown.\n\n**Dodaj link**\n\n[Mój link](https://demo.mealie.io)\n"
+        },
+        "servings-text": {
+            "makes": "Daje",
+            "serves": "Wystarcza dla",
+            "serving": "Porcja",
+            "servings": "Porcje",
+            "yield": "Ilość",
+            "yields": "Porcje"
+        }
+    },
+    "mealplan": {
+        "no-recipes-match-your-rules": "Nie znaleziono przepisu spełniającego warunki"
+    },
+    "user": {
+        "user-updated": "Użytkownik zaktualizowany",
+        "password-updated": "Hasło zostało zmienione",
+        "invalid-current-password": "Bieżące hasło jest nieprawidłowe",
+        "ldap-update-password-unavailable": "Nie można zaktualizować hasła, użytkownik jest kontrolowany przez LDAP"
+    },
+    "group": {
+        "report-deleted": "Raport usunięty."
+    },
+    "exceptions": {
+        "permission_denied": "Nie masz uprawnień do wykonania tej akcji",
+        "recursive-recipe-link": "A recipe cannot reference itself, either directly or indirectly",
+        "no-entry-found": "Wskazany zasób jest niedostępny",
+        "integrity-error": "Błąd spójności bazy danych",
+        "username-conflict-error": "Ta nazwa użytkownika jest już zajęta",
+        "email-conflict-error": "Ten adres email już jest zajęty"
+    },
+    "notifications": {
+        "generic-created": "Stworzono {name}",
+        "generic-updated": "Zaktualizowano {name}",
+        "generic-created-with-url": "Stworzono {name}, {url}",
+        "generic-updated-with-url": "Zaktualizowano {name}, {url}",
+        "generic-duplicated": "Zduplikowano {name}",
+        "generic-deleted": "Usunięto {name}",
+        "logged-out": "Wylogowano"
+    },
+    "datetime": {
+        "year": "rok|lat",
+        "day": "dzień|dni",
+        "hour": "godzina|godzin",
+        "minute": "minuta|minut",
+        "second": "sekunda|sekund",
+        "millisecond": "milisekunda|milisekund",
+        "microsecond": "mikrosekunda|mikrosekund"
+    },
+    "emails": {
+        "password": {
+            "subject": "Zapomniane hasło Mealie",
+            "header_text": "Zapomniane hasło",
+            "message_top": "Poproszono o zresetowanie hasła.",
+            "message_bottom": "Kliknij przycisk poniżej, aby zresetować swoje hasło.",
+            "button_text": "Zresetuj hasło"
+        },
+        "invitation": {
+            "subject": "Zaproszenie do Mealie",
+            "header_text": "Otrzymano zaproszenie!",
+            "message_top": "Zaproszenie dołączenia do Mealie.",
+            "message_bottom": "Kliknij powyższy przycisk, aby zaakceptować zaproszenie.",
+            "button_text": "Akceptuj zaproszenie"
+        },
+        "test": {
+            "subject": "Email testowy Mealie",
+            "header_text": "E-mail testowy",
+            "message_top": "To jest e-mail testowy.",
+            "message_bottom": "Kliknij przycisk powyżej, aby przetestować e-mail.",
+            "button_text": "Otwórz Mealie"
+        }
+    }
+}

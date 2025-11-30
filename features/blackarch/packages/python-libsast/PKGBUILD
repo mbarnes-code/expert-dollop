@@ -1,0 +1,39 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-libsast
+_pkgname=libsast
+pkgver=3.1.6
+pkgrel=1
+pkgdesc='A generic SAST core built on top of semgrep and regex.'
+arch=('any')
+url='https://pypi.org/project/libsast/#files'
+license=('LGPL')
+depends=('python' 'python-requests' 'python-yaml' 'python-pyaml' 'semgrep')
+makedepends=('python-build' 'python-pip')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('395f896971700923098a3fdd61b32c96d0557226f618a8c5db7774f77317113ca52f3e41a863782b1edabfbf8a8b5e1b041731fdb9bd6cfe843e3c6949c1c1e3')
+
+build() {
+  cd "$_pkgname-$pkgver"
+
+  python -m build --wheel --outdir="$startdir/dist"
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+
+  pip install \
+    --verbose \
+    --disable-pip-version-check \
+    --no-warn-script-location \
+    --ignore-installed \
+    --no-compile \
+    --no-deps \
+    --root="$pkgdir" \
+    --prefix=/usr \
+    --no-index \
+    --find-links="file://$startdir/dist" \
+    $_pkgname
+}
+

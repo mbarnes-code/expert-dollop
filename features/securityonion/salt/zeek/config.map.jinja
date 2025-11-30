@@ -1,0 +1,19 @@
+{# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+   or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at 
+   https://securityonion.net/license; you may not use this file except in compliance with the
+   Elastic License 2.0. #}
+
+{% from 'vars/sensor.map.jinja' import ROLE_GLOBALS %}
+{% import_yaml 'zeek/defaults.yaml' as ZEEKDEFAULTS with context %}
+{% set ZEEKMERGED = salt['pillar.get']('zeek', ZEEKDEFAULTS.zeek, merge=True) %}
+{% do ZEEKMERGED.config.node.update({'interface': ROLE_GLOBALS.sensor.interface}) %}
+
+{# we have to add the @ sign for the config since we remove it from defaults for the UI #}
+{% if ZEEKMERGED.config.local.load is defined %}
+  {% set LOCALLOAD = ZEEKMERGED.config.local.pop('load') %}
+  {% do ZEEKMERGED.config.local.update({'@load': LOCALLOAD}) %}
+{% endif %}
+{% if ZEEKMERGED.config.local['load-sigs'] is defined %}
+  {% set LOCALLOADSIGS = ZEEKMERGED.config.local.pop('load-sigs') %}
+  {% do ZEEKMERGED.config.local.update({'@load-sigs': LOCALLOADSIGS}) %}
+{% endif %}

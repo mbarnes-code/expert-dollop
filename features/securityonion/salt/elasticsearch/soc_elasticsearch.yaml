@@ -1,0 +1,485 @@
+elasticsearch:
+  enabled:
+    description: Enables or disables the Elasticsearch process. This process provides the log event storage system. WARNING - Disabling this process is unsupported.
+    advanced: True
+    helpLink: elasticsearch.html
+  version:
+    description: "This specifies the version of the following containers: so-elastic-fleet-package-registry, so-elastic-agent, so-elastic-fleet, so-kibana, so-logstash and so-elasticsearch. Modifying this value in the Elasticsearch defaults.yaml will result in catastrophic grid failure."
+    readonly: True
+    global: True
+    advanced: True
+  esheap:
+    description: Specify the memory heap size in (m)egabytes for Elasticsearch.
+    helpLink: elasticsearch.html
+  index_clean:
+    description: Determines if indices should be considered for deletion by available disk space in the cluster. Otherwise, indices will only be deleted by the age defined in the ILM settings. This setting only applies to EVAL, STANDALONE, and HEAVY NODE installations. Other installations can only use ILM settings.
+    forcedType: bool
+    helpLink: elasticsearch.html
+  retention: 
+    retention_pct:
+      decription: Total percentage of space used by Elasticsearch for multi node clusters
+      helpLink: elasticsearch.html
+      global: True
+  config:
+    cluster:
+      name: 
+        description: The name of the Security Onion Elasticsearch cluster, for identification purposes.
+        readonly: True
+        global: True
+        helpLink: elasticsearch.html
+      routing:
+        allocation:
+          disk:
+            threshold_enabled: 
+              description: Specifies whether the Elasticsearch node will monitor the available disk space for low disk space conditions and take action to protect the cluster.
+              helpLink: elasticsearch.html
+            watermark:
+              low: 
+                description: The lower percentage of used disk space representing a healthy node.
+                helpLink: elasticsearch.html
+              high: 
+                description: The higher percentage of used disk space representing an unhealthy node.
+                helpLink: elasticsearch.html
+              flood_stage: 
+                description: The max percentage of used disk space that will cause the node to take protective actions, such as blocking incoming events.
+                helpLink: elasticsearch.html
+    script:
+      max_compilations_rate: 
+        description: Max rate of script compilations permitted in the Elasticsearch cluster. Larger values will consume more resources.
+        global: True
+        helpLink: elasticsearch.html
+    indices:
+      query:
+        bool:
+          max_clause_count: 
+            description: Max number of boolean clauses per query.
+            global: True
+            helpLink: elasticsearch.html
+  pipelines:
+    custom001: &pipelines
+      description:
+        description: Description of the ingest node pipeline
+        global: True
+        advanced: True
+        helpLink: elasticsearch.html
+      processors:
+        description: Processors for the ingest node pipeline
+        global: True
+        advanced: True
+        multiline: True
+        helpLink: elasticsearch.html
+    custom002: *pipelines
+    custom003: *pipelines
+    custom004: *pipelines
+    custom005: *pipelines
+    custom006: *pipelines
+    custom007: *pipelines
+    custom008: *pipelines
+    custom009: *pipelines
+    custom010: *pipelines
+  managed_integrations:
+    description: List of integrations to add into SOC config UI. Enter the full or partial integration name. Eg. 1password, 1pass
+    forcedType: "[]string"
+    multiline: True
+    global: True
+    advanced: True
+    helpLink: elasticsearch.html
+  index_settings:
+    global_overrides:
+      index_template:
+        template:
+          settings:
+            index:
+              number_of_replicas:
+                description: Number of replicas required for all indices. Multiple replicas protects against data loss, but also increases storage costs. This setting will be applied to all indices.
+                forcedType: int
+                global: True
+                helpLink: elasticsearch.html
+              refresh_interval: 
+                description: Seconds between index refreshes. Shorter intervals can cause query performance to suffer since this is a synchronous and resource-intensive operation.
+                global: True
+                helpLink: elasticsearch.html
+              number_of_shards: 
+                description: Number of shards required for this index. Using multiple shards increases fault tolerance, but also increases storage and network costs.
+                global: True
+                helpLink: elasticsearch.html
+              sort:
+                field:
+                  description: The field to sort by. Must set index_sorting to True.
+                  global: True
+                  helpLink: elasticsearch.html
+                order:
+                  description: The order to sort by. Must set index_sorting to True.
+                  global: True
+                  helpLink: elasticsearch.html
+      policy:
+        phases:
+          hot:
+            actions:
+              set_priority:
+                priority:
+                  description: Priority of index. This is used for recovery after a node restart. Indices with higher priorities are recovered before indices with lower priorities.
+                  forcedType: int
+                  global: True
+                  helpLink: elasticsearch.html
+              rollover:
+                max_age:
+                  description: Maximum age of index.  Once an index reaches this limit, it will be rolled over into a new index.
+                  global: True
+                  helpLink: elasticsearch.html
+                max_primary_shard_size:
+                  description: Maximum primary shard size. Once an index reaches this limit, it will be rolled over into a new index.
+                  global: True
+                  helpLink: elasticsearch.html
+          cold:
+            min_age:
+              description: Minimum age of index. ex. 60d - This determines when the index should be moved to the cold tier. While still searchable, this tier is typically optimized for lower storage costs rather than search speed. It’s important to note that this is calculated relative to the rollover date (NOT the original creation date of the index). For example, if you have an index that is set to rollover after 30 days and cold min_age set to 60 then there will be 30 days from index creation to rollover and then an additional 60 days before moving to cold tier.
+              regex: ^[0-9]{1,5}d$
+              forcedType: string
+              global: True
+              helpLink: elasticsearch.html
+            actions:
+              set_priority:
+                priority:
+                  description: Used for index recovery after a node restart. Indices with higher priorities are recovered before indices with lower priorities.
+                  global: True
+                  helpLink: elasticsearch.html
+          warm:
+            min_age: 
+              description: Minimum age of index. ex. 30d - This determines when the index should be moved to the warm tier. Nodes in the warm tier generally don’t need to be as fast as those in the hot tier. It’s important to note that this is calculated relative to the rollover date (NOT the original creation date of the index). For example, if you have an index that is set to rollover after 30 days and warm min_age set to 30 then there will be 30 days from index creation to rollover and then an additional 30 days before moving to warm tier.
+              regex: ^[0-9]{1,5}d$
+              forcedType: string
+              global: True
+              helpLink: elasticsearch.html
+            actions:
+              set_priority:
+                priority:
+                  description: Priority of index. This is used for recovery after a node restart. Indices with higher priorities are recovered before indices with lower priorities.
+                  forcedType: int
+                  global: True
+                  helpLink: elasticsearch.html
+          delete:
+            min_age:
+              description: Minimum age of index. ex. 90d - This determines when the index should be deleted. It’s important to note that this is calculated relative to the rollover date (NOT the original creation date of the index). For example, if you have an index that is set to rollover after 30 days and delete min_age set to 90 then there will be 30 days from index creation to rollover and then an additional 90 days before deletion.
+              regex: ^[0-9]{1,5}d$
+              forcedType: string
+              global: True
+              helpLink: elasticsearch.html
+    so-logs: &indexSettings
+      index_sorting: 
+        description: Sorts the index by event time, at the cost of additional processing resource consumption.
+        global: True
+        advanced: True
+        helpLink: elasticsearch.html
+      index_template:
+        index_patterns:
+          description: Patterns for matching multiple indices or tables.
+          forcedType: "[]string"
+          multiline: True
+          global: True
+          advanced: True
+          helpLink: elasticsearch.html
+        template:
+          settings:
+            index:
+              number_of_replicas: 
+                description: Number of replicas required for this index. Multiple replicas protects against data loss, but also increases storage costs.
+                forcedType: int
+                global: True
+                advanced: True
+                helpLink: elasticsearch.html
+              mapping:
+                total_fields:
+                  limit:
+                    description: Max number of fields that can exist on a single index. Larger values will consume more resources.
+                    global: True
+                    advanced: True
+                    helpLink: elasticsearch.html
+              refresh_interval: 
+                description: Seconds between index refreshes. Shorter intervals can cause query performance to suffer since this is a synchronous and resource-intensive operation.
+                global: True
+                advanced: True
+                helpLink: elasticsearch.html
+              number_of_shards: 
+                description: Number of shards required for this index. Using multiple shards increases fault tolerance, but also increases storage and network costs.
+                global: True
+                advanced: True
+                helpLink: elasticsearch.html
+              sort:
+                field:
+                  description: The field to sort by. Must set index_sorting to True.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+                order:
+                  description: The order to sort by. Must set index_sorting to True.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+          mappings:
+            _meta:
+              package:
+                name:
+                  description: Meta settings for the mapping.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+              managed_by:
+                  description: Meta settings for the mapping.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+              managed:
+                  description: Meta settings for the mapping.
+                  forcedType: bool
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+        composed_of:
+          description: The index template is composed of these component templates.
+          forcedType: "[]string"
+          global: True
+          advanced: True
+          helpLink: elasticsearch.html
+        priority:
+          description: The priority of the index template.
+          forcedType: int
+          global: True
+          advanced: True
+          helpLink: elasticsearch.html
+        data_stream:
+          hidden:
+            description: Hide the data stream.
+            forcedType: bool
+            global: True
+            advanced: True
+            helpLink: elasticsearch.html
+          allow_custom_routing:
+            description: Allow custom routing for the data stream.
+            forcedType: bool
+            global: True
+            advanced: True
+            helpLink: elasticsearch.html
+      policy:
+        phases:
+          hot:
+            min_age:
+              description: Minimum age of index. This determines when the index should be moved to the hot tier.
+              global: True
+              advanced: True
+              helpLink: elasticsearch.html
+            actions:
+              set_priority:
+                priority:
+                  description: Priority of index. This is used for recovery after a node restart. Indices with higher priorities are recovered before indices with lower priorities.
+                  forcedType: int
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+              rollover:
+                max_age:
+                  description: Maximum age of index.  Once an index reaches this limit, it will be rolled over into a new index.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+                max_primary_shard_size:
+                  description: Maximum primary shard size. Once an index reaches this limit, it will be rolled over into a new index.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+          warm:
+            min_age:
+              description: Minimum age of index. ex. 30d - This determines when the index should be moved to the warm tier. Nodes in the warm tier generally don’t need to be as fast as those in the hot tier. It’s important to note that this is calculated relative to the rollover date (NOT the original creation date of the index). For example, if you have an index that is set to rollover after 30 days and warm min_age set to 30 then there will be 30 days from index creation to rollover and then an additional 30 days before moving to warm tier.
+              regex: ^[0-9]{1,5}d$
+              forcedType: string
+              global: True
+              advanced: True
+              helpLink: elasticsearch.html
+            actions:
+              set_priority:
+                priority:
+                  description: Priority of index. This is used for recovery after a node restart. Indices with higher priorities are recovered before indices with lower priorities.
+                  forcedType: int
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+              rollover:
+                max_age:
+                  description: Maximum age of index.  Once an index reaches this limit, it will be rolled over into a new index.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+                max_primary_shard_size:
+                  description: Maximum primary shard size. Once an index reaches this limit, it will be rolled over into a new index.
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+          cold:
+            min_age:
+              description: Minimum age of index. ex. 60d - This determines when the index should be moved to the cold tier.  While still searchable, this tier is typically optimized for lower storage costs rather than search speed. It’s important to note that this is calculated relative to the rollover date (NOT the original creation date of the index). For example, if you have an index that is set to rollover after 30 days and cold min_age set to 60 then there will be 30 days from index creation to rollover and then an additional 60 days before moving to cold tier.
+              regex: ^[0-9]{1,5}d$
+              forcedType: string
+              global: True
+              advanced: True
+              helpLink: elasticsearch.html
+            actions:
+              set_priority:
+                priority:
+                  description: Used for index recovery after a node restart. Indices with higher priorities are recovered before indices with lower priorities.
+                  forcedType: int
+                  global: True
+                  advanced: True
+                  helpLink: elasticsearch.html
+          delete:
+            min_age:
+              description: Minimum age of index. ex. 90d - This determines when the index should be deleted. It’s important to note that this is calculated relative to the rollover date (NOT the original creation date of the index). For example, if you have an index that is set to rollover after 30 days and delete min_age set to 90 then there will be 30 days from index creation to rollover and then an additional 90 days before deletion.
+              regex: ^[0-9]{1,5}d$
+              forcedType: string
+              global: True
+              advanced: True
+              helpLink: elasticsearch.html
+        _meta:
+          package:
+            name:
+              description: Meta settings for the mapping.
+              global: True
+              advanced: True
+              helpLink: elasticsearch.html
+          managed_by:
+            description: Meta settings for the mapping.
+            global: True
+            advanced: True
+            helpLink: elasticsearch.html
+          managed:
+            description: Meta settings for the mapping.
+            forcedType: bool
+            global: True
+            advanced: True
+            helpLink: elasticsearch.html
+    so-logs-system_x_auth: *indexSettings
+    so-logs-system_x_syslog: *indexSettings
+    so-logs-system_x_system: *indexSettings
+    so-logs-system_x_application: *indexSettings
+    so-logs-system_x_security: *indexSettings
+    so-logs-windows_x_forwarded: *indexSettings
+    so-logs-windows_x_powershell: *indexSettings
+    so-logs-windows_x_powershell_operational: *indexSettings
+    so-logs-windows_x_sysmon_operational: *indexSettings
+    so-logs-winlog_x_winlog: *indexSettings
+    so-logs-detections_x_alerts: *indexSettings
+    so-logs-http_endpoint_x_generic: *indexSettings
+    so-logs-httpjson_x_generic: *indexSettings
+    so-logs-osquery-manager-actions: *indexSettings
+    so-logs-osquery-manager-action_x_responses: *indexSettings
+    so-logs-osquery-manager_x_action_x_responses: *indexSettings
+    so-logs-osquery-manager_x_result: *indexSettings
+    so-logs-elastic_agent_x_apm_server: *indexSettings
+    so-logs-elastic_agent_x_auditbeat: *indexSettings
+    so-logs-elastic_agent_x_cloudbeat: *indexSettings
+    so-logs-elastic_agent_x_endpoint_security: *indexSettings
+    so-logs-endpoint_x_alerts: *indexSettings
+    so-logs-endpoint_x_events_x_api: *indexSettings
+    so-logs-endpoint_x_events_x_file: *indexSettings
+    so-logs-endpoint_x_events_x_library: *indexSettings
+    so-logs-endpoint_x_events_x_network: *indexSettings
+    so-logs-endpoint_x_events_x_process: *indexSettings
+    so-logs-endpoint_x_events_x_registry: *indexSettings
+    so-logs-endpoint_x_events_x_security: *indexSettings
+    so-logs-elastic_agent_x_filebeat: *indexSettings
+    so-logs-elastic_agent_x_fleet_server: *indexSettings
+    so-logs-elastic_agent_x_heartbeat: *indexSettings
+    so-logs-elastic_agent: *indexSettings
+    so-logs-elastic_agent_x_metricbeat: *indexSettings
+    so-logs-elastic_agent_x_osquerybeat: *indexSettings
+    so-logs-elastic_agent_x_packetbeat: *indexSettings
+    so-logs-elasticsearch_x_server: *indexSettings
+    so-metrics-endpoint_x_metadata: *indexSettings
+    so-metrics-endpoint_x_metrics: *indexSettings
+    so-metrics-endpoint_x_policy: *indexSettings
+    so-metrics-nginx_x_stubstatus: *indexSettings
+    so-metrics-vsphere_x_datastore: *indexSettings
+    so-metrics-vsphere_x_host: *indexSettings
+    so-metrics-vsphere_x_virtualmachine: *indexSettings
+    so-case: *indexSettings
+    so-common: *indexSettings
+    so-endgame: *indexSettings
+    so-idh: *indexSettings
+    so-suricata: *indexSettings
+    so-suricata_x_alerts: *indexSettings
+    so-import: *indexSettings
+    so-kratos: *indexSettings
+    so-hydra: *indexSettings
+    so-kismet: *indexSettings
+    so-logstash: *indexSettings
+    so-redis: *indexSettings
+    so-strelka: *indexSettings
+    so-syslog: *indexSettings
+    so-zeek: *indexSettings
+    so-metrics-fleet_server_x_agent_status: &fleetMetricsSettings
+      index_sorting:
+        description: Sorts the index by event time, at the cost of additional processing resource consumption.
+        advanced: True
+        readonly: True
+        helpLink: elasticsearch.html
+      index_template:
+        ignore_missing_component_templates:
+          description: Ignore component templates if they aren't in Elasticsearch.
+          advanced: True
+          readonly: True
+          helpLink: elasticsearch.html
+        index_patterns:
+          description: Patterns for matching multiple indices or tables.
+          advanced: True
+          readonly: True
+          helpLink: elasticsearch.html
+        template:
+          settings:
+            index:
+              mode:
+                description: Type of mode used for this index. Time series indices can be used for metrics to reduce necessary storage.
+                advanced: True
+                readonly: True
+                helpLink: elasticsearch.html
+              number_of_replicas:
+                description: Number of replicas required for this index. Multiple replicas protects against data loss, but also increases storage costs.
+                advanced: True
+                readonly: True
+                helpLink: elasticsearch.html
+        composed_of:
+          description: The index template is composed of these component templates.
+          advanced: True
+          readonly: True
+          helpLink: elasticsearch.html
+        priority:
+          description: The priority of the index template.
+          advanced: True
+          readonly: True
+          helpLink: elasticsearch.html
+        data_stream:
+          hidden:
+            description: Hide the data stream.
+            advanced: True
+            readonly: True
+            helpLink: elasticsearch.html
+          allow_custom_routing:
+            description: Allow custom routing for the data stream.
+            advanced: True
+            readonly: True
+            helpLink: elasticsearch.html
+    so-metrics-fleet_server_x_agent_versions: *fleetMetricsSettings
+  so_roles:
+    so-manager: &soroleSettings
+      config:
+        node:
+          roles:
+            description: List of Elasticsearch roles that the node should have. Blank assumes all roles
+            forcedType: "[]string"
+            global: False
+            advanced: True
+            helpLink: elasticsearch.html
+    so-managersearch: *soroleSettings
+    so-standalone: *soroleSettings
+    so-searchnode: *soroleSettings
+    so-heavynode: *soroleSettings
+    so-eval: *soroleSettings
+    so-import: *soroleSettings

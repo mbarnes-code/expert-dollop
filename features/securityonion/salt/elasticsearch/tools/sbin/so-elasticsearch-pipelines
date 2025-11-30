@@ -1,0 +1,32 @@
+#!/bin/bash
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+. /usr/sbin/so-common
+
+ELASTICSEARCH_HOST=$1
+ELASTICSEARCH_PORT=9200
+
+# Define a default directory to load pipelines from
+ELASTICSEARCH_INGEST_PIPELINES="/opt/so/conf/elasticsearch/ingest/"
+
+# Wait for ElasticSearch to initialize
+if [ ! -f /opt/so/state/espipelines.txt ]; then
+  echo "State file /opt/so/state/espipelines.txt not found. Running so-elasticsearch-pipelines."
+  echo -n "Waiting for ElasticSearch..."
+  retry 240 1 "so-elasticsearch-query / -k --output /dev/null --silent --head --fail" || fail "Connection attempt timed out.  Unable to connect to ElasticSearch.  \nPlease try: \n  -checking log(s) in /var/log/elasticsearch/\n  -running 'sudo docker ps' \n  -running 'sudo so-elastic-restart'"
+
+  cd ${ELASTICSEARCH_INGEST_PIPELINES}
+  echo "Loading pipelines..."
+  for i in *; 
+  do 
+    echo $i;
+    retry 5 5 "so-elasticsearch-query _ingest/pipeline/$i -d@$i -XPUT | grep '{\"acknowledged\":true}'" || fail "Could not load pipeline: $i"
+  done
+  echo
+
+  cd - >/dev/null
+  touch /opt/so/state/espipelines.txt
+fi

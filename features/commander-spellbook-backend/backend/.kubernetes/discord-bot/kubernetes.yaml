@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spellbook-discord-bot-prod
+  labels:
+    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: spellbook-discord-bot-prod
+  name: spellbook-discord-bot
+  labels:
+    app: spellbook-discord-bot
+spec:
+  selector:
+    matchLabels:
+      app: spellbook-discord-bot
+  template:
+    metadata:
+      labels:
+        app: spellbook-discord-bot
+    spec:
+      serviceAccountName: app-service-account
+      containers:
+        - name: spellbook-discord-bot-app
+          image: 083767677168.dkr.ecr.us-east-2.amazonaws.com/spellbook-prod-discord-ecr
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -f
+                - https://backend.commanderspellbook.com
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 5
+          env:
+            - name: KUBE_DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-bot-secrets
+                  key: discord-token
+            - name: KUBE_ADMIN_USER__0
+              valueFrom:
+                secretKeyRef:
+                  name: discord-bot-secrets
+                  key: deloo-discord-id
+            - name: KUBE_ADMIN_USER__1
+              valueFrom:
+                secretKeyRef:
+                  name: discord-bot-secrets
+                  key: andy-discord-id
+            - name: SPELLBOOK_API_URL
+              value: https://backend.commanderspellbook.com
+            - name: SPELLBOOK_WEBSITE_URL
+              value: https://commanderspellbook.com
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-service-account
+  namespace: spellbook-discord-bot-prod
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::083767677168:role/spellbook-application-role

@@ -1,0 +1,63 @@
+{# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+   or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+   https://securityonion.net/license; you may not use this file except in compliance with the
+   Elastic License 2.0. #}
+
+{% from 'vars/globals.map.jinja' import GLOBALS %}
+{% import_yaml 'elasticsearch/defaults.yaml' as ELASTICSEARCHDEFAULTS with context %}
+
+{% set HIGHLANDER = salt['pillar.get']('global:highlander', False) %}
+
+{# this is a list of dicts containing hostname:ip for elasticsearch nodes that need to know about each other for cluster #}
+{% set ELASTICSEARCH_SEED_HOSTS = [] %}
+{% set node_data = salt['pillar.get']('elasticsearch:nodes', {GLOBALS.role.split('-')[1]: {GLOBALS.hostname: {'ip': GLOBALS.node_ip}}}) %}
+{% for node_type, node_details in node_data.items() | sort %}
+{%   if node_type != 'heavynode' %}
+{%     for hostname in node_data[node_type].keys() %}
+{%       do ELASTICSEARCH_SEED_HOSTS.append({hostname:node_details[hostname].ip}) %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}
+
+{# this is a list of dicts containing hostname:ip of all nodes running elasticsearch #}
+{% set ELASTICSEARCH_NODES = [] %}
+{% set node_data = salt['pillar.get']('elasticsearch:nodes', {GLOBALS.role.split('-')[1]: {GLOBALS.hostname: {'ip': GLOBALS.node_ip}}}) %}
+{% for node_type, node_details in node_data.items() %}
+{%   for hostname in node_data[node_type].keys() %}
+{%     do ELASTICSEARCH_NODES.append({hostname:node_details[hostname].ip}) %}
+{%   endfor %}
+{% endfor %}
+
+{% if grains.id.split('_') | last in ['manager','managerhype','managersearch','standalone'] %}
+    {% if ELASTICSEARCH_SEED_HOSTS | length > 1 %}
+      {% do ELASTICSEARCHDEFAULTS.elasticsearch.config.update({'discovery': {'seed_hosts': []}}) %}
+      {% for NODE in ELASTICSEARCH_SEED_HOSTS %}
+        {% do ELASTICSEARCHDEFAULTS.elasticsearch.config.discovery.seed_hosts.append(NODE.keys()|first) %}
+      {% endfor %}
+    {% endif %}
+{% elif grains.id.split('_') | last == 'searchnode' %}
+  {% if HIGHLANDER %}
+        {% do ELASTICSEARCHDEFAULTS.elasticsearch.config.node.roles.extend(['ml', 'master', 'transform']) %}
+  {% endif %}
+  {% do ELASTICSEARCHDEFAULTS.elasticsearch.config.update({'discovery': {'seed_hosts': [GLOBALS.manager]}}) %}
+{% endif %}
+{% if HIGHLANDER %}
+      {% do ELASTICSEARCHDEFAULTS.elasticsearch.config.xpack.ml.update({'enabled': true}) %}
+{% endif %}
+
+{% do ELASTICSEARCHDEFAULTS.elasticsearch.config.node.update({'name': GLOBALS.hostname}) %}
+{% do ELASTICSEARCHDEFAULTS.elasticsearch.config.cluster.update({'name': GLOBALS.hostname}) %}
+{% do ELASTICSEARCHDEFAULTS.elasticsearch.config.transport.update({'publish_host': GLOBALS.hostname}) %}
+
+{% set ELASTICSEARCHMERGED = salt['pillar.get']('elasticsearch', default=ELASTICSEARCHDEFAULTS.elasticsearch, merge=True) %}
+
+{% if salt['pillar.get']('elasticsearch:config:path:repo', False) %}
+  {% for repo in pillar.elasticsearch.config.path.repo %}
+    {# remove elasticsearch.config.path.repo value if the directory doesn't exist on the node #}
+    {% if not salt['file.directory_exists'](repo) %}
+      {% do ELASTICSEARCHMERGED.config.path.repo.remove(repo) %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% do ELASTICSEARCHMERGED.config.node.update({'roles': ELASTICSEARCHMERGED.so_roles[GLOBALS.role].config.node.roles}) %}

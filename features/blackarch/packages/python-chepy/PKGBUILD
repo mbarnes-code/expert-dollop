@@ -1,0 +1,44 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=python-chepy
+_pkgname=chepy
+pkgver=7.3.0
+pkgrel=1
+pkgdesc='Chepy is python lib/cli equivalent of the awesome CyberChef tool.'
+arch=('any')
+url='https://pypi.org/project/chepy/#files'
+license=('GPL3')
+depends=('python' 'python-colorama' 'python-crccheck' 'python-decorator'
+         'python-emoji' 'exrex' 'python-fire' 'python-hashid' 'python-hexdump'
+         'python-jsonpath-rw' 'python-jsonpickle' 'python-parsel'
+         'python-phpserialize' 'python-pillow' 'python-prompt_toolkit'
+         'python-pycipher' 'python-pycryptodome' 'python-pydash' 'python-pyjwt'
+         'python-pyopenssl' 'python-pyperclip' 'python-editor' 'python-pyaml'
+         'python-regex' 'python-typing_extensions' 'python-ujson'
+         'python-base58' 'python-docstring-parser' 'python-termcolor'
+         'python-lazy-import')
+makedepends=('python-setuptools')
+options=(!emptydirs)
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('50440adf487020348d26571b20ca55a69287016b7b79f5a8a9d6b1c2d9a2e1de38ee408c1b087cc3488f8fc596502b5ccd557d94ca03178f168fb786b62d0f99')
+
+prepare() {
+  cd $_pkgname-$pkgver
+
+  sed -i '8s/.*/fire/' requirements.txt
+  sed -i '16s/.*/prompt_toolkit/' requirements.txt
+}
+
+build() {
+  cd $_pkgname-$pkgver
+
+  python setup.py build
+}
+
+package() {
+  cd $_pkgname-$pkgver
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}
+

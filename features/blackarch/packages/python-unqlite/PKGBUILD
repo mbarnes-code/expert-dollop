@@ -1,0 +1,46 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgbase=python-unqlite
+pkgname=('python2-unqlite' 'python-unqlite')
+_pkgname=unqlite
+pkgver=0.9.9
+pkgrel=1
+pkgdesc='Fast Python bindings for the UnQLite embedded NoSQL database.'
+arch=('x86_64' 'aarch64')
+url='https://pypi.org/project/unqlite/#files'
+license=('MIT')
+makedepends=('python2-setuptools' 'python-setuptools' 'cython2' 'cython')
+source=("https://files.pythonhosted.org/packages/source/${_pkgname::1}/$_pkgname/$_pkgname-$pkgver.tar.gz")
+sha512sums=('18bd59daa7841eb55c8cbabaae2d001bd8b9ec70c055f7a82d002b866f6c9152aef2db88defa42b1690c714ef67d83b72fdeb33cabf7df8abdc41f6ceaaed3ae')
+
+prepare() {
+  cp -a "$_pkgname-$pkgver"{,-2}
+}
+
+build() {
+  cd "$_pkgname-$pkgver-2"
+
+  python2 setup.py build
+
+  cd "$srcdir/$_pkgname-$pkgver"
+
+  python setup.py build
+}
+
+package_python2-unqlite() {
+  depends=('python2' 'cython2')
+
+  cd "$_pkgname-$pkgver-2"
+
+  python2 setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}
+
+package_python-unqlite() {
+  depends=('python' 'cython')
+
+  cd "$_pkgname-$pkgver"
+
+  python setup.py install --root="$pkgdir" --prefix=/usr -O1 --skip-build
+}
+

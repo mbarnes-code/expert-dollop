@@ -1,0 +1,39 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=fiked
+pkgver=0.0.5
+pkgrel=7
+groups=('blackarch' 'blackarch-honeypot')
+pkgdesc='Fake IDE daemon.'
+arch=('x86_64' 'aarch64')
+url='https://www.roe.ch/FakeIKEd'
+license=('GPL-2.0-or-later')
+depends=('libgcrypt' 'libnet')
+source=("https://mirror.roe.ch/rel/$pkgname/$pkgname-$pkgver.tar.bz2"
+        "fix-initgroups-main.patch"
+        "Improve-upstream-Makefile.patch")
+sha512sums=('468c75655bb84ae1553249d1ede078254d98dbf7f1ee98c37f169d1612d817d9b9cff60d06b3196f41e96cc1200dd3712237bc8bb50195100ce0130336809423'
+            '2ce57f01c865a575df0cf6d3d5d35643423c00a96c47623bfd47c28e46cbbf5b75e6614bf84bba90bd5fb5a0818755a6886e71c3b55d99a3b456563b28e9a8c4'
+            '4b09e61046764a7e3f55fdd3aca9f85fcea5c01ec60173d228e280db47d655c442cda55537fddc042880f34118473078b202aa65273e27d8251edcafaa35e114')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+
+  patch -p1 < ../fix-initgroups-main.patch
+  patch -p1 < ../Improve-upstream-Makefile.patch
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+
+  PREFIX=/usr make
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -Dm 755 $pkgname "$pkgdir/usr/bin/$pkgname"
+  install -Dm 644 "$pkgname.1" "$pkgdir/usr/share/man/man1/$pkgname.1"
+}
+

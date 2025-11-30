@@ -1,0 +1,58 @@
+{
+  "name": "@actual-app/components",
+  "version": "0.0.1",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18.2",
+    "react-dom": ">=18.2"
+  },
+  "dependencies": {
+    "@emotion/css": "^11.13.5",
+    "react-aria-components": "^1.13.0",
+    "usehooks-ts": "^3.1.1"
+  },
+  "devDependencies": {
+    "@svgr/cli": "^8.1.0",
+    "@types/react": "^19.2.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "vitest": "^4.0.9"
+  },
+  "exports": {
+    "./hooks/*": "./src/hooks/*.ts",
+    "./icons/logo": "./src/icons/logo/index.ts",
+    "./icons/v0": "./src/icons/v0/index.ts",
+    "./icons/v1": "./src/icons/v1/index.ts",
+    "./icons/v2": "./src/icons/v2/index.ts",
+    "./icons/AnimatedLoading": "./src/icons/AnimatedLoading.tsx",
+    "./icons/Loading": "./src/icons/Loading.tsx",
+    "./aligned-text": "./src/AlignedText.tsx",
+    "./block": "./src/Block.tsx",
+    "./button": "./src/Button.tsx",
+    "./card": "./src/Card.tsx",
+    "./form-error": "./src/FormError.tsx",
+    "./initial-focus": "./src/InitialFocus.ts",
+    "./inline-field": "./src/InlineField.tsx",
+    "./input": "./src/Input.tsx",
+    "./label": "./src/Label.tsx",
+    "./menu": "./src/Menu.tsx",
+    "./paragraph": "./src/Paragraph.tsx",
+    "./popover": "./src/Popover.tsx",
+    "./select": "./src/Select.tsx",
+    "./space-between": "./src/SpaceBetween.tsx",
+    "./styles": "./src/styles.ts",
+    "./text": "./src/Text.tsx",
+    "./text-one-line": "./src/TextOneLine.tsx",
+    "./theme": "./src/theme.ts",
+    "./tokens": "./src/tokens.ts",
+    "./toggle": "./src/Toggle.tsx",
+    "./tooltip": "./src/Tooltip.tsx",
+    "./view": "./src/View.tsx",
+    "./color-picker": "./src/ColorPicker.tsx"
+  },
+  "scripts": {
+    "generate:icons": "rm src/icons/*/*.tsx; cd src/icons && svgr --template template.ts --index-template index-template.ts --typescript --expand-props start -d . .",
+    "test": "npm-run-all -cp 'test:*'",
+    "test:web": "ENV=web vitest --run -c vitest.web.config.ts"
+  }
+}

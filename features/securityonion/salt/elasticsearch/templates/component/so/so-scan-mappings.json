@@ -1,0 +1,55 @@
+{
+  "_meta": {
+    "documentation": "https://www.elastic.co/guide/en/ecs/current/ecs-file.html",
+    "ecs_version": "1.12.2"
+  },
+  "template": {
+    "mappings": {
+      "properties": {
+        "scan": {
+          "type": "object",
+          "properties": {
+            "exiftool": {
+              "type": "text"
+            },
+            "pe": {
+              "properties": {
+                "flags": {
+                  "type": "text"
+                },
+		"image_version": {
+                  "type": "float"
+                },
+		"sections": {
+                  "properties": {
+                    "entropy": {
+                      "type": "float"
+                    }
+                  }
+                }
+              }
+            },
+            "elf": {
+              "properties": {
+                "sections": {
+                  "properties": {
+                    "entropy": {
+                      "type": "long"
+                    }
+                  }
+                }
+              }
+            },
+	    "entropy": {
+              "properties": {
+                "entropy": {
+	          "type": "float"
+		}
+	      }
+	    }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+#!/bin/bash
+# Copyright Security Onion Solutions LLC and/or licensed to Security Onion Solutions LLC under one
+# or more contributor license agreements. Licensed under the Elastic License 2.0 as shown at
+# https://securityonion.net/license; you may not use this file except in compliance with the
+# Elastic License 2.0.
+
+. /usr/sbin/so-common
+
+default_conf_dir=/opt/so/conf
+
+# Define a default directory to load roles from
+ELASTICSEARCH_ROLES="$default_conf_dir/elasticsearch/roles/"
+
+# Wait for ElasticSearch to initialize
+echo -n "Waiting for ElasticSearch..."
+COUNT=0
+ELASTICSEARCH_CONNECTED="no"
+while [[ "$COUNT" -le 240 ]]; do
+    curl -K /opt/so/conf/elasticsearch/curl.config -k --output /dev/null --silent --head --fail -L https://localhost:9200
+	if [ $? -eq 0 ]; then
+		ELASTICSEARCH_CONNECTED="yes"
+		echo "connected!"
+		# Check cluster health once connected
+		so-elasticsearch-query _cluster/health?wait_for_status=yellow\&timeout=120s > /dev/null 2>&1
+		break
+	else
+		((COUNT+=1))
+		sleep 1
+		echo -n "."
+	fi
+done
+if [ "$ELASTICSEARCH_CONNECTED" == "no" ]; then
+	echo
+	echo -e "Connection attempt timed out.  Unable to connect to ElasticSearch.  \nPlease try: \n  -checking log(s) in /var/log/elasticsearch/\n  -running 'sudo docker ps' \n  -running 'sudo so-elastic-restart'"
+	echo
+fi
+
+cd ${ELASTICSEARCH_ROLES}
+
+echo "Loading roles..."
+for role in *; do
+	name=$(echo "$role" | cut -d. -f1)
+	so-elasticsearch-query _security/role/$name -XPUT -d @"$role"
+done
+
+cd - >/dev/null

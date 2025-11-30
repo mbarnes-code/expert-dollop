@@ -1,0 +1,20 @@
+filter {
+  if [event][module] =~ "endgame" {
+    mutate {
+      remove_field => ["client_headers", "client_host"]
+    }
+  }
+}
+output {
+  if [event][module] =~ "endgame" {
+    elasticsearch {
+      id => "endgame_es_output"
+      hosts => "{{ GLOBALS.manager }}"
+      user => "{{ ES_USER }}"
+      password => "{{ ES_PASS }}"
+      index => "endgame-%{+YYYY.MM.dd}"
+      ssl => true
+      ssl_certificate_verification => false
+    }
+  }
+}

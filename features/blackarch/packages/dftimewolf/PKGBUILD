@@ -1,0 +1,48 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=dftimewolf
+pkgver=818.6285930c
+pkgrel=2
+pkgdesc='Framework for orchestrating forensic collection, processing and data export.'
+arch=('any')
+groups=('blackarch' 'blackarch-forensic')
+url='https://github.com/log2timeline/dftimewolf'
+license=('Apache')
+depends=('python' 'python-poetry')
+makedepends=('git')
+source=("git+https://github.com/log2timeline/$pkgname.git")
+sha512sums=('SKIP')
+install="$pkgname.install"
+
+pkgver() {
+  cd $pkgname
+
+  echo $(git rev-list --count HEAD).$(git rev-parse --short HEAD)
+}
+
+package() {
+  cd $pkgname
+
+  install -dm 755 "$pkgdir/usr/bin"
+  install -dm 755 "$pkgdir/usr/share/$pkgname"
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md docs/*.md
+
+  rm -rf LICENSE *.md docs/*.md .gitignore .pylintrc .travis.yml .style.yapf \
+    .isort.cfg appveyor.yml run_tests.py docker tests mkdocs.yml *.ini \
+    requirements*.txt
+
+  cp -a * "$pkgdir/usr/share/$pkgname/"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+poetry config cache-dir "/usr/share/$pkgname"
+poetry env use /usr/share/$pkgname/.venv/bin/python$_pyver \\
+  --directory /usr/share/$pkgname
+poetry run --directory "/usr/share/$pkgname" $_pkgname_cmd "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname"
+}
+

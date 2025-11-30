@@ -1,0 +1,58 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+#
+# from AUR - adapted to you style
+#
+# Old Contributor: Matthias Fulz < mfulz [at] olznet [dot] de >
+
+pkgname=gvmd
+pkgver=26.0.0
+pkgrel=1
+pkgdesc='Greenbone Vulnerability Manager - The database backend for the Greenbone Community Edition.'
+arch=('x86_64' 'aarch64')
+url='https://github.com/greenbone/gvmd'
+license=('AGPL-3.0-only')
+depends=('ospd-openvas' 'cjson' 'gvm-libs' 'libbsd' 'libical' 'pg-gvm' 'python'
+         'gnutls' 'postgresql' 'libxslt')
+makedepends=('cmake' 'doxygen' 'xmltoman' 'libxslt')
+optdepends=('logrotate: for rotating logs'
+            'greenbone-feed-sync: scripts for downloading updated feed informations')
+source=("https://github.com/greenbone/gvmd/archive/v$pkgver.tar.gz"
+        'archlinux_postgres_headers.patch'
+        'gvmd.tmpfiles')
+sha512sums=('cc5c10a03589482a03f658f5ac0d45c34e5e809114e4be1999325b58e114b36ff81dbf248268a0460043f407dd2b193286eb27e20b7dd5655de110496472a4b0'
+            'ec2cbedf87bfd8cc1abfc6be9c566b6d2e6f7b1f902f5596d496b01faf208c9921b502d77ec9281ef3c0d03462f2d49bb973f4f9216a106116cd824e938951c2'
+            '6c95fadda6646288ea86c725fa9cbebb46a6b1c6249faeb56de563435fe01f7ef21e66a91b27cf820eab97a2aa2fa88dd4300e61279a896915d21d129039fa88')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+
+  patch --forward --strip=1 --input="$srcdir/archlinux_postgres_headers.patch"
+}
+
+build() {
+  CFLAGS+=' -std=gnu17'
+
+  cmake \
+    -B build \
+    -S "$pkgname-$pkgver" \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DSBINDIR=/usr/bin \
+    -DLIBDIR=/usr/lib \
+    -DSYSCONFDIR=/etc \
+    -DLOCALSTATEDIR=/var \
+    -DGVM_DATA_DIR=/var \
+    -DOPENVAS_DEFAULT_SOCKET=/run/ospd/ospd-openvas.sock \
+    -DGVM_FEED_LOCK_PATH=/var/lib/gvm/feed-update.lock \
+    -DGVMD_RUN_DIR=/run/gvmd
+
+  make -C build
+}
+
+package() {
+  make DESTDIR="$pkgdir" -C build install
+
+  install -Dm 644 "$pkgname.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/$pkgname.conf"
+}
+

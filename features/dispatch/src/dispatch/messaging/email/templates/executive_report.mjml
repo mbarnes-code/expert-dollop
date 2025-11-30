@@ -1,0 +1,74 @@
+{% extends 'templates/base.mjml' %}
+{% block description %}
+<mj-section>
+  <mj-column>
+    <mj-text mj-class="section-title">
+      {{ name }} - Executive Report
+    </mj-text>
+    <mj-text>
+      You're receiving this executive report, because you, or an e-mail distribution list you're on,
+      is a member of this incident's notifications Google group ({{ notifications_group }}).
+    </mj-text>
+    <mj-text>
+      Please be aware that this report is a point in time update and
+      the details below are likely to change as the incident evolves.
+      No direct action from you is currently required.
+    </mj-text>
+  </mj-column>
+</mj-section>
+{% endblock %}
+
+{% block items %}
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Title
+    </mj-text>
+    <mj-text>
+      {{ title }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Current Status
+    </mj-text>
+    <mj-text>
+      {{ current_status }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Overview
+    </mj-text>
+    <mj-text>
+      {{ overview }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Next Steps
+    </mj-text>
+    <mj-text>
+      {{ next_steps }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text>
+      A document version of the report can be found <a href="{{ weblink }}" target="_blank" rel="noopener noreferrer">here</a>. Please, use the document for questions and feedback.
+    </mj-text>
+  </mj-column>
+</mj-section>
+{% endblock %}

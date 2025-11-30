@@ -1,0 +1,78 @@
+{
+  "policy_id": "endpoints-initial",
+  "package": {
+    "name": "system",
+    "version": ""
+  },
+  "name": "system-endpoints",
+  "namespace": "default",
+  "inputs": {
+    "system-logfile": {
+      "enabled": true,
+      "streams": {
+        "system.auth": {
+          "enabled": true,
+          "vars": {
+            "ignore_older": "72h",
+            "paths": [
+              "/var/log/auth.log*",
+              "/var/log/secure*"
+            ],
+            "preserve_original_event": false,
+            "tags": [
+              "system-auth"
+            ]
+          }
+        },
+        "system.syslog": {
+          "enabled": true,
+          "vars": {
+            "paths": [
+              "/var/log/messages*",
+              "/var/log/syslog*",
+              "/var/log/system*"
+            ],
+            "tags": [],
+            "ignore_older": "72h"
+          }
+        }
+      }
+    },
+    "system-winlog": {
+      "enabled": true,
+      "streams": {
+        "system.application": {
+          "enabled": true,
+          "vars": {
+            "preserve_original_event": false,
+            "ignore_older": "72h",
+            "language": 0,
+            "tags": []
+          }
+        },
+        "system.security": {
+          "enabled": true,
+          "vars": {
+            "preserve_original_event": false,
+            "ignore_older": "72h",
+            "language": 0,
+            "tags": []
+          }
+        },
+        "system.system": {
+          "enabled": true,
+          "vars": {
+            "preserve_original_event": false,
+            "ignore_older": "72h",
+            "language": 0,
+            "tags": []
+          }
+        }
+      }
+    },
+    "system-system/metrics": {
+      "enabled": false
+    }
+  },
+  "force": true
+}

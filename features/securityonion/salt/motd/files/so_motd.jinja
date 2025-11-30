@@ -1,0 +1,30 @@
+{% from 'vars/globals.map.jinja' import GLOBALS %}
+{% set needs_restarting_check = salt['mine.get']('*', 'needs_restarting.check', tgt_type='glob') -%}
+
+{% if GLOBALS.role in ['so-eval', 'so-managersearch', 'so-manager', 'so-standalone'] %}
+Access the Security Onion web interface at https://{{ GLOBALS.url_base }}
+{% endif %}
+
+{%- if needs_restarting_check %}
+  {%- set minions_need_restarted = [] %}
+
+  {%- for minion, need_restarted in needs_restarting_check | dictsort() %}
+    {%- if need_restarted == 'True' %}
+      {% do minions_need_restarted.append(minion) %}
+    {%- endif %}
+  {%- endfor -%}
+
+  {%- if minions_need_restarted | length > 0 %}
+####################################################################################################
+# The following nodes in your Security Onion grid may need to be restarted due to package updates. #
+# If a node has already been patched and restarted but has been up for less than 15 minutes,       #
+# then it may not have updated its status yet.                                                     #
+####################################################################################################
+
+    {% for minion in minions_need_restarted -%}
+  {{ minion }}
+    {% endfor -%}
+
+  {%- endif -%}
+
+{%- endif -%}

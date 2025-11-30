@@ -1,0 +1,2 @@
+requests>=2.31.0
+whoisit>=2.7.0

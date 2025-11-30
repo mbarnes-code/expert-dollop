@@ -1,0 +1,35 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=jeb-arm
+pkgver=5.20.0.202411121942
+pkgrel=1
+pkgdesc='Arm decompiler.'
+arch=('any')
+groups=('blackarch' 'blackarch-reversing')
+url='https://www.pnfsoftware.com/jeb/arm'
+depends=('java-environment' 'java-runtime-common')
+source=('https://www.pnfsoftware.com/dl?jebdemoarm')
+sha512sums=('4643761f728556b18081fd77e1fe116970680adf14072adf000a48447caa46ace0dac9663b90cd2c1bb2c837348a2eac861fd6a8db69e7d5338668ddbb416922')
+
+pkgver() {
+  cat bin/VERSION.TXT
+}
+
+package() {
+  install -dm 755 "$pkgdir/usr/bin"
+  install -dm 755 "$pkgdir/opt/$pkgname"
+
+  rm -rf 'dl?jebdemoarm'
+
+  cp --no-preserve=ownership -r * "$pkgdir/opt/$pkgname/"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+cd /opt/$pkgname
+exec ./jeb_linux.sh "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname"
+}
+

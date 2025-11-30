@@ -1,0 +1,48 @@
+{%  from 'vars/globals.map.jinja' import GLOBALS %}
+{%- from 'sensoroni/map.jinja' import SENSORONIMERGED -%}
+{
+  "logFilename": "/opt/sensoroni/logs/sensoroni.log",
+  "logLevel":"info",
+  "agent": {
+    "nodeId": "{{ GLOBALS.hostname | lower }}",
+    "role": "{{ GLOBALS.role }}",
+    "description": {{ SENSORONIMERGED.config.node_description | tojson }},
+    "address": "{{ GLOBALS.node_ip }}",
+    "mgmtNic": "{{ GLOBALS.main_interface }}",
+    "model": "{{ GLOBALS.so_model }}",
+    "pollIntervalMs": {{ SENSORONIMERGED.config.node_checkin_interval_ms }},
+    "serverUrl": "https://{{ GLOBALS.url_base }}/sensoroniagents",
+    "verifyCert": false,
+    "modules": {
+{%- if SENSORONIMERGED.config.analyze.enabled %} 
+      "analyze": {
+        "timeoutMs": {{ SENSORONIMERGED.config.analyze.timeout_ms }},
+        "parallelLimit": {{ SENSORONIMERGED.config.analyze.parallel_limit }}
+      },
+{%- endif %}
+      "importer": {},
+      "export": {
+        "timeoutMs": {{ SENSORONIMERGED.config.export.timeout_ms }},
+        "cacheRefreshIntervalMs": {{ SENSORONIMERGED.config.export.cache_refresh_interval_ms }},
+        "exportMetricLimit": {{ SENSORONIMERGED.config.export.export_metric_limit }},
+        "exportEventLimit": {{ SENSORONIMERGED.config.export.export_event_limit }},
+        "csvSeparator": "{{ SENSORONIMERGED.config.export.csv_separator }}"
+      },
+      "statickeyauth": {
+        "apiKey": "{{ GLOBALS.sensoroni_key }}"
+{%  if GLOBALS.is_sensor %}
+      },     
+      "stenoquery": {
+        "executablePath": "/opt/sensoroni/scripts/stenoquery.sh",
+        "pcapInputPath": "/nsm/pcap",
+        "pcapOutputPath": "/nsm/pcapout"
+      },     
+      "suriquery": {
+        "pcapInputPath": "/nsm/suripcap",
+        "pcapOutputPath": "/nsm/pcapout",
+        "pcapMaxCount": {{ SENSORONIMERGED.config.suripcap.pcapMaxCount }}
+{%- endif %}
+      }
+    }
+  }
+}

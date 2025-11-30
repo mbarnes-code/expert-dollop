@@ -1,0 +1,86 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=empire
+pkgver=v6.2.1.r0.gca8c963
+pkgrel=1
+epoch=3
+pkgdesc='A PowerShell and Python post-exploitation agent.'
+arch=('any')
+groups=('blackarch' 'blackarch-automation')
+url='https://github.com/BC-SECURITY/Empire'
+license=('BSD-3-Clause')
+depends=('python' 'mariadb' 'openssl')
+makedepends=('git' 'python-setuptools' 'python-pip')
+optdepends=(
+  'xar: enables generating .dmg stagers'
+  'bomutils: enables generating .dmg stagers'
+  'jdk-openjdk: enables generating .jar stager'
+  'nim: enables generating nim stagers'
+)
+install="empire.install"
+source=("$pkgname::git+https://github.com/BC-SECURITY/Empire.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+prepare() {
+  cd $pkgname
+
+  git submodule update --init --recursive
+
+  # grab openssl certs
+  cd setup
+  bash ./cert.sh
+}
+
+package() {
+  cd $pkgname
+
+  install -dm 755 "$pkgdir/usr/bin/"
+  install -dm 755 "$pkgdir/usr/share/$pkgname"
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md
+  install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  rm changelog LICENSE CHANGELOG.md
+
+  cp -a * "$pkgdir/usr/share/$pkgname/"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+cd /usr/share/$pkgname
+source /usr/share/$pkgname/venv/bin/activate
+exec python empire.py "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname"
+
+  cat > "$pkgdir/usr/bin/$pkgname-server" << EOF
+#!/bin/sh
+cd /usr/share/$pkgname
+source /usr/share/$pkgname/venv/bin/activate
+exec python empire.py server "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname-server"
+
+  cat > "$pkgdir/usr/bin/$pkgname-client" << EOF
+#!/bin/sh
+cd /usr/share/$pkgname
+source /usr/share/$pkgname/venv/bin/activate
+exec python empire.py client "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname-client"
+}
+

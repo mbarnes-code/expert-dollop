@@ -1,0 +1,59 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+#
+# PKGBUILD retrieved from AUR. Credits to: mrxx <mrxx at cyberhome dot at>
+# changes: psf
+
+pkgname=dislocker
+pkgver=v0.7.3.r66.g8b2aea0
+pkgrel=1
+epoch=1
+pkgdesc='Read BitLocker encrypted volumes under Linux.'
+arch=('x86_64' 'aarch64')
+groups=('blackarch' 'blackarch-crypto')
+url='https://github.com/Aorimn/dislocker'
+license=('GPL2')
+depends=('fuse' 'mbedtls' 'ruby')
+makedepends=('git' 'make' 'cmake')
+conflicts=('dislocker-git')
+optdepends=('ntfs-3g: NTFS file system support')
+source=("git+https://github.com/Aorimn/$pkgname.git")
+sha512sums=('SKIP')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+build() {
+  cd $pkgname
+
+  # Fix v0.7 upstream path error
+  sed -i 's/DIS_MAN \${PROJECT_SOURCE_DIR}/DIS_MAN ../' src/CMakeLists.txt
+
+  cmake -DCMAKE_INSTALL_PREFIX=/usr \
+        -Dlibdir=/usr/lib \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -D WARN_FLAGS:STRING="-Wall -Wextra" \
+        .
+  make
+}
+
+package() {
+  cd $pkgname
+
+  make DESTDIR="$pkgdir" install
+
+  install -Dm 644 -t "$pkgdir/usr/share/doc/$pkgname/" *.md
+  install -Dm 644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  # temp fix
+  ln -sf /usr/lib/libmbedcrypto.so.3.6.1 libmbedcrypto.so.1
+}
+

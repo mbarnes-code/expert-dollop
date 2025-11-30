@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  @apply bg-white font-body dark:bg-black dark:text-white;
+}
+
+body,
+html,
+#__next {
+  @apply h-full;
+}
+
+@font-face {
+  font-family: 'Spellbook Icons';
+  src: url('./fonts/spellbook-font.ttf');
+}
+
+a {
+  @apply underline text-link dark:text-primary;
+}
+
+#main:focus {
+  outline: 0 solid transparent;
+}
+
+.container {
+  @apply w-full max-w-5xl px-4 mx-auto;
+}
+
+.static-page {
+  /* not sure why, but had to duplicate the container stuff here :/ */
+  @apply w-full max-w-5xl px-4 py-6 mx-auto;
+}
+
+/* adapted from https://codepen.io/P1N2O/pen/pyBNzX */
+.gradient {
+  background-size: 150% 150%;
+  animation: gradient 10s ease infinite;
+
+  @apply bg-gradient-to-br from-primary to-secondary;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.heading-title {
+  @apply font-title text-center text-4xl text-dark uppercase dark:text-light;
+}
+
+.heading-subtitle {
+  @apply text-2xl font-title text-center;
+}
+
+.button {
+  @apply m-4 inline-block py-3 px-4 bg-transparent text-link border-2 border-primary rounded-sm no-underline dark:text-primary;
+}
+
+input, textarea, select, option, .input, .inputControl {
+  @apply border-dark bg-white dark:bg-dark dark:text-light;
+}
+
+.button.tight {
+  @apply m-0;
+}
+
+.button.dark {
+  @apply bg-dark text-white border-dark;
+}
+
+.button svg {
+  @apply inline-block mr-1 fill-current;
+}
+
+.button.disabled {
+  @apply bg-light text-dark border-dark cursor-not-allowed;
+}
+
+.button.disabled:hover,
+.button.disabled:focus {
+  @apply bg-light text-dark border-dark;
+}
+
+.button.w-full {
+  @apply mx-0 my-1;
+}
+
+.button:hover,
+.button:focus {
+  @apply bg-link text-white border-link;
+}
+
+.centered-container {
+  @apply flex flex-col items-center justify-center text-center m-auto;
+}
+
+.home-button {
+  @apply mx-0 mt-2 mb-0 flex-grow;
+  border: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.home-button:hover {
+  @apply bg-transparent text-dark;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(5px); 
+}
+
+@media (min-width: 768px) {
+  .home-button {
+    @apply ml-2;
+  }
+  .home-button:first-child {
+    @apply ml-0;
+  }
+  .home-button:last-child {
+    @apply mr-0;
+  }
+}
+
+.input {
+  @apply border px-3 py-2 w-full appearance-none rounded-none;
+}
+
+.input[disabled] {
+  @apply cursor-not-allowed;
+}
+
+.spinner {
+  /*mask: url("~assets/svgs/circle-notch-solid.svg") no-repeat center;*/
+
+  @apply animate-spin;
+}
+
+@media (min-width: 640px) {
+  .heading-title {
+    @apply text-5xl my-4;
+  }
+}
+
+.bg-wip {
+  background: repeating-linear-gradient(
+    -45deg,
+    #BE9800FF,
+    #BE9800FF 20px,
+    #000000 20px,
+    #000000 40px
+  );
+}
+
+/* v-tooltip styles */
+.tooltip {
+  @apply block z-50;
+}
+
+.tooltip .tooltip-inner {
+  @apply text-white bg-dark rounded p-2;
+}
+
+.tooltip .tooltip-arrow {
+  @apply w-0 h-0 border border-dark z-10 absolute m-2;
+}
+
+.tooltip[x-placement^="top"] {
+  @apply mb-2;
+}
+
+.tooltip[x-placement^="top"] .tooltip-arrow {
+  border-width: 0.25rem 0.25rem 0;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  border-bottom-color: transparent !important;
+  left: calc(50% - 0.25rem);
+  @apply my-0 -bottom-1;
+}
+
+.tooltip[x-placement^="bottom"] {
+  @apply mt-2;
+}
+
+.tooltip[x-placement^="bottom"] .tooltip-arrow {
+  border-width: 0 0.25rem 0.25rem;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  border-top-color: transparent !important;
+  left: calc(50% - 0.25rem);
+  @apply my-0 -top-1;
+}
+
+.tooltip[x-placement^="right"] {
+  @apply ml-2;
+}
+
+.tooltip[x-placement^="right"] .tooltip-arrow {
+  border-width: 0.25rem 0.25rem 0.25rem 0;
+  border-left-color: transparent !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+  top: calc(50% - 0.25rem);
+  @apply mx-0 -left-1;
+}
+
+.tooltip[x-placement^="left"] {
+  @apply mr-2;
+}
+
+.tooltip[x-placement^="left"] .tooltip-arrow {
+  border-width: 0.25rem 0 0.25rem 0.25rem;
+  border-top-color: transparent !important;
+  border-right-color: transparent !important;
+  border-bottom-color: transparent !important;
+  top: calc(50% - 0.25rem);
+  @apply mx-0 -right-1;
+}
+
+/* end v-tooltip styles */

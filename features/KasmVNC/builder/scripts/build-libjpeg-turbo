@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+build_and_install() {
+  cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_POSITION_INDEPENDENT_CODE=ON -GNinja .
+  ninja -C build install
+}
+
+prepare_libjpeg_source() {
+  export JPEG_TURBO_RELEASE=$(curl -sX GET "https://api.github.com/repos/libjpeg-turbo/libjpeg-turbo/releases/latest" \
+  | awk '/tag_name/{print $4;exit}' FS='[""]')
+  [ -d ./libjpeg-turbo ] && rm -rf ./libjpeg-turbo
+  mkdir libjpeg-turbo
+  curl -Ls "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/${JPEG_TURBO_RELEASE}.tar.gz" | \
+  tar xzvf - -C libjpeg-turbo/ --strip-components=1
+  cd libjpeg-turbo
+}
+
+source_dir=$(dirname "$0")
+. "$source_dir/common.sh"
+
+prepare_libjpeg_source
+build_and_install

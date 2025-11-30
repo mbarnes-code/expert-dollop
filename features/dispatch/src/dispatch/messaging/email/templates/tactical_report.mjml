@@ -1,0 +1,65 @@
+{% extends 'templates/base.mjml' %}
+{% block description %}
+<mj-section>
+  <mj-column>
+    <mj-text mj-class="section-title">
+      {{ name }} - Tactical Report
+    </mj-text>
+    <mj-text>
+      This message is for <b>notification</b> purposes only. No direct action of you
+      is currently required.
+    </mj-text>
+    <mj-text>
+      Please be aware that this is a point in time update and the details below will
+      likely change.
+    </mj-text>
+  </mj-column>
+</mj-section>
+{% endblock %}
+
+{% block items %}
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Title
+    </mj-text>
+    <mj-text>
+      {{ title }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Conditions
+    </mj-text>
+    <mj-text>
+      {{ conditions }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Actions
+    </mj-text>
+    <mj-text>
+      {{ actions }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+<mj-section>
+  <mj-column>
+    <mj-divider />
+    <mj-text mj-class="section-title">
+      Needs
+    </mj-text>
+    <mj-text>
+      {{ needs }}
+    </mj-text>
+  </mj-column>
+</mj-section>
+{% endblock %}

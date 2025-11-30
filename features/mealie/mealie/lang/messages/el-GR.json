@@ -1,0 +1,83 @@
+{
+    "generic": {
+        "server-error": "Προέκυψε ένα απρόσμενο σφάλμα"
+    },
+    "recipe": {
+        "unique-name-error": "Τα ονόματα συνταγών πρέπει να είναι μοναδικά",
+        "recipe-created": "Η συνταγή δημιουργήθηκε",
+        "recipe-image-deleted": "Η εικόνα συνταγής διαγράφηκε",
+        "recipe-defaults": {
+            "ingredient-note": "1 Κούπα Αλεύρι",
+            "step-text": "Βήματα συνταγής, καθώς και άλλα πεδία στη σύνταξη σήμανσης της σελίδας συνταγής.\n\n**Προσθήκη συνδέσμου**\n\n[Ο σύνδεσμος μου](https://demo.mealie.io)\n"
+        },
+        "servings-text": {
+            "makes": "Παράγει",
+            "serves": "Μερίδες",
+            "serving": "Μερίδα",
+            "servings": "Μερίδες",
+            "yield": "Ποσότητα",
+            "yields": "Ποσότητα"
+        }
+    },
+    "mealplan": {
+        "no-recipes-match-your-rules": "Καμία συνταγή δεν ταιριάζει στα κριτήρια αναζήτησης"
+    },
+    "user": {
+        "user-updated": "Ο χρήστης ενημερώθηκε",
+        "password-updated": "Ο κωδικός πρόσβασης ενημερώθηκε",
+        "invalid-current-password": "Μη έγκυρος κωδικός πρόσβασης",
+        "ldap-update-password-unavailable": "Αδυναμία ενημέρωσης του κωδικού πρόσβασης, ο χρήστης ελέγχεται από LDAP"
+    },
+    "group": {
+        "report-deleted": "Η αναφορά διαγράφηκε."
+    },
+    "exceptions": {
+        "permission_denied": "Δεν έχετε δικαιώματα για την εκτέλεση αυτής της ενέργειας",
+        "recursive-recipe-link": "Μια συνταγή δεν μπορεί να αναφερθεί στον εαυτό της, είτε άμεσα είτε έμμεσα",
+        "no-entry-found": "Η σελίδα που ζητήσατε δε βρέθηκε",
+        "integrity-error": "Σφάλμα ακεραιότητας βάσης δεδομένων",
+        "username-conflict-error": "Το όνομα χρήστη χρησιμοποιείται ήδη",
+        "email-conflict-error": "Αυτό το email χρησιμοποιείται ήδη"
+    },
+    "notifications": {
+        "generic-created": "Δημιουργήθηκε το {name}",
+        "generic-updated": "Ενημερώθηκε το {name}",
+        "generic-created-with-url": "Το {name} δημιουργήθηκε, {url}",
+        "generic-updated-with-url": "Το {name} ενημερώθηκε, {url}",
+        "generic-duplicated": "Δημιουργήθηκε διπλότυπο του {name}",
+        "generic-deleted": "Το {name} διαγράφηκε",
+        "logged-out": "Αποσυνδεδεμένος"
+    },
+    "datetime": {
+        "year": "χρόνος | χρόνια",
+        "day": "ημέρα|ημέρες",
+        "hour": "ώρα - ώρες",
+        "minute": "λεπτό|λεπτά",
+        "second": "δευτερόλεπτο|δευτερόλεπτα",
+        "millisecond": "Χιλιοστό του δευτερολέπτου | Χιλιοστά του δευτερολέπτου",
+        "microsecond": "μικροδευτερόλεπτο/μικροδευτερόλεπτα"
+    },
+    "emails": {
+        "password": {
+            "subject": "Mealie Ξέχασα τον κωδικό πρόσβασης",
+            "header_text": "Ξέχασα τον κωδικό πρόσβασης",
+            "message_top": "Εχετε ζητήσει να επαναφέρετε τον κωδικό πρόσβασής σας.",
+            "message_bottom": "Παρακαλώ κάντε κλικ στο παραπάνω κουμπί για να επαναφέρετε τον κωδικό πρόσβασής σας.",
+            "button_text": "Επαναφορά κωδικού πρόσβασης"
+        },
+        "invitation": {
+            "subject": "Πρόσκληση για συμμετοχή στο Mealie",
+            "header_text": "Εχετε Προσκληθεί!",
+            "message_top": "Εχετε προσκληθεί να γίνετε μέλος στο Mealie.",
+            "message_bottom": "Παρακαλώ κάντε κλικ στο παραπάνω κουμπί για να αποδεχτείτε την πρόσκληση.",
+            "button_text": "Αποδοχή Πρόσκλησης"
+        },
+        "test": {
+            "subject": "Δοκιμαστικό Email Mealie",
+            "header_text": "Δοκιμαστικό Email",
+            "message_top": "Αυτό είναι ένα δοκιμαστικό email.",
+            "message_bottom": "Παρακαλώ κάντε κλικ στο παραπάνω κουμπί για να δοκιμάσετε το email.",
+            "button_text": "Ανοιγμα Mealie"
+        }
+    }
+}

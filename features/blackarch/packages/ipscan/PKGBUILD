@@ -1,0 +1,29 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=ipscan
+pkgver=3.9.3
+pkgrel=1
+groups=('blackarch' 'blackarch-scanner')
+pkgdesc='A very fast IP address and port scanner.'
+arch=('x86_64')
+license=('GPL-2.0-only')
+url='https://github.com/angryip/ipscan'
+depends=('java-environment')
+source=("https://github.com/angryip/$pkgname/releases/download/$pkgver/$pkgname-linux64-$pkgver.jar")
+sha512sums=('ddb278c2f91f909f101d26028634828d3400158741c7562d42f7719ef09fd843391cfb8bcf6eefee44e41a62b1c81b67a15600cd9ed7e25734dfebafd50f3741')
+
+package() {
+  install -dm 755 "$pkgdir/usr/bin"
+
+  install -Dm 644 "$pkgname-linux64-$pkgver.jar" \
+    "$pkgdir/usr/share/$pkgname/$pkgname-linux-$pkgver.jar"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+exec java -jar /usr/share/$pkgname/$pkgname-linux-$pkgver.jar
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname"
+}
+

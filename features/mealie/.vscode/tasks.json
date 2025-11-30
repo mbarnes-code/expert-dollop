@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Production: Build and Start Docker Compose",
+      "command": "task docker:prod",
+      "type": "shell",
+      "args": [],
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "presentation": {
+        "reveal": "always"
+      },
+      "group": "test"
+    },
+    {
+      "label": "Dev: Start Backend",
+      "command": "task py",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always",
+        "group": "groupA"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: Start Frontend",
+      "command": "task ui",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always",
+        "group": "groupA"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: Start Docs Server",
+      "command": "task docs",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always",
+        "group": "groupA"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run python tests",
+      "command": "task py:test",
+      "type": "shell",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

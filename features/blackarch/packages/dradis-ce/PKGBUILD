@@ -1,0 +1,83 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+pkgname=dradis-ce
+pkgver=v4.9.0.r2024.gf821a6f
+pkgrel=1
+epoch=1
+pkgdesc='An open source framework to enable effective information sharing.'
+groups=('blackarch' 'blackarch-recon' 'blackarch-misc')
+url='https://dradis.com/ce/'
+license=('GPL')
+depends=('ruby' 'ruby-erb' 'ruby-bundler' 'git' 'libxslt' 'postgresql-libs'
+         'sqlite' 'libsass')
+makedepends=('git' 'pkgconf')
+arch=('any')
+source=("git+https://github.com/dradis/$pkgname.git"
+        "$pkgname.sysusers.conf")
+install="$pkgname.install"
+sha512sums=('SKIP'
+            '104c3f6d2dcdc5cd02092ad16783dcd1907ff8fba95c87db609fe5c7307ca4fd97730b5117d6db78d9fd9273c4fd5c963b7d404d08cb8615f3a9fe3864f16c95')
+
+pkgver() {
+  cd $pkgname
+
+  ( set -o pipefail
+    git describe --long --tags --abbrev=7 2>/dev/null |
+      sed 's/\([^-]*-g\)/r\1/;s/-/./g' ||
+    printf "%s.%s" "$(git rev-list --count HEAD)" \
+      "$(git rev-parse --short=7 HEAD)"
+  )
+}
+
+prepare() {
+  cd $pkgname
+
+  # make it work for ruby 3.2.x
+  sed -i "s|ruby '3.1.2'||g" Gemfile
+
+  # tmp fix, https://github.com/dradis/dradis-ce/pull/1286
+  sed -i "s|File.exists?|File.exist?|g" Gemfile
+
+  # bundle tries to solve conflicts and compatibilities issue even for EXCLUDED
+  # gems (e.g. --without) so we have to remove the dev and test dependencies
+  # from the Gemfile else we won't be able to install without error
+  #sed -i '/group :development/,/end/d' Gemfile
+  #sed -i '/group :test/,/end/d' Gemfile
+
+  # sqlite build error, because native gem support requires bundler 2.5.6+ and
+  # Gemfile.lock is built with 2.3.16
+  # https://github.com/sparklemotion/sqlite3-ruby/blob/main/INSTALLATION.md
+  # patch BUNDLED_WITH
+  sed -i "s|2.3.16|2.5.11|g" Gemfile.lock
+  # also Gemfile.lock requires sqlite 1.4.0 but native gem requires 2.0+
+  sed -i "s|sqlite3 (1.4.2)|sqlite3 (2.0.4)|g" Gemfile.lock
+  # rm Gemfile.lock
+}
+
+package() {
+  install -dm 755 "$pkgdir/usr/lib/sysusers.d/" \
+    "$pkgdir/usr/bin" \
+    "$pkgdir/usr/share"
+
+  install -m 644 "$pkgname.sysusers.conf" \
+    "$pkgdir/usr/lib/sysusers.d/$pkgname.conf"
+
+  cp -a $pkgname "$pkgdir/usr/share/$pkgname/"
+
+  cat > "$pkgdir/usr/bin/$pkgname" << EOF
+#!/bin/sh
+cd /usr/share/$pkgname
+exec bundle exec rails server "\$@"
+EOF
+
+  chmod +x "$pkgdir/usr/bin/$pkgname"
+
+  cp "$pkgdir/usr/share/$pkgname/config/database.yml.template" \
+    "$pkgdir/usr/share/$pkgname/config/database.yml"
+  cp "$pkgdir/usr/share/$pkgname/config/smtp.yml.template" \
+    "$pkgdir/usr/share/$pkgname/config/smtp.yml"
+
+  rm -f "$pkgdir/usr/share/dradis-ce/Gemfile.plugins"
+}
+

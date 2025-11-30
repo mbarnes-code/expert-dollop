@@ -1,0 +1,83 @@
+{
+    "generic": {
+        "server-error": "A apărut o eroare neașteptată"
+    },
+    "recipe": {
+        "unique-name-error": "Numele rețetei trebuie să fie unic",
+        "recipe-created": "Rețetă creată",
+        "recipe-image-deleted": "Imaginea rețetei a fost ștearsă",
+        "recipe-defaults": {
+            "ingredient-note": "1 Cană de Făină",
+            "step-text": "Pașii rețetei precum și alte domenii din sintaxa markdown de pe pagina de rețetă.\n\n**Adăugați un link**\n\n[Link-ul meu](https://demo.mealie.io)\n"
+        },
+        "servings-text": {
+            "makes": "Creează",
+            "serves": "Servește",
+            "serving": "Porție",
+            "servings": "Porții",
+            "yield": "Recoltă",
+            "yields": "Producţii"
+        }
+    },
+    "mealplan": {
+        "no-recipes-match-your-rules": "Nicio rețetă nu corespunde criteriilor tale"
+    },
+    "user": {
+        "user-updated": "Date utilizator actualizate",
+        "password-updated": "Parola a fost schimbată",
+        "invalid-current-password": "Parola curentă este invalidă",
+        "ldap-update-password-unavailable": "Nu se poate actualiza parola, utilizatorul este controlat de LDAP"
+    },
+    "group": {
+        "report-deleted": "Raportul a fost șters."
+    },
+    "exceptions": {
+        "permission_denied": "Nu aveți permisiunile necesare pentru a efectua această acțiune",
+        "recursive-recipe-link": "O rețetă nu poate să se refere la ea însăși, nici direct, nici indirect",
+        "no-entry-found": "Pagina solicitată nu a fost găsită",
+        "integrity-error": "Eroare la integritatea bazei de date",
+        "username-conflict-error": "Acest nume de utilizator deja există",
+        "email-conflict-error": "Această adresă de e-mail este deja folosită"
+    },
+    "notifications": {
+        "generic-created": "{name} a fost creat",
+        "generic-updated": "{name} a fost actualizat",
+        "generic-created-with-url": "{name} a fost creat, {url}",
+        "generic-updated-with-url": "{name} a fost actualizat, {url}",
+        "generic-duplicated": "{name} a fost duplicat",
+        "generic-deleted": "{name} a fost șters",
+        "logged-out": "Deconectat"
+    },
+    "datetime": {
+        "year": "an|ani",
+        "day": "zi|zile",
+        "hour": "oră|ore",
+        "minute": "minut|minute",
+        "second": "secundă|secunde",
+        "millisecond": "milisecundă|milisecunde",
+        "microsecond": "microsecundă|microsecunde"
+    },
+    "emails": {
+        "password": {
+            "subject": "Mealie Parolă Uitată",
+            "header_text": "Am uitat parola",
+            "message_top": "Ai solicitat resetarea parolei.",
+            "message_bottom": "Vă rugăm să faceţi clic pe butonul de mai sus pentru a reseta parola.",
+            "button_text": "Resetare parolă"
+        },
+        "invitation": {
+            "subject": "Invitație de a te alătura Mealie",
+            "header_text": "Ești invitat!",
+            "message_top": "Ai fost invitat să te alături lui Mealie.",
+            "message_bottom": "Vă rugăm să faceţi clic pe butonul de mai sus pentru a accepta invitaţia.",
+            "button_text": "Acceptă invitația"
+        },
+        "test": {
+            "subject": "E-mail test Mealie",
+            "header_text": "Email de test",
+            "message_top": "Acesta este un e-mail de test.",
+            "message_bottom": "Vă rugăm să faceţi clic pe butonul de mai sus pentru a testa e-mailul.",
+            "button_text": "Deschide Mealie"
+        }
+    }
+}

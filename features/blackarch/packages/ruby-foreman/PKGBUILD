@@ -1,0 +1,34 @@
+# This file is part of BlackArch Linux ( https://www.blackarch.org/ ).
+# See COPYING for license details.
+
+# This PKGBUILD was extracted from AUR and modified by us.
+# Creator: Charlie Wolf <charlie@wolf.is>
+# Changes by: petruknisme
+
+pkgname=ruby-foreman
+_pkgname=foreman
+pkgver=0.90.0
+pkgrel=1
+pkgdesc='Process manager for Procfile based applications.'
+arch=('any')
+depends=('ruby2.6' 'ruby-thor')
+url="https://rubygems.org/gems/foreman"
+noextract=("$_pkgname-$pkgver.gem")
+license=('MIT')
+source=("https://rubygems.org/gems/$_pkgname-$pkgver.gem")
+sha512sums=('b63dc59778505e48c31e4d37f0af6a1babed5f142830e8645048c96f441af21034b484fe651129337420123d3f8a2d023087333ed2c8e63cf6ed0e2693d87dac')
+
+package() {
+  local _gemdir="$(ruby -e'puts Gem.default_dir')"
+
+  gem install --ignore-dependencies --no-user-install --no-document \
+    -i "$pkgdir/$_gemdir" -n "$pkgdir/usr/bin" "$_pkgname-$pkgver.gem"
+
+  rm "$pkgdir/$_gemdir/cache/$_pkgname-$pkgver.gem"
+  find "$pkgdir/$_gemdir/extensions/" -name *.so -delete
+  rm -r "$pkgdir/$_gemdir/gems/$_pkgname-$pkgver/spec"
+
+  install -Dm 644 "$pkgdir/$_gemdir/gems/$_pkgname-$pkgver/README.md" \
+    "$pkgdir/usr/share/licenses/$pkgname/README.md"
+}
+
