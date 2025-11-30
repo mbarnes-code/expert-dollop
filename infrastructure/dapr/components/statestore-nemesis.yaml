@@ -1,0 +1,24 @@
+# DAPR State Store Component: Nemesis
+# Bounded Context: Nemesis game project data
+# Schema Isolation: Each module owns its data via schema restriction
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-nemesis
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres user=postgres password=postgres port=5432 dbname=expert_dollop sslmode=disable options='-c search_path=nemesis'"
+    - name: tableName
+      value: "dapr_state"
+    - name: keyPrefix
+      value: "nemesis"
+    - name: actorStateStore
+      value: "true"
+scopes:
+  - fastapi
+  - django-nemesis

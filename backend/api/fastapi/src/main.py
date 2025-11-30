@@ -1,16 +1,30 @@
 """
 FastAPI Application Entry Point
 Expert-Dollop Platform
+
+Implements DAPR service mesh for state management and pub/sub messaging.
+Follows DDD principles:
+- Bounded Contexts: Each module owns its data
+- No Direct DB Access: Uses DAPR State API
+- Event-Driven: Uses DAPR Pub/Sub
+- Database Agnostic: Can swap backends without code changes
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Any, Dict, List
 import os
+import sys
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+from core.dapr import DaprClient, StateStore, Topic
 
 # Create the main FastAPI application
 app = FastAPI(
     title="Expert-Dollop API",
-    description="Domain-based monorepo API with modular backend support",
+    description="Domain-based monorepo API with DAPR service mesh for DDD compliance",
     version="0.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -31,6 +45,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# DAPR Client instance
+dapr_client: DaprClient | None = None
+
+# Store subscriptions for DAPR
+_subscriptions: List[Dict[str, Any]] = [
+    {
+        "pubsubname": "pubsub",
+        "topic": "user.created",
+        "route": "/events/user/created",
+        "metadata": {}
+    },
+    {
+        "pubsubname": "pubsub",
+        "topic": "tcg.card.added",
+        "route": "/events/tcg/card/added",
+        "metadata": {}
+    },
+    {
+        "pubsubname": "pubsub",
+        "topic": "security.alert",
+        "route": "/events/security/alert",
+        "metadata": {}
+    }
+]
+
+
+@app.on_event("startup")
+async def startup():
+    """Initialize DAPR client on startup."""
+    global dapr_client
+    dapr_client = DaprClient(app_id="fastapi")
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Close DAPR client on shutdown."""
+    global dapr_client
+    if dapr_client:
+        await dapr_client.close()
+
 
 @app.get("/")
 async def root():
@@ -40,13 +94,14 @@ async def root():
         "version": "0.1.0",
         "status": "running",
         "backend": "FastAPI",
+        "dapr_enabled": True,
     }
 
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "healthy", "dapr": "enabled"}
 
 
 @app.get("/api/v1/info")
@@ -55,7 +110,18 @@ async def api_info():
     return {
         "api_version": "v1",
         "framework": "FastAPI",
+        "dapr": {
+            "enabled": True,
+            "state_stores": [store.value for store in StateStore],
+            "pubsub": "pubsub",
+        },
         "domains": ["security", "productivity", "ai", "tcg"],
+        "ddd_compliance": {
+            "bounded_contexts": True,
+            "no_direct_db_access": True,
+            "event_driven": True,
+            "database_agnostic": True,
+        },
         "databases": {
             "postgres_schemas": [
                 "dispatch", "hexstrike", "mealie", "tcg",
@@ -64,6 +130,107 @@ async def api_info():
             "redis_databases": 9,
         },
     }
+
+
+# ==================== DAPR Endpoints ====================
+
+@app.get("/dapr/subscribe")
+async def dapr_subscribe() -> List[Dict[str, Any]]:
+    """
+    DAPR subscription endpoint.
+    Returns list of pub/sub subscriptions for DAPR sidecar.
+    """
+    return _subscriptions
+
+
+# ==================== State API Endpoints ====================
+
+@app.get("/api/v1/state/{store}/{key}")
+async def get_state(store: str, key: str):
+    """
+    Get state from a bounded context.
+    Uses DAPR State API (no direct DB access).
+    """
+    try:
+        state_store = StateStore(f"statestore-{store}")
+        value = await dapr_client.get_state(state_store, key)
+        return {"key": key, "value": value, "store": store}
+    except ValueError:
+        return {"error": f"Invalid store: {store}"}, 400
+
+
+@app.post("/api/v1/state/{store}/{key}")
+async def save_state(store: str, key: str, request: Request):
+    """
+    Save state to a bounded context.
+    Uses DAPR State API (no direct DB access).
+    """
+    try:
+        state_store = StateStore(f"statestore-{store}")
+        data = await request.json()
+        await dapr_client.save_state(state_store, key, data)
+        return {"success": True, "key": key, "store": store}
+    except ValueError:
+        return {"error": f"Invalid store: {store}"}, 400
+
+
+@app.delete("/api/v1/state/{store}/{key}")
+async def delete_state(store: str, key: str):
+    """
+    Delete state from a bounded context.
+    Uses DAPR State API (no direct DB access).
+    """
+    try:
+        state_store = StateStore(f"statestore-{store}")
+        await dapr_client.delete_state(state_store, key)
+        return {"success": True, "key": key, "store": store}
+    except ValueError:
+        return {"error": f"Invalid store: {store}"}, 400
+
+
+# ==================== Pub/Sub Event Handlers ====================
+
+@app.post("/events/user/created")
+async def handle_user_created(request: Request):
+    """Handle user created events."""
+    event = await request.json()
+    data = event.get("data", event)
+    print(f"User created event received: {data}")
+    # Process user created event
+    return {"success": True}
+
+
+@app.post("/events/tcg/card/added")
+async def handle_card_added(request: Request):
+    """Handle TCG card added events."""
+    event = await request.json()
+    data = event.get("data", event)
+    print(f"Card added event received: {data}")
+    # Process card added event
+    return {"success": True}
+
+
+@app.post("/events/security/alert")
+async def handle_security_alert(request: Request):
+    """Handle security alert events."""
+    event = await request.json()
+    data = event.get("data", event)
+    print(f"Security alert event received: {data}")
+    # Process security alert event
+    return {"success": True}
+
+
+# ==================== Publish Endpoints ====================
+
+@app.post("/api/v1/publish/{topic}")
+async def publish_event(topic: str, request: Request):
+    """
+    Publish an event to a topic.
+    Uses DAPR Pub/Sub (event-driven communication).
+    """
+    data = await request.json()
+    await dapr_client.publish(topic, data)
+    return {"success": True, "topic": topic}
 
 
 # Import and include domain routers when available

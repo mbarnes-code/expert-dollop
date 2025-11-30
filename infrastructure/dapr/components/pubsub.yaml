@@ -1,0 +1,65 @@
+# DAPR Pub/Sub Component: RabbitMQ
+# Implements event-driven communication between bounded contexts (DDD principle)
+# Modules communicate via Pub/Sub for loose coupling
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+  namespace: default
+spec:
+  type: pubsub.rabbitmq
+  version: v1
+  metadata:
+    - name: host
+      value: "amqp://rabbitmq:5672"
+    - name: consumerID
+      value: "expert-dollop"
+    - name: durable
+      value: "true"
+    - name: deletedWhenUnused
+      value: "false"
+    - name: autoAck
+      value: "false"
+    - name: deliveryMode
+      value: "2"  # Persistent messages
+    - name: requeueInFailure
+      value: "true"
+    - name: prefetchCount
+      value: "10"
+    - name: reconnectWait
+      value: "0"
+    - name: concurrency
+      value: parallel
+    - name: maxLen
+      value: "10000"
+    - name: maxLenBytes
+      value: "104857600"  # 100MB
+scopes:
+  # All modules can use pub/sub
+  - fastapi
+  - django-mtg
+  - django-nemesis
+  - django-security
+  - security-auth
+  - security-firewall
+  - security-scanner
+  - security-monitor
+  - security-vault
+  - security-compliance
+  - security-audit
+  - productivity-tasks
+  - productivity-calendar
+  - productivity-notes
+  - productivity-documents
+  - productivity-projects
+  - productivity-dashboard
+  - ai-chat
+  - ai-models
+  - ai-training
+  - ai-analytics
+  - tcg-collection
+  - tcg-decks
+  - tcg-marketplace
+  - tcg-tournaments
+  - tcg-analytics

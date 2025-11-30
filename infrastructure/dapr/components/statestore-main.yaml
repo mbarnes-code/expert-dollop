@@ -1,0 +1,43 @@
+# DAPR State Store Component: Main
+# Bounded Context: Core application data
+# Schema Isolation: Each module owns its data via schema restriction
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-main
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres user=postgres password=postgres port=5432 dbname=expert_dollop sslmode=disable options='-c search_path=main'"
+    - name: tableName
+      value: "dapr_state"
+    - name: keyPrefix
+      value: "main"
+    - name: actorStateStore
+      value: "true"
+scopes:
+  - fastapi
+  - django-mtg
+  - django-nemesis
+  - django-security
+  - security-auth
+  - security-firewall
+  - security-scanner
+  - security-monitor
+  - security-vault
+  - security-compliance
+  - security-audit
+  - productivity-tasks
+  - productivity-calendar
+  - productivity-notes
+  - productivity-documents
+  - productivity-projects
+  - productivity-dashboard
+  - ai-chat
+  - ai-models
+  - ai-training
+  - ai-analytics
