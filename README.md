@@ -4,7 +4,19 @@ A domain-based NX monorepo implementing a comprehensive multi-domain architectur
 
 ## Architecture Overview
 
-This platform consists of 22 Next.js frontend applications organized by domain, with a modular backend supporting both FastAPI and Django, PostgreSQL with 8 schemas, Redis with 9 databases, and MCP server integration.
+This platform consists of 22 Next.js frontend applications organized by domain, with a modular backend supporting both FastAPI and Django, PostgreSQL with 8 schemas, Redis with 9 databases, DAPR service mesh for state management and pub/sub messaging, and MCP server integration.
+
+### DAPR Service Mesh (DDD Compliant)
+
+The platform uses DAPR (Distributed Application Runtime) to enforce Domain-Driven Design (DDD) principles:
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Bounded Contexts** | Each module owns its data via PostgreSQL schema isolation |
+| **No Direct DB Access** | Modules use DAPR State API as abstraction layer |
+| **Event-Driven** | Modules communicate via RabbitMQ Pub/Sub (loose coupling) |
+| **Database Agnostic** | Can swap PostgreSQL → CosmosDB without code changes |
+| **Schema Boundaries** | DAPR components enforce `search_path` restrictions |
 
 ### Frontend Applications (Next.js + React)
 
@@ -18,9 +30,10 @@ This platform consists of 22 Next.js frontend applications organized by domain, 
 ### Backend Architecture
 
 #### API Layer
-- **FastAPI**: High-performance async API
-- **Django REST Framework**: Full-featured web framework
+- **FastAPI**: High-performance async API with DAPR integration
+- **Django REST Framework**: Full-featured web framework with DAPR integration
 - **Modular design**: Choose backend per service
+- **DAPR Sidecar**: State management and pub/sub for each service
 
 #### Django Projects
 - `mtg` - Magic: The Gathering backend
@@ -52,6 +65,20 @@ This platform consists of 22 Next.js frontend applications organized by domain, 
 | 7 | AI model cache |
 | 8 | Analytics data |
 
+#### DAPR State Stores (8)
+Each state store maps to a PostgreSQL schema (bounded context):
+
+| State Store | Schema |
+|-------------|--------|
+| statestore-main | main |
+| statestore-tcg | tcg |
+| statestore-nemesis | nemesis |
+| statestore-dispatch | dispatch |
+| statestore-hexstrike | hexstrike |
+| statestore-mealie | mealie |
+| statestore-ghostwriter | ghostwriter |
+| statestore-nemsis | nemsis |
+
 #### MCP Server Integration
 - Extensible MCP server framework
 - Tool, prompt, and resource protocols
@@ -68,15 +95,23 @@ expert-dollop/
 │   └── tcg/                       # 5 TCG apps
 ├── libs/                          # Shared libraries
 │   ├── shared/                    # Cross-domain shared libs
+│   │   └── data-access/           # DAPR client for frontends
 │   ├── security/                  # Security domain libs
 │   ├── productivity/              # Productivity domain libs
 │   ├── ai/                        # AI domain libs
 │   └── tcg/                       # TCG domain libs
 ├── backend/                       # Backend services
-│   ├── api/                       # API layer (FastAPI/Django)
+│   ├── api/                       # API layer
+│   │   ├── core/dapr/             # Python DAPR client
+│   │   └── fastapi/               # FastAPI with DAPR
 │   ├── django/                    # Django projects
+│   │   ├── dapr_client/           # Django DAPR client
+│   │   └── ...                    # Django apps
 │   └── services/                  # Additional services (MCP)
 ├── infrastructure/                # Infrastructure configs
+│   ├── dapr/                      # DAPR configuration
+│   │   ├── components/            # State stores & pub/sub
+│   │   └── config/                # DAPR config
 │   ├── docker/                    # Docker configurations
 │   ├── postgres/                  # PostgreSQL schemas
 │   └── redis/                     # Redis configurations
@@ -91,6 +126,7 @@ expert-dollop/
 - PNPM 10+
 - Python 3.11+ (for backend)
 - Docker & Docker Compose (for infrastructure)
+- DAPR CLI (optional, for local development)
 
 ### Installation
 
@@ -98,9 +134,12 @@ expert-dollop/
 # Install dependencies
 pnpm install
 
-# Start infrastructure
+# Start infrastructure with RabbitMQ
 cd infrastructure/docker
-docker-compose up -d postgres redis
+docker-compose up -d postgres redis rabbitmq
+
+# Start with DAPR sidecars (recommended for full DDD compliance)
+docker-compose --profile dapr up -d
 
 # Start development
 pnpm dev
@@ -141,21 +180,82 @@ Applications for trading card game collection management, deck building, marketp
 
 ## Backend Selection
 
-The backend API layer supports both FastAPI and Django. Choose based on your needs:
+The backend API layer supports both FastAPI and Django with DAPR integration:
 
-### FastAPI
+### FastAPI (with DAPR)
 ```bash
 cd backend/api/fastapi
 pip install -r requirements.txt
-uvicorn src.main:app --reload
+
+# With DAPR sidecar
+dapr run --app-id fastapi --app-port 8000 --dapr-http-port 3500 \
+  --components-path ../../infrastructure/dapr/components \
+  --config ../../infrastructure/dapr/config/config.yaml \
+  -- uvicorn src.main:app --reload
 ```
 
-### Django
+### Django (with DAPR)
 ```bash
 cd backend/django/mtg  # or nemesis, security
 pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+
+# With DAPR sidecar
+dapr run --app-id django-mtg --app-port 8000 --dapr-http-port 3501 \
+  --components-path ../../../infrastructure/dapr/components \
+  --config ../../../infrastructure/dapr/config/config.yaml \
+  -- python manage.py runserver
+```
+
+## DAPR Integration
+
+### Using DAPR State API (Python - FastAPI)
+
+```python
+from core.dapr import DaprClient, StateStore, Topic
+
+# Initialize client
+client = DaprClient(app_id="tcg-service")
+
+# Save state (no direct DB access)
+await client.save_state(StateStore.TCG, "card-123", {"name": "Black Lotus"})
+
+# Get state
+card = await client.get_state(StateStore.TCG, "card-123")
+
+# Publish event (event-driven communication)
+await client.publish(Topic.CARD_ADDED, {"cardId": "123"})
+```
+
+### Using DAPR State API (TypeScript - Next.js)
+
+```typescript
+import { DaprClient, StateStore, Topic } from '@expert-dollop/shared-data-access';
+
+// Initialize client
+const client = new DaprClient({ appId: 'tcg-frontend' });
+
+// Save state (no direct DB access)
+await client.saveState(StateStore.TCG, 'card-123', { name: 'Black Lotus' });
+
+// Get state
+const card = await client.getState(StateStore.TCG, 'card-123');
+
+// Publish event (event-driven communication)
+await client.publish(Topic.CARD_ADDED, { cardId: '123' });
+```
+
+### Swapping Database Backends
+
+One of the key DDD benefits: swap databases without code changes.
+
+```yaml
+# From PostgreSQL
+spec:
+  type: state.postgresql
+
+# To CosmosDB (no code changes required)
+spec:
+  type: state.azure.cosmosdb
 ```
 
 ## License

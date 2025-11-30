@@ -13,7 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/schemas:/docker-entrypoint-initdb.d:ro
+      - ../postgres/schemas:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -31,7 +31,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-      - ./redis/configs/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ../redis/configs/redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -40,10 +40,42 @@ services:
     networks:
       - expert-dollop-network
 
+  # RabbitMQ Message Broker (DAPR Pub/Sub)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: expert-dollop-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-rabbitmq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - expert-dollop-network
+
+  # DAPR Placement Service (for Actors)
+  placement:
+    image: daprio/dapr:1.12.0
+    container_name: expert-dollop-dapr-placement
+    command: ["./placement", "-port", "50006"]
+    ports:
+      - "50006:50006"
+    networks:
+      - expert-dollop-network
+    profiles:
+      - dapr
+
   # FastAPI Backend (optional - use when needed)
   fastapi:
     build:
-      context: ../backend/api/fastapi
+      context: ../../backend/api/fastapi
       dockerfile: ../../infrastructure/docker/Dockerfile.fastapi
     container_name: expert-dollop-fastapi
     environment:
@@ -54,6 +86,8 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DAPR_HTTP_PORT=3500
+      - DAPR_GRPC_PORT=50001
     ports:
       - "8000:8000"
     depends_on:
@@ -61,15 +95,41 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - expert-dollop-network
     profiles:
       - fastapi
 
+  # FastAPI DAPR Sidecar
+  fastapi-dapr:
+    image: daprio/daprd:1.12.0
+    container_name: expert-dollop-fastapi-dapr
+    command: ["./daprd",
+      "-app-id", "fastapi",
+      "-app-port", "8000",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001",
+      "-placement-host-address", "placement:50006",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml"
+    ]
+    volumes:
+      - ../dapr/components:/components:ro
+      - ../dapr/config:/config:ro
+    depends_on:
+      - fastapi
+      - placement
+      - rabbitmq
+    network_mode: "service:fastapi"
+    profiles:
+      - dapr
+
   # Django MTG Backend (optional)
   django-mtg:
     build:
-      context: ../backend/django/mtg
+      context: ../../backend/django/mtg
       dockerfile: ../../../infrastructure/docker/Dockerfile.django
     container_name: expert-dollop-django-mtg
     environment:
@@ -79,6 +139,8 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - REDIS_URL=redis://redis:6379/6
+      - DAPR_HTTP_PORT=3501
+      - DAPR_GRPC_PORT=50002
     ports:
       - "8001:8000"
     depends_on:
@@ -86,15 +148,41 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - expert-dollop-network
     profiles:
       - django
 
+  # Django MTG DAPR Sidecar
+  django-mtg-dapr:
+    image: daprio/daprd:1.12.0
+    container_name: expert-dollop-django-mtg-dapr
+    command: ["./daprd",
+      "-app-id", "django-mtg",
+      "-app-port", "8000",
+      "-dapr-http-port", "3501",
+      "-dapr-grpc-port", "50002",
+      "-placement-host-address", "placement:50006",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml"
+    ]
+    volumes:
+      - ../dapr/components:/components:ro
+      - ../dapr/config:/config:ro
+    depends_on:
+      - django-mtg
+      - placement
+      - rabbitmq
+    network_mode: "service:django-mtg"
+    profiles:
+      - dapr
+
   # Django Nemesis Backend (optional)
   django-nemesis:
     build:
-      context: ../backend/django/nemesis
+      context: ../../backend/django/nemesis
       dockerfile: ../../../infrastructure/docker/Dockerfile.django
     container_name: expert-dollop-django-nemesis
     environment:
@@ -104,6 +192,8 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - REDIS_URL=redis://redis:6379/1
+      - DAPR_HTTP_PORT=3502
+      - DAPR_GRPC_PORT=50003
     ports:
       - "8002:8000"
     depends_on:
@@ -111,15 +201,41 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - expert-dollop-network
     profiles:
       - django
 
+  # Django Nemesis DAPR Sidecar
+  django-nemesis-dapr:
+    image: daprio/daprd:1.12.0
+    container_name: expert-dollop-django-nemesis-dapr
+    command: ["./daprd",
+      "-app-id", "django-nemesis",
+      "-app-port", "8000",
+      "-dapr-http-port", "3502",
+      "-dapr-grpc-port", "50003",
+      "-placement-host-address", "placement:50006",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml"
+    ]
+    volumes:
+      - ../dapr/components:/components:ro
+      - ../dapr/config:/config:ro
+    depends_on:
+      - django-nemesis
+      - placement
+      - rabbitmq
+    network_mode: "service:django-nemesis"
+    profiles:
+      - dapr
+
   # Django Security Backend (optional)
   django-security:
     build:
-      context: ../backend/django/security
+      context: ../../backend/django/security
       dockerfile: ../../../infrastructure/docker/Dockerfile.django
     container_name: expert-dollop-django-security
     environment:
@@ -129,6 +245,8 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - REDIS_URL=redis://redis:6379/5
+      - DAPR_HTTP_PORT=3503
+      - DAPR_GRPC_PORT=50004
     ports:
       - "8003:8000"
     depends_on:
@@ -136,14 +254,41 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - expert-dollop-network
     profiles:
       - django
 
+  # Django Security DAPR Sidecar
+  django-security-dapr:
+    image: daprio/daprd:1.12.0
+    container_name: expert-dollop-django-security-dapr
+    command: ["./daprd",
+      "-app-id", "django-security",
+      "-app-port", "8000",
+      "-dapr-http-port", "3503",
+      "-dapr-grpc-port", "50004",
+      "-placement-host-address", "placement:50006",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml"
+    ]
+    volumes:
+      - ../dapr/components:/components:ro
+      - ../dapr/config:/config:ro
+    depends_on:
+      - django-security
+      - placement
+      - rabbitmq
+    network_mode: "service:django-security"
+    profiles:
+      - dapr
+
 volumes:
   postgres_data:
   redis_data:
+  rabbitmq_data:
 
 networks:
   expert-dollop-network:
