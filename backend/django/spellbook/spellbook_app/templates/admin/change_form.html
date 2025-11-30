@@ -1,0 +1,34 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="{% static 'admin/js/jquery/dirty/jquery.dirty.js' %}" type="text/javascript"></script>
+    <script src="{% static 'admin/js/enable_jquery_dirty.js' %}" type="text/javascript"></script>
+    <script src="{% static 'admin/js/iso_to_local_time.js' %}" type="text/javascript"></script>
+    <script src="{% static 'admin/js/select2_patch.js' %}" type="text/javascript"></script>
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+    <div class="after-content">
+        {% with suggested_count=15 %}
+        {% with suggested_count_s=suggested_count|stringformat:"s" %}
+        {% with suggested_slice=':'|add:suggested_count_s %}
+            {% block after-content %}
+            {% endblock %}
+        {% endwith %}
+        {% endwith %}
+        {% endwith %}
+    </div>
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+    {{ block.super }}
+    <script>
+        // Disable submit button after first submit to prevent double submissions
+        django.jQuery('form').one('submit', function() {
+            django.jQuery(this).submit(false);
+        });
+    </script>
+{% endblock %}

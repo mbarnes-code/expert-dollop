@@ -22,19 +22,48 @@ This integration uses the strangler fig pattern to gradually migrate functionali
 
 ```
 backend/django/spellbook/
-├── domain/                    # Core domain layer
+├── domain/                    # Core domain layer (DDD abstractions)
 │   ├── entities/              # Domain entities (Card, Combo, Variant, etc.)
 │   ├── repositories/          # Repository interfaces
 │   └── services/              # Domain services
 ├── application/               # Application layer
 │   └── use_cases/             # Application services/use cases
 ├── infrastructure/            # Infrastructure layer
-│   └── (implementations)      # Repository implementations, adapters
 ├── spellbook_project/         # Django project configuration
 │   ├── settings.py
 │   ├── urls.py
 │   ├── wsgi.py
 │   └── db_router.py          # Database router for migration
+├── spellbook_app/             # Main Django spellbook app
+│   ├── models/                # Django models
+│   ├── views/                 # API views
+│   ├── serializers/           # DRF serializers
+│   ├── admin/                 # Admin configuration
+│   ├── management/            # Management commands
+│   ├── variants/              # Variant generation logic
+│   ├── parsers/               # Input parsers
+│   ├── transformers/          # Data transformers
+│   └── tests/                 # Tests
+├── website/                   # Website app
+├── common/                    # Common utilities
+│   ├── hybridrouter.py        # Hybrid router for API views
+│   ├── abstractions.py        # Data classes
+│   └── serializers.py         # Common serializers
+├── bots/                      # Bot integrations
+│   ├── discord/               # Discord bot
+│   ├── reddit/                # Reddit bot
+│   └── telegram/              # Telegram bot
+├── client/                    # API client generators
+│   ├── generate-client-python.sh
+│   ├── generate-client-typescript.sh
+│   └── generate-openapi.sh
+├── nginx/                     # Nginx configurations
+│   ├── demo.conf
+│   └── production.conf
+├── docs/                      # Documentation
+├── Dockerfile                 # Docker build configuration
+├── docker-compose.yml         # Development compose file
+├── docker-compose.prod.yml    # Production compose file
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -48,35 +77,42 @@ This module uses shared DDD abstractions from `libs/shared/python/ddd/`:
 - `Repository`, `ReadOnlyRepository` - Repository interfaces
 - `DomainService`, `ApplicationService` - Service abstractions
 
-## Domain Model
+## Components
 
-### Aggregate Roots
+### Spellbook App
 
-- **Card**: Magic: The Gathering cards with Scryfall data
-- **Combo**: Recipes describing card combinations
-- **Variant**: Specific instances of combos with concrete cards
-- **Feature**: Effects produced by combos (e.g., "Infinite mana")
-- **Template**: Abstract card requirements (e.g., "Any sacrifice outlet")
+The main Django app containing:
+- **Models**: Card, Combo, Variant, Feature, Template, and related models
+- **Views**: REST API views for all resources
+- **Serializers**: DRF serializers for data transformation
+- **Admin**: Django admin configurations
+- **Management Commands**: Data management and maintenance commands
 
-### Key Domain Services
+### Website App
 
-- **ComboFinderService**: Finds combos based on available cards
-- **BracketEstimatorService**: Estimates Commander deck power brackets
+Supporting website functionality and properties management.
 
-### Use Cases
+### Bots
 
-- `FindMyCombosUseCase`: Find combos with user's card collection
-- `EstimateBracketUseCase`: Estimate deck power level
-- `SearchVariantsUseCase`: Search combo variants
-- `GetVariantDetailsUseCase`: Get detailed variant information
+Integration bots for:
+- **Discord**: Discord bot for searching combos
+- **Reddit**: Reddit bot for posting combo of the day
+- **Telegram**: Telegram bot with inline search
+
+### Nginx
+
+Production-ready nginx configurations for:
+- Demo environment (development)
+- Production environment (with gzip, caching)
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - PostgreSQL 14+
 - Redis 7+
+- Docker & Docker Compose (optional)
 
 ### Installation
 
@@ -108,19 +144,15 @@ python manage.py migrate
 python manage.py runserver 8003
 ```
 
-### Environment Variables
+### Docker Setup
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DJANGO_SECRET_KEY` | (required) | Django secret key |
-| `DEBUG` | `True` | Debug mode |
-| `DB_HOST` | `localhost` | PostgreSQL host |
-| `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_NAME` | `expert_dollop` | Database name |
-| `DB_USER` | `postgres` | Database user |
-| `DB_PASSWORD` | (required) | Database password |
-| `REDIS_URL` | `redis://127.0.0.1:6379/7` | Redis URL |
-| `ENABLE_LEGACY_API` | `true` | Enable legacy API compatibility |
+```bash
+# Development
+docker-compose up -d
+
+# Production
+docker-compose -f docker-compose.prod.yml up -d
+```
 
 ## API Endpoints
 
@@ -151,12 +183,20 @@ python manage.py runserver 8003
 pytest
 ```
 
-### Code Style
+### Linting
 
-Follow PEP 8 and use type hints. The codebase uses:
-- Black for formatting
-- isort for import sorting
-- mypy for type checking
+```bash
+flake8
+```
+
+### Generating API Clients
+
+```bash
+cd client
+./generate-openapi.sh
+./generate-client-python.sh
+./generate-client-typescript.sh
+```
 
 ## Integration with Expert Dollop
 

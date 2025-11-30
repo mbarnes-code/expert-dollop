@@ -1,0 +1,214 @@
+{% extends "admin/change_form.html" %}
+{% load static mana %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    {% include 'admin/spellbook/includes/card_state_imports.html' %}
+    <style>
+        #card-images>img {
+            max-height: 10cm;
+        }
+    </style>
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+    {{ block.super }}
+    {% if original.oracle_id %}
+    <script>
+        // trigger on page load if card is already selected
+        django.jQuery(function() {
+            const oracle_id = '{{ original.oracle_id }}';
+            if (oracle_id) {
+                card_info.update_card_oracle_image(
+                    oracle_id,
+                    document.getElementById('card-images'));
+            }
+        });
+    </script>
+    {% endif %}
+    <script>
+        const identityMap = {% mana_identities_map %};
+        const autocomplete = django.jQuery('#id_name')
+            .autocomplete({
+                source: function(request, response) {
+                    django.jQuery.ajax({
+                        url: 'https://api.scryfall.com/cards/autocomplete',
+                        dataType: 'json',
+                        data: {
+                            q: request.term,
+                            format: 'json'
+                        },
+                        success: function(data) {
+                            response(data.data);
+                        }
+                    });
+                },
+                minLength: 3,
+                select: function(event, ui) {
+                    let card = ui.item.value;
+                    card_info
+                        .fetch_card_info(card)
+                        .then(function(data) {
+                            let oracle_id = data.oracle_id;
+                            django.jQuery('#id_oracle_id').val(oracle_id);
+
+                            const color_identity_sorted = Array
+                                .from(data.color_identity)
+                                .map(i => i.toUpperCase())
+                                .sort()
+                                .join('')
+                                || 'C';
+                            const color_identity = identityMap.get(color_identity_sorted);
+                            django.jQuery('#id_identity').val(color_identity);
+
+                            django.jQuery('#id_type_line').val(data.type_line);
+
+                            if (Object.hasOwn(data, 'card_faces')) {
+                                oracle_text = '';
+                                for (const face of data.card_faces) {
+                                    oracle_text += face.oracle_text + '\n\n';
+                                }
+                                django.jQuery('#id_oracle_text').val(oracle_text.trim());
+                            } else {
+                                django.jQuery('#id_oracle_text').val(data.oracle_text);
+                            }
+
+                            django.jQuery('#id_keywords').val(JSON.stringify(data.keywords));
+
+                            django.jQuery('#id_mana_value').val(Math.round(data.cmc));
+
+                            django.jQuery('#id_reserved').prop('checked', data.reserved);
+
+                            django.jQuery('#id_latest_printing_set').val(data.set);
+
+                            django.jQuery('#id_reprinted').prop('checked', data.reprint);
+
+                            django.jQuery('#id_game_changer').prop('checked', data.game_changer);
+
+                            const formats = {
+                                'commander': data.legalities.commander == 'legal',
+                                'pauper_commander_main': data.legalities.paupercommander == 'legal',
+                                'pauper_commander': data.legalities.paupercommander == 'legal' || data.legalities.paupercommander == 'restricted',
+                                'oathbreaker': data.legalities.oathbreaker == 'legal',
+                                'predh': data.legalities.predh == 'legal',
+                                'brawl': data.legalities.brawl == 'legal',
+                                'vintage': data.legalities.vintage == 'legal' || data.legalities.vintage == 'restricted',
+                                'legacy': data.legalities.legacy == 'legal',
+                                'premodern': data.legalities.premodern == 'legal',
+                                'modern': data.legalities.modern == 'legal',
+                                'pioneer': data.legalities.pioneer == 'legal',
+                                'standard': data.legalities.standard == 'legal',
+                                'pauper': data.legalities.pauper == 'legal',
+                            };
+                            for (const format in formats) {
+                                django.jQuery('#id_legal_' + format).prop('checked', formats[format]);
+                            }
+
+                            django.jQuery('#id_price_tcgplayer').val(data.prices.usd || 0);
+                            django.jQuery('#id_price_cardkingdom').val(data.prices.usd || 0);
+                            django.jQuery('#id_price_cardmarket').val(data.prices.eur || 0);
+
+                            const releasedAt = Date.parse(data['released_at']);
+                            const currentDate = new Date();
+                            django.jQuery('#id_spoiler').prop('checked', releasedAt > currentDate);
+
+                            if (data['image_status'] !== 'missing') {
+                                const frontFaceImages = Object.hasOwn(data, 'card_faces') ? data.card_faces[0].image_uris : data.image_uris;
+                                const backFaceImages = Object.hasOwn(data, 'card_faces') ? data.card_faces[1].image_uris : null;
+                                django.jQuery('#id_image_uri_front_png').val(frontFaceImages.png || '');
+                                django.jQuery('#id_image_uri_front_large').val(frontFaceImages.large || '');
+                                django.jQuery('#id_image_uri_front_normal').val(frontFaceImages.normal || '');
+                                django.jQuery('#id_image_uri_front_small').val(frontFaceImages.small || '');
+                                django.jQuery('#id_image_uri_front_art_crop').val(frontFaceImages.art_crop || '');
+                                if (backFaceImages) {
+                                    django.jQuery('#id_image_uri_back_png').val(backFaceImages.png || '');
+                                    django.jQuery('#id_image_uri_back_large').val(backFaceImages.large || '');
+                                    django.jQuery('#id_image_uri_back_normal').val(backFaceImages.normal || '');
+                                    django.jQuery('#id_image_uri_back_small').val(backFaceImages.small || '');
+                                    django.jQuery('#id_image_uri_back_art_crop').val(backFaceImages.art_crop || '');
+                                } else {
+                                    django.jQuery('#id_image_uri_back_png').val('');
+                                    django.jQuery('#id_image_uri_back_large').val('');
+                                    django.jQuery('#id_image_uri_back_normal').val('');
+                                    django.jQuery('#id_image_uri_back_small').val('');
+                                    django.jQuery('#id_image_uri_back_art_crop').val('');
+                                }
+                            }
+
+                            card_info.update_card_oracle_image(
+                                document.getElementById('id_oracle_id').value,
+                                document.getElementById('card-images'));
+                        });
+                },
+                open: function() {},
+                close: function() {},
+            })
+            .autocomplete('instance');
+        if (autocomplete) {
+            autocomplete._renderItem = function(ul, item) {
+                const newItem = django.jQuery('<li>')
+                    .attr('data-value', item.value)
+                    .append(item.label)
+                    .appendTo(ul);
+                card_info.setup_tooltip(item.value, newItem);
+                return newItem;
+            };
+        }
+    </script>
+    {% if original.id is None %}
+    <script>
+        django.jQuery(function() {
+            django.jQuery('#id_name').autocomplete('search');
+        });
+    </script>
+    {% endif %}
+{% endblock %}
+
+{% block after-content %}
+    {{ block.super }}
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Card image from Scryfall</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td id="card-images">
+                    <img src="{% static 'spellbook/images/card-back.png' %}" alt="Card image is not available yet">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th class="column-variant">Used in combos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in original.used_in_combos.all|slice:suggested_slice %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_change' item.id %}">{{ item }}</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% with combo_count=original.used_in_combos.count %}
+            {% if combo_count > 0 %}
+                <tr class="form-row">
+                    <td class="field-combo">
+                        <p>
+                            <a href="{% url 'admin:spellbook_combo_changelist' %}?uses__id={{ original.id }}">View all {{ combo_count }} combos where {{ original.name }} is used...</a>
+                        </p>
+                    </td>
+                </tr>
+            {% endif %}
+            {% endwith %}
+        </tbody>
+    </table>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {% include 'admin/spellbook/includes/jqueryui_imports.html' %}
+    {% include 'admin/spellbook/includes/card_info_imports.html' %}
+    {% include 'admin/spellbook/includes/card_state_imports.html' %}
+    {% include 'admin/spellbook/includes/combo_description_imports.html' %}
+    <script>
+        'use strict';
+        {
+            django.jQuery(function() {
+                // Initialize all autocomplete widgets except the one in the template
+                // form used when a new formset is added.
+                django.jQuery('td.field-card>input[type=text]').autocompleteCardsPreview();
+            });
+
+            document.addEventListener('formset:added', (event) => {
+                django.jQuery(event.target).find('td.field-card>input[type=text]').autocompleteCardsPreview();
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block object-tools-items %}
+    {% if original.variant_of %}
+        {% for combo in original.variant_of.of.all %}
+            <li>
+                <a href="{% url 'admin:spellbook_variantsuggestion_accept_as_update' original.id combo.id %}" target="_blank" title="{{ combo }}">Accept as update to combo #{{ combo.id }}</a>
+            </li>
+        {% endfor %}
+    {% endif %}
+    <li>
+        <a href="{% url 'admin:spellbook_combo_add' %}?from_variant_suggestion={{ original.id }}" target="_blank">Accept as new combo</a>
+    </li>
+    {{ block.super }}
+{% endblock %}
+
+<!-- To put inlines at the top: -->
+{% block field_sets %}
+{% for inline_admin_formset in inline_admin_formsets %}
+    {% include inline_admin_formset.opts.template %}
+{% endfor %}
+
+{% for fieldset in adminform %}
+  {% include "admin/includes/fieldset.html" %}
+{% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+    <!-- Emptied -->
+{% endblock %}
+

@@ -1,0 +1,124 @@
+services:
+  nginx:
+    image: nginx:1.23-alpine
+    ports:
+      - 80:80
+      - 443:443
+    depends_on:
+      - web
+    volumes:
+      - static_volume:/home/app/web/staticfiles:ro
+      - ./nginx/production.conf:/etc/nginx/nginx.conf:ro
+    restart: always
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VERSION: ${VERSION:-latest}
+    image: spellbook-backend:${VERSION:-latest}
+    expose:
+      - 8000
+    depends_on:
+      db:
+        condition: service_healthy
+    links:
+      - db
+    volumes:
+      - static_volume:/home/app/web/staticfiles:rw
+    env_file:
+      - .env.production
+      - path: secrets.env
+        required: false
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider http://127.0.0.1:8000/ || exit 1"
+      start_period: 20s
+      interval: 10s
+      timeout: 10s
+      retries: 100
+    restart: always
+
+  db:
+    image: postgres:14-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    expose:
+      - 5432
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d ${POSTGRES_DB:-spellbook_db} -U ${POSTGRES_USER:-spellbook}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    expose:
+      - 6379
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  discord-bot:
+    build:
+      context: ./bots/discord
+      dockerfile: Dockerfile
+    image: spellbook-discord-bot:${VERSION:-latest}
+    depends_on:
+      web:
+        condition: service_healthy
+    links:
+      - web
+    env_file:
+      - bots/discord/.env.production
+      - path: bots/discord/secrets.env
+        required: false
+    environment:
+      SPELLBOOK_API_URL: http://web:8000
+    restart: always
+
+  reddit-bot:
+    build:
+      context: ./bots/reddit
+      dockerfile: Dockerfile
+    image: spellbook-reddit-bot:${VERSION:-latest}
+    depends_on:
+      web:
+        condition: service_healthy
+    links:
+      - web
+    env_file:
+      - bots/reddit/.env.production
+      - path: bots/reddit/secrets.env
+        required: false
+    environment:
+      SPELLBOOK_API_URL: http://web:8000
+    restart: always
+
+  telegram-bot:
+    build:
+      context: ./bots/telegram
+      dockerfile: Dockerfile
+    image: spellbook-telegram-bot:${VERSION:-latest}
+    depends_on:
+      web:
+        condition: service_healthy
+    links:
+      - web
+    env_file:
+      - bots/telegram/.env.production
+      - path: bots/telegram/secrets.env
+        required: false
+    environment:
+      SPELLBOOK_API_URL: http://web:8000
+    restart: always
+
+
+volumes:
+  static_volume:
+  postgres_data:
+  redis_data:
