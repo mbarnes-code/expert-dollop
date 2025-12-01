@@ -6,3 +6,6 @@ export { BaseFeature } from './base-feature';
 
 // Spellbook feature
 export { SpellbookFeature, type SpellbookConfig } from './spellbook-feature';
+
+// MTG Scripting Toolkit feature (strangler fig integration)
+export * from './scripting-toolkit';
