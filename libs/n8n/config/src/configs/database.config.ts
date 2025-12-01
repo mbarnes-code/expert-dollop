@@ -131,9 +131,10 @@ export class SqliteConfig {
 
   /**
    * Enable SQLite WAL mode.
+   * Default is false - should be enabled when poolSize > 1
    */
   @Env('DB_SQLITE_ENABLE_WAL')
-  enableWAL: boolean = this.poolSize > 1;
+  enableWAL: boolean = false;
 
   /**
    * Run `VACUUM` on startup to rebuild the database, reducing file size and optimizing indexes.
@@ -142,6 +143,15 @@ export class SqliteConfig {
    */
   @Env('DB_SQLITE_VACUUM_ON_STARTUP')
   executeVacuumOnStartup: boolean = false;
+
+  /**
+   * Called after initialization to set computed defaults
+   */
+  sanitize(): void {
+    if (this.poolSize > 1 && !process.env.DB_SQLITE_ENABLE_WAL) {
+      this.enableWAL = true;
+    }
+  }
 }
 
 const dbTypeSchema = z.enum(['sqlite', 'mariadb', 'mysqldb', 'postgresdb']);
