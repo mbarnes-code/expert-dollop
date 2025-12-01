@@ -92,12 +92,6 @@ export class NodeApiError extends NodeError {
  */
 export class NodeSSLError extends NodeError {
   constructor(node: INode | undefined, options?: WorkflowErrorOptions) {
-    super('SSL Certificate Error', options);
-    if (node) {
-      // @ts-ignore - Property assignment
-      this.nodeName = node.name;
-      // @ts-ignore - Property assignment  
-      this.nodeType = node.type;
-    }
+    super('SSL Certificate Error', { ...options, node });
   }
 }

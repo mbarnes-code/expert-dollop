@@ -610,7 +610,7 @@ export abstract class AbstractWorkflow {
     let queue: IConnectedNode[] = [{
       name: sourceNode,
       depth: 0,
-      indicies: [],
+      indices: [],
     }];
     
     const visited: { [key: string]: IConnectedNode } = {};
@@ -627,7 +627,7 @@ export abstract class AbstractWorkflow {
       
       for (const curr of toAdd) {
         if (visited[curr.name]) {
-          visited[curr.name].indicies = [...new Set([...visited[curr.name].indicies, ...curr.indicies])];
+          visited[curr.name].indices = [...new Set([...visited[curr.name].indices, ...curr.indices])];
           continue;
         }
         
@@ -646,7 +646,7 @@ export abstract class AbstractWorkflow {
           for (const connection of connectionsByIndex) {
             queue.push({
               name: connection.node,
-              indicies: [connection.index],
+              indices: [connection.index],
               depth,
             });
           }

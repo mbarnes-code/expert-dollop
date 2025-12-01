@@ -780,7 +780,7 @@ export interface IExecuteContextData {
  */
 export interface IConnectedNode {
   name: string;
-  indicies: number[];
+  indices: number[];
   depth: number;
 }
 
