@@ -385,6 +385,43 @@ nodeTypes.addNodeTypeDescriptions(descriptions);
 const nodeType = nodeTypes.getByNameAndVersion('n8n-nodes-base.http', 1);
 ```
 
+### @expert-dollop/n8n-api-types
+
+API type definitions and DTOs for n8n REST API:
+- **DTOs**: `LoginRequestDto`, `CreateProjectDto`, `PaginationDto`
+- **User schemas**: `User`, `UsersList`, `passwordSchema`
+- **Project schemas**: `ProjectType`, `ProjectIcon`, `ProjectRelation`
+- **Data tables**: `DataTable`, `DataTableColumn`, `DataTableFilter`
+- **Insights**: `InsightsSummary`, `InsightsByWorkflow`, `InsightsByTime`
+- **Push messages**: `HeartbeatMessage`, `Collaborator`, `WorkerStatus`
+- **Source control**: `SourceControlledFile`
+- **External secrets**: `ExternalSecretsProvider`
+
+```typescript
+import { 
+  LoginRequestDto,
+  CreateProjectDto,
+  PaginationDto,
+  passwordSchema,
+  User,
+  InsightsSummary,
+  type Collaborator,
+  type WorkerStatus
+} from '@expert-dollop/n8n-api-types';
+
+// Validate login request
+const result = loginRequestSchema.safeParse(requestBody);
+if (!result.success) {
+  throw new Error('Invalid login request');
+}
+
+// Validate password strength
+const isValidPassword = passwordSchema.safeParse(password).success;
+
+// Create pagination DTO
+const pagination = createPaginationDto({ skip: '0', take: '20' });
+```
+
 ## Abstract Base Classes
 
 The shared library provides abstract base classes for DDD patterns:
@@ -513,6 +550,7 @@ All libraries are available via TypeScript path aliases defined in `tsconfig.bas
   "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"],
   "@expert-dollop/n8n-decorators": ["libs/n8n/decorators/src/index.ts"],
   "@expert-dollop/n8n-db": ["libs/n8n/db/src/index.ts"],
-  "@expert-dollop/n8n-task-runner": ["libs/n8n/task-runner/src/index.ts"]
+  "@expert-dollop/n8n-task-runner": ["libs/n8n/task-runner/src/index.ts"],
+  "@expert-dollop/n8n-api-types": ["libs/n8n/api-types/src/index.ts"]
 }
 ```

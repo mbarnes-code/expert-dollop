@@ -38,7 +38,8 @@
       "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"],
       "@expert-dollop/n8n-decorators": ["libs/n8n/decorators/src/index.ts"],
       "@expert-dollop/n8n-db": ["libs/n8n/db/src/index.ts"],
-      "@expert-dollop/n8n-task-runner": ["libs/n8n/task-runner/src/index.ts"]
+      "@expert-dollop/n8n-task-runner": ["libs/n8n/task-runner/src/index.ts"],
+      "@expert-dollop/n8n-api-types": ["libs/n8n/api-types/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
