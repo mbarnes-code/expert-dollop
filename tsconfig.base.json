@@ -25,7 +25,12 @@
       "@expert-dollop/ai/feature": ["libs/ai/feature/src/index.ts"],
       "@expert-dollop/ai/data-access": ["libs/ai/data-access/src/index.ts"],
       "@expert-dollop/tcg/feature": ["libs/tcg/feature/src/index.ts"],
-      "@expert-dollop/tcg/data-access": ["libs/tcg/data-access/src/index.ts"]
+      "@expert-dollop/tcg/data-access": ["libs/tcg/data-access/src/index.ts"],
+      "@expert-dollop/n8n-shared": ["libs/n8n/shared/src/index.ts"],
+      "@expert-dollop/n8n-constants": ["libs/n8n/constants/src/index.ts"],
+      "@expert-dollop/n8n-di": ["libs/n8n/di/src/index.ts"],
+      "@expert-dollop/n8n-errors": ["libs/n8n/errors/src/index.ts"],
+      "@expert-dollop/n8n-types": ["libs/n8n/types/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
