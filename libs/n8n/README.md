@@ -224,6 +224,120 @@ const results = sublimeSearch('user', items, [{ key: 'name', weight: 1.5 }]);
 const safe = sanitizeFilename('hello:world'); // 'hello_world'
 ```
 
+### @expert-dollop/n8n-decorators
+
+TypeScript decorators for n8n modules:
+- **Controller decorators**: `@RestController`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Middleware`, `@Licensed`, `@GlobalScope`, `@ProjectScope`
+- **Command decorators**: `@Command` for CLI commands
+- **Shutdown decorators**: `@OnShutdown` with priority levels
+- **Module decorators**: `@BackendModule` with license flags
+- **Lifecycle decorators**: `@OnLifecycleEvent` for workflow execution hooks
+- **Multi-main decorators**: `@OnLeaderTakeover`, `@OnLeaderStepdown`
+- **PubSub decorators**: `@OnPubSubEvent` for distributed events
+- **Utility decorators**: `@Debounce`, `@Memoized`, `@Timed`, `@Redactable`
+
+```typescript
+import { 
+  RestController, 
+  Get, 
+  Post,
+  GlobalScope,
+  OnShutdown,
+  BackendModule,
+  Debounce,
+  Memoized
+} from '@expert-dollop/n8n-decorators';
+
+// Controller with routes
+@RestController('/users')
+class UsersController {
+  @Get('/:id')
+  @GlobalScope('user:read')
+  async getUser(@Param('id') id: string) { ... }
+  
+  @Post('/')
+  async createUser(@Body body: CreateUserDto) { ... }
+}
+
+// Service with shutdown hook
+@Service()
+class DatabaseService {
+  @OnShutdown(100) // priority
+  async closeConnections() { ... }
+}
+
+// Backend module
+@BackendModule({ name: 'insights', licenseFlag: 'feat:insights' })
+class InsightsModule implements ModuleInterface {
+  async init() { ... }
+  async entities() { return [InsightsEntity]; }
+}
+
+// Utility decorators
+class CacheService {
+  @Memoized
+  get expensiveValue() { return computeValue(); }
+  
+  @Debounce(1000)
+  async saveToDatabase() { ... }
+}
+```
+
+### @expert-dollop/n8n-db
+
+Database utilities and entity definitions:
+- **Entity base classes**: `WithStringId`, `WithTimestamps`, `WithTimestampsAndStringId`
+- **Repository pattern**: `AbstractRepository<T, ID>`
+- **Connection utilities**: `AbstractDbConnection`, `DbConnectionOptions`
+- **Utility functions**: `generateNanoId`, `isValidEmail`, `sql`, `separate`, `withTransaction`
+- **Value transformers**: `idStringifier`, `lowerCaser`, `objectRetriever`
+- **Validators**: `NoXss`, `NoUrl`, `isXssSafe`, `isUrlFree`
+- **Type definitions**: Execution types, user types, query types
+
+```typescript
+import { 
+  WithTimestampsAndStringId,
+  AbstractRepository,
+  generateNanoId,
+  isValidEmail,
+  sql,
+  withTransaction,
+  NoXss,
+  ExecutionStatus,
+  SlimProject
+} from '@expert-dollop/n8n-db';
+
+// Entity with auto-generated ID and timestamps
+class User extends WithTimestampsAndStringId {
+  @NoXss()
+  name: string;
+  
+  email: string;
+}
+
+// Repository implementation
+class UserRepository extends AbstractRepository<User> {
+  async findById(id: string): Promise<User | null> { ... }
+  async findAll(): Promise<User[]> { ... }
+  async save(user: User): Promise<User> { ... }
+}
+
+// Transaction handling
+await withTransaction(manager, existingTrx, async (em) => {
+  await em.save(user);
+  await em.save(profile);
+});
+
+// SQL template literal for syntax highlighting
+const query = sql`
+  SELECT * FROM users 
+  WHERE status = ${'active'}
+`;
+
+// Validation
+if (isValidEmail(email)) { ... }
+```
+
 ## Abstract Base Classes
 
 The shared library provides abstract base classes for DDD patterns:
@@ -327,6 +441,8 @@ const token = randomString(32);
    - Configuration → `n8n-config`
    - OAuth2 → `n8n-client-oauth2`
    - General utilities → `n8n-utils`
+   - Decorators → `n8n-decorators`
+   - Database utilities → `n8n-db`
    - DI container → `n8n-di`
 3. Add the code to the appropriate library
 4. Export from the library's `index.ts`
@@ -347,6 +463,8 @@ All libraries are available via TypeScript path aliases defined in `tsconfig.bas
   "@expert-dollop/n8n-backend-common": ["libs/n8n/backend-common/src/index.ts"],
   "@expert-dollop/n8n-config": ["libs/n8n/config/src/index.ts"],
   "@expert-dollop/n8n-client-oauth2": ["libs/n8n/client-oauth2/src/index.ts"],
-  "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"]
+  "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"],
+  "@expert-dollop/n8n-decorators": ["libs/n8n/decorators/src/index.ts"],
+  "@expert-dollop/n8n-db": ["libs/n8n/db/src/index.ts"]
 }
 ```
