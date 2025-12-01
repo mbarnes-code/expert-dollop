@@ -31,6 +31,9 @@ class ColorIdentity:
         for color in self.colors:
             if color not in self.WUBRG_ORDER:
                 raise ValueError(f"Invalid color: {color}. Must be one of {self.WUBRG_ORDER}")
+        # Sort colors to WUBRG order (frozen dataclass requires object.__setattr__)
+        sorted_colors = tuple(sorted(self.colors, key=lambda c: self.WUBRG_ORDER.index(c)))
+        object.__setattr__(self, 'colors', sorted_colors)
     
     @classmethod
     def from_string(cls, ci_string: str) -> 'ColorIdentity':
@@ -47,8 +50,9 @@ class ColorIdentity:
         if ci_string.startswith('{'):
             ci_string = ci_string[1:-1:2]  # Extract just the letters
         
-        # Sort to WUBRG order
-        colors = tuple(sorted(ci_string, key=lambda c: cls.WUBRG_ORDER.index(c)))
+        # Filter to valid colors and sort to WUBRG order
+        valid_colors = [c for c in ci_string if c in cls.WUBRG_ORDER]
+        colors = tuple(sorted(valid_colors, key=lambda c: cls.WUBRG_ORDER.index(c)))
         return cls(colors=colors)
     
     def to_string(self) -> str:

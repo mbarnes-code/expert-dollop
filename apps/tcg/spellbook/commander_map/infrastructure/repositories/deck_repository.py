@@ -85,7 +85,8 @@ class DeckRepository:
         with open(columns_path) as f:
             cards = [line.strip() for line in f]
         
-        card_idx_lookup = dict(zip(cards, range(len(cards))))
+        # Map card names to their column indices in the sparse matrix
+        card_idx_lookup = {card: idx for idx, card in enumerate(cards)}
         
         return matrix, card_idx_lookup
     

@@ -116,7 +116,10 @@ class DeckFormatterService:
             List of formatted basic land entries
         """
         pips_array = np.array(list(color_pips.values()))
-        num_basics = 100 - (len(sorted_decklist) + 1 + (1 if deck.partner else 0))
+        # Count commanders: 1 for main commander + 1 for partner if present
+        # Companions are the 101st card, not counted in the 100
+        num_commanders = 1 + (1 if deck.partner else 0)
+        num_basics = 100 - (len(sorted_decklist) + num_commanders)
         
         if pips_array.sum() == 0:
             # Use commander color identity for colorless decks

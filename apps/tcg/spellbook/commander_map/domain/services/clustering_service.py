@@ -196,8 +196,12 @@ class ClusteringService:
             
             disconnected_assignments.append(smallest_deck_idx)
         
-        # Assign with small noise to avoid overlap
-        noise = np.random.uniform(0.001, 0.002, size=(n_dims,)) * np.random.choice([1, -1], size=(n_dims,))
+        # Assign with small noise to avoid overlap (one noise vector per disconnected point)
+        num_disconnected = len(disconnected_idx)
+        noise = (
+            np.random.uniform(0.001, 0.002, size=(num_disconnected, n_dims)) * 
+            np.random.choice([1, -1], size=(num_disconnected, n_dims))
+        )
         embedding[disconnected_idx] = embedding[np.array(disconnected_assignments)] + noise
         
         return embedding

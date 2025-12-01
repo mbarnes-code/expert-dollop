@@ -101,7 +101,12 @@ class CardService:
         rename_dict: Dict
     ) -> None:
         """Handle split/transform/modal DFC cards."""
-        left_name, right_name = name.split(' // ')
+        parts = name.split(' // ')
+        if len(parts) != 2:
+            # Handle unexpected card name formats gracefully
+            return
+        
+        left_name, right_name = parts
         
         for subname in [left_name, right_name]:
             magic_cards[subname] = card_data['card_faces'][0].copy()
