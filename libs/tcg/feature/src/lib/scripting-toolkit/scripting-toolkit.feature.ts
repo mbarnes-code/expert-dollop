@@ -139,7 +139,7 @@ export class ScriptingToolkitFeature extends BaseFeature {
 
       this.initialized = true;
     } catch (error) {
-      // Log error but allow partial initialization
+      // Log error and re-throw to allow caller to handle initialization failure
       console.error('Failed to initialize ScriptingToolkitFeature:', error);
       throw new Error(`ScriptingToolkitFeature initialization failed: ${error}`);
     }
