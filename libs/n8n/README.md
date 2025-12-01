@@ -705,3 +705,151 @@ class MyServer extends AbstractServer {
 app.use(createCorsMiddleware({ origin: true }));
 app.use(createRateLimitMiddleware(100, 60000));
 ```
+
+### @expert-dollop/n8n-nodes-base
+
+Core node abstractions and utilities for n8n workflow automation:
+- **Abstract node classes**: `AbstractNode`, `AbstractTriggerNode`, `AbstractActionNode`, `AbstractWebhookNode`, `AbstractHttpRequestNode`, `AbstractDatabaseNode`, `AbstractOAuthNode`, `AbstractFileNode`, `AbstractCodeNode`
+- **Array utilities**: `chunk`, `shuffleArray`, `flatten`, `generatePairedItemData`, `preparePairedItemDataArray`, `uniqueBy`, `groupBy`, `partition`, `zip`, `range`
+- **Object utilities**: `flattenKeys`, `flattenObject`, `isObject`, `isNullish`, `isFalsy`, `deepMerge`, `getNestedValue`, `setNestedValue`, `removeUndefined`, `pick`, `omit`, `compareItems`, `deepEqual`, `keysToLowercase`
+- **String utilities**: `capitalize`, `escapeHtml`, `encodeHtml`, `formatPrivateKey`, `getResolvables`, `sanitizeDataPathKey`, `removeTrailingSlash`, `ensureTrailingSlash`, `truncate`, `toSnakeCase`, `toCamelCase`, `toPascalCase`, `toKebabCase`, `createUtmCampaignLink`, `parseJsonString`, `isValidJson`, `randomString`, `interpolate`
+- **Workflow utilities**: `wrapData`, `sortItemKeysByPriorityList`, `processJsonInput`, `updateDisplayOptions`, `fuzzyCompare`, `addExecutionHints`, `extractErrorMessage`, `createDeferredPromise`
+- **Binary utilities**: `prepareBinaryData`, `getFileExtension`, `getMimeTypeFromExtension`, `getExtensionFromMimeType`, `isImageMimeType`, `isTextMimeType`, `getBinaryDataBuffer`, `setBinaryData`, `hasBinaryData`, `getBinaryPropertyNames`, `createBinaryDataFromString`, `mergeBinaryData`, `generateUniqueFileName`
+- **Connection pool**: `AbstractConnectionPoolManager`, `withPooledConnection`
+- **Common types**: `INodeProperty`, `INodeTypeDescription`, `IHttpRequestOptions`, `IPaginationConfig`, `IRateLimitConfig`, `IRetryConfig`, `IOAuth2Config`
+- **Common descriptions**: `paginationProperties`, `batchOperationProperties`, `filterProperties`, `sortProperties`, `dateRangeProperties`, `createResourceProperty`, `createOperationProperty`, `createTextProperty`, `createJsonProperty`, `createBooleanProperty`, `createNumberProperty`, `createSelectProperty`
+- **Credential abstractions**: `AbstractCredentialType`, `AbstractOAuth2CredentialType`, `AbstractApiKeyCredentialType`, `AbstractBasicAuthCredentialType`, `AbstractHeaderAuthCredentialType`, `createApiKeyAuthentication`, `createBearerAuthentication`, `createBasicAuthentication`, `createCredentialTestRequest`
+
+```typescript
+import { 
+  AbstractActionNode,
+  AbstractTriggerNode,
+  AbstractDatabaseNode,
+  chunk,
+  flatten,
+  wrapData,
+  processJsonInput,
+  prepareBinaryData,
+  AbstractConnectionPoolManager,
+  createResourceProperty,
+  createOperationProperty,
+  AbstractApiKeyCredentialType,
+  createBearerAuthentication,
+  type INodeExecutionContext,
+  type IHttpRequestOptions
+} from '@expert-dollop/n8n-nodes-base';
+
+// Custom action node
+class MyNode extends AbstractActionNode {
+  readonly description = { ... };
+  
+  async execute(context: INodeExecutionContext) {
+    const { resource, operation } = this.getResourceOperation(context);
+    const items = this.getInputItems(context);
+    
+    // Process in chunks
+    const batches = chunk(items, 10);
+    const results = await Promise.all(batches.map(batch => 
+      this.processChunk(context, batch)
+    ));
+    
+    return [flatten(results)];
+  }
+}
+
+// Database connection pool
+class PostgresPool extends AbstractConnectionPoolManager<Client> {
+  protected async createConnection() {
+    return new Client(this.connectionString);
+  }
+  protected async validateConnection(connection: Client) {
+    return connection.query('SELECT 1').then(() => true).catch(() => false);
+  }
+  protected async destroyConnection(connection: Client) {
+    await connection.end();
+  }
+}
+
+// Using with pooled connection
+await withPooledConnection(pool, async (client) => {
+  const result = await client.query('SELECT * FROM users');
+  return result.rows;
+});
+
+// Custom credential type
+class MyApiCredentials extends AbstractApiKeyCredentialType {
+  readonly description = {
+    name: 'myApiApi',
+    displayName: 'My API',
+    documentationUrl: 'https://example.com/docs',
+    properties: [this.apiKeyProperty],
+    authenticate: createBearerAuthentication('apiKey'),
+  };
+}
+```
+
+## Backend Services
+
+### @expert-dollop/n8n-server
+
+Full n8n REST API server implementation in `backend/services/n8n-server`:
+- **Server**: `AbstractN8nServer`, `N8nServerConfig`, `ServerState`, `HealthCheckResponse`
+- **Controllers**: `AbstractController`, `AbstractCrudController`, `ControllerRegistry`, `PaginationOptions`, `PaginatedResponse`
+- **Services**: `AbstractService`, `AbstractCrudService`, `AbstractWorkflowService`, `AbstractCredentialsService`, `AbstractExecutionService`, `ServiceContainer`
+- **Middlewares**: `createRateLimiter`, `createCorsMiddleware`, `createLoggingMiddleware`, `createBodyParserMiddleware`, `createErrorMiddleware`, `createSecurityMiddleware`, `createRequestIdMiddleware`, `createTimeoutMiddleware`
+- **Events**: `EventEmitter`, `EventService`, `AbstractEventRelay`, `LoggingEventRelay`, `MetricsEventRelay`
+- **Response helpers**: `send`, `sendNoContent`, `sendErrorResponse`, `sendSuccessResponse`
+- **Request types**: `AuthenticatedRequest`, `APIRequest`
+
+```typescript
+import { 
+  AbstractN8nServer,
+  AbstractController,
+  AbstractCrudService,
+  EventService,
+  createRateLimiter,
+  createCorsMiddleware,
+  createSecurityMiddleware,
+  send,
+  type N8nServerConfig,
+  type AuthenticatedRequest
+} from '@expert-dollop/n8n-server';
+
+// Custom server implementation
+class MyN8nServer extends AbstractN8nServer {
+  protected async initializeApp() {
+    this.app = express();
+  }
+  
+  protected async configureMiddleware() {
+    this.app.use(createCorsMiddleware({ credentials: true }));
+    this.app.use(createSecurityMiddleware());
+    this.app.use(createRateLimiter({ maxRequests: 100, windowMs: 60000 }));
+  }
+  
+  protected async registerRoutes() {
+    controllerRegistry.activate(this.app);
+  }
+  
+  protected async setupWebhooks() { ... }
+  protected async setupPush() { ... }
+}
+
+// Custom controller
+class WorkflowsController extends AbstractController {
+  readonly basePath = '/workflows';
+  
+  registerRoutes(router: Router) {
+    router.get(this.basePath, this.asyncHandler(async (req, res) => {
+      const workflows = await workflowService.findAll();
+      this.sendJson(res, workflows);
+    }));
+  }
+}
+
+// Event handling
+const eventService = EventService.getInstance();
+eventService.on('workflow-executed', ({ id, success }) => {
+  console.log(`Workflow ${id} completed: ${success}`);
+});
+```
