@@ -78,7 +78,10 @@ export function createEventBus<
     off(eventName, fn) {
       const eventFns = handlers.get(eventName);
       if (eventFns) {
-        eventFns.splice(eventFns.indexOf(fn) >>> 0, 1);
+        const index = eventFns.indexOf(fn);
+        if (index > -1) {
+          eventFns.splice(index, 1);
+        }
       }
     },
 

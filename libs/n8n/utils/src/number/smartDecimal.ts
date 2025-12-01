@@ -22,8 +22,9 @@ export const smartDecimal = (value: number, decimals = 2): number => {
     return value;
   }
 
-  // Check if it has only one decimal place
-  if (value.toString().split('.')[1].length <= decimals) {
+  // Check if it has fewer decimal places than requested
+  const decimalPart = value.toString().split('.')[1];
+  if (decimalPart && decimalPart.length <= decimals) {
     return value;
   }
 

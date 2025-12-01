@@ -76,8 +76,8 @@ export class CodeFlow {
     const data =
       typeof url.search === 'string' ? qs.parse(url.search.substring(1)) : url.search || {};
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+    // Type assertion: data parsed from query string may contain error fields
+    // @ts-expect-error qs.parse returns ParsedUrlQuery which may include error and error_description
     const error = getAuthError(data);
     if (error) throw error;
 
