@@ -13,3 +13,6 @@ export {
   type SpellbookSearchParams,
   type SpellbookSearchResult,
 } from './spellbook-api.service';
+
+// MTG Scripting Toolkit (strangler fig integration)
+export * from './scripting-toolkit';
