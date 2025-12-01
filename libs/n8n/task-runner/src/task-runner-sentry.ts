@@ -1,6 +1,9 @@
 /**
  * Sentry integration for the task runner.
  * Provides error reporting with filtering for user code errors.
+ * 
+ * NOTE: This is an abstract implementation. The actual Sentry SDK 
+ * integration should be provided by the consuming application.
  */
 import { Service } from '@expert-dollop/n8n-di';
 
@@ -30,34 +33,47 @@ interface Exception {
 /**
  * Sentry service for the task runner.
  * Handles error reporting with filtering for user-generated errors.
+ * 
+ * This is a base implementation that should be extended with actual
+ * Sentry SDK integration in the consuming application.
  */
 @Service()
 export class TaskRunnerSentry {
+  /** Whether Sentry has been initialized */
+  protected isInitialized = false;
+
   constructor(private readonly config: SentryConfig) {}
 
   /**
    * Initializes Sentry if a DSN is configured.
+   * Override this method to provide actual Sentry.init() integration.
    */
   async initIfEnabled(): Promise<void> {
-    const { dsn, n8nVersion, environment, deploymentName } = this.config;
+    const { dsn } = this.config;
 
     if (!dsn) return;
 
-    // In the actual implementation, this would call Sentry.init()
-    console.log(`Sentry would be initialized with DSN: ${dsn.substring(0, 20)}...`);
-    console.log(`  n8nVersion: ${n8nVersion}`);
-    console.log(`  environment: ${environment}`);
-    console.log(`  deploymentName: ${deploymentName}`);
+    // Mark as initialized - actual Sentry.init() should be called by override
+    this.isInitialized = true;
+    
+    // Override this method to call Sentry.init() with proper configuration:
+    // - serverType: 'task_runner'
+    // - dsn: this.config.dsn
+    // - release: `n8n@${this.config.n8nVersion}`
+    // - environment: this.config.environment
+    // - serverName: this.config.deploymentName
+    // - beforeSendFilter: this.filterOutUserCodeErrors
   }
 
   /**
    * Shuts down Sentry gracefully.
+   * Override this method to provide actual Sentry.close() integration.
    */
   async shutdown(): Promise<void> {
-    if (!this.config.dsn) return;
+    if (!this.config.dsn || !this.isInitialized) return;
 
-    // In the actual implementation, this would call Sentry.close()
-    console.log('Sentry shutdown');
+    // Override this method to call Sentry.close()
+    this.isInitialized = false;
   }
 
   /**

@@ -38,9 +38,17 @@ function ensureError(value: unknown): Error {
 
 /**
  * Generates a unique identifier.
- * Simple implementation - in production, use nanoid.
+ * NOTE: This is a simplified implementation for the abstracted SDK.
+ * In production usage, the actual nanoid library should be used instead.
+ * 
+ * TODO: Replace with actual nanoid import when integrating with n8n.
  */
 function nanoid(): string {
+  // Use crypto.randomUUID if available for better entropy
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().replace(/-/g, '').substring(0, 21);
+  }
+  // Fallback for environments without crypto.randomUUID
   return Math.random().toString(36).substring(2, 15) + 
          Math.random().toString(36).substring(2, 15);
 }
@@ -185,12 +193,17 @@ export abstract class TaskRunner extends EventEmitter {
 
   /**
    * Initialize the WebSocket connection.
-   * Should be called by subclasses or externally after construction.
+   * This method should be overridden by subclasses to establish the actual connection.
+   * 
+   * @param brokerUri - The URI of the task broker
+   * @param grantToken - Authentication token for the broker
+   * @param maxPayloadSize - Maximum message payload size in bytes
+   * @throws Error if not overridden (abstract method pattern)
    */
-  protected initializeConnection(brokerUri: string, grantToken: string, maxPayloadSize: number) {
-    // This is a placeholder - the actual implementation would use the ws library
-    // For the migrated package, we provide an abstract interface
-    console.log(`Would connect to ${brokerUri} with grant token`);
+  protected initializeConnection(_brokerUri: string, _grantToken: string, _maxPayloadSize: number): void {
+    // This is an abstract method that should be overridden by subclasses
+    // The actual implementation would use the ws library to establish WebSocket connection
+    throw new Error('initializeConnection must be implemented by subclass');
   }
 
   private resetIdleTimer() {
