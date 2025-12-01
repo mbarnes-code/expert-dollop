@@ -122,6 +122,41 @@ import {
 } from '@expert-dollop/n8n-backend-common';
 ```
 
+### @expert-dollop/n8n-config
+
+Configuration management with decorator-based environment variable binding:
+- `@Config` decorator for configuration classes
+- `@Env` decorator for environment variable binding
+- `@Nested` decorator for nested configuration
+- Zod schema validation support
+- `GlobalConfig` class aggregating all configurations
+
+```typescript
+import { 
+  GlobalConfig, 
+  Config, 
+  Env, 
+  Nested,
+  DatabaseConfig,
+  LoggingConfig 
+} from '@expert-dollop/n8n-config';
+
+// Access via DI container
+const config = Container.get(GlobalConfig);
+console.log(config.port); // 5678
+console.log(config.database.type); // 'sqlite'
+
+// Custom config class
+@Config
+class MyConfig {
+  @Env('MY_SETTING')
+  mySetting: string = 'default';
+  
+  @Nested
+  database: DatabaseConfig;
+}
+```
+
 ## Abstract Base Classes
 
 The shared library provides abstract base classes for DDD patterns:
@@ -222,6 +257,7 @@ const token = randomString(32);
    - Errors → `n8n-errors`
    - Permissions → `n8n-permissions`
    - Backend utilities → `n8n-backend-common`
+   - Configuration → `n8n-config`
    - DI container → `n8n-di`
 3. Add the code to the appropriate library
 4. Export from the library's `index.ts`
@@ -239,6 +275,7 @@ All libraries are available via TypeScript path aliases defined in `tsconfig.bas
   "@expert-dollop/n8n-errors": ["libs/n8n/errors/src/index.ts"],
   "@expert-dollop/n8n-types": ["libs/n8n/types/src/index.ts"],
   "@expert-dollop/n8n-permissions": ["libs/n8n/permissions/src/index.ts"],
-  "@expert-dollop/n8n-backend-common": ["libs/n8n/backend-common/src/index.ts"]
+  "@expert-dollop/n8n-backend-common": ["libs/n8n/backend-common/src/index.ts"],
+  "@expert-dollop/n8n-config": ["libs/n8n/config/src/index.ts"]
 }
 ```
