@@ -33,7 +33,9 @@
       "@expert-dollop/n8n-types": ["libs/n8n/types/src/index.ts"],
       "@expert-dollop/n8n-permissions": ["libs/n8n/permissions/src/index.ts"],
       "@expert-dollop/n8n-backend-common": ["libs/n8n/backend-common/src/index.ts"],
-      "@expert-dollop/n8n-config": ["libs/n8n/config/src/index.ts"]
+      "@expert-dollop/n8n-config": ["libs/n8n/config/src/index.ts"],
+      "@expert-dollop/n8n-client-oauth2": ["libs/n8n/client-oauth2/src/index.ts"],
+      "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

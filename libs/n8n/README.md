@@ -157,6 +157,73 @@ class MyConfig {
 }
 ```
 
+### @expert-dollop/n8n-client-oauth2
+
+OAuth2 client library supporting Authorization Code and Client Credentials flows:
+- `ClientOAuth2` - Main OAuth2 client
+- `ClientOAuth2Token` - Token management with refresh
+- `CodeFlow` - Authorization code flow
+- `CredentialsFlow` - Client credentials flow
+
+```typescript
+import { 
+  ClientOAuth2, 
+  ClientOAuth2Token,
+  type ClientOAuth2Options 
+} from '@expert-dollop/n8n-client-oauth2';
+
+const client = new ClientOAuth2({
+  clientId: 'my-client-id',
+  clientSecret: 'my-client-secret',
+  accessTokenUri: 'https://example.com/oauth/token',
+  authorizationUri: 'https://example.com/oauth/authorize',
+  scopes: ['read', 'write'],
+});
+
+// Authorization Code flow
+const authUri = client.code.getUri();
+const token = await client.code.getToken(callbackUrl);
+
+// Client Credentials flow
+const token = await client.credentials.getToken();
+```
+
+### @expert-dollop/n8n-utils
+
+General utility functions for n8n modules:
+- `assert` - Assertion helper
+- `createEventBus` - Typed event bus
+- `createEventQueue` - Sequential event queue
+- `retry` - Retry with backoff
+- `smartDecimal` - Smart number formatting
+- `truncate`, `truncateBeforeLast` - String truncation
+- `sortByProperty` - Array sorting
+- `sublimeSearch`, `reRankSearchResults` - Fuzzy search
+- `sanitizeFilename` - Filename sanitization
+
+```typescript
+import { 
+  assert, 
+  createEventBus, 
+  retry, 
+  sublimeSearch,
+  sanitizeFilename 
+} from '@expert-dollop/n8n-utils';
+
+// Event bus
+const bus = createEventBus<{ 'user-login': { id: string } }>();
+bus.on('user-login', (e) => console.log(e.id));
+
+// Retry with exponential backoff
+await retry(() => checkConnection(), 1000, 5, 'exponential');
+
+// Fuzzy search
+const results = sublimeSearch('user', items, [{ key: 'name', weight: 1.5 }]);
+
+// Filename sanitization
+const safe = sanitizeFilename('hello:world'); // 'hello_world'
+```
+
 ## Abstract Base Classes
 
 The shared library provides abstract base classes for DDD patterns:
@@ -258,6 +325,8 @@ const token = randomString(32);
    - Permissions → `n8n-permissions`
    - Backend utilities → `n8n-backend-common`
    - Configuration → `n8n-config`
+   - OAuth2 → `n8n-client-oauth2`
+   - General utilities → `n8n-utils`
    - DI container → `n8n-di`
 3. Add the code to the appropriate library
 4. Export from the library's `index.ts`
@@ -276,6 +345,8 @@ All libraries are available via TypeScript path aliases defined in `tsconfig.bas
   "@expert-dollop/n8n-types": ["libs/n8n/types/src/index.ts"],
   "@expert-dollop/n8n-permissions": ["libs/n8n/permissions/src/index.ts"],
   "@expert-dollop/n8n-backend-common": ["libs/n8n/backend-common/src/index.ts"],
-  "@expert-dollop/n8n-config": ["libs/n8n/config/src/index.ts"]
+  "@expert-dollop/n8n-config": ["libs/n8n/config/src/index.ts"],
+  "@expert-dollop/n8n-client-oauth2": ["libs/n8n/client-oauth2/src/index.ts"],
+  "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"]
 }
 ```
