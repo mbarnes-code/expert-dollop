@@ -2,10 +2,9 @@ import React from 'react';
 import SpellbookHead from '../../../components/SpellbookHead/SpellbookHead';
 import { GetServerSideProps } from 'next';
 import ComboSubmissionForm from 'components/submission/ComboSubmissionForm/ComboSubmissionForm';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration, TokenService } from '@expert-dollop/tcg/data-access';
 import { VariantSuggestion, VariantSuggestionsApi } from '@space-cow-media/spellbook-client';
-import CookieService from 'services/cookie.service';
-import TokenService from 'services/token.service';
+import { CookieService } from '@expert-dollop/shared/data-access';
 
 type Props = {
   submission?: VariantSuggestion;

@@ -9,7 +9,7 @@ import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import Icon from 'components/layout/Icon/Icon';
 import Modal from 'components/ui/Modal/Modal';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 import TextWithMagicSymbol from 'components/layout/TextWithMagicSymbol/TextWithMagicSymbol';
 
 type Props = {

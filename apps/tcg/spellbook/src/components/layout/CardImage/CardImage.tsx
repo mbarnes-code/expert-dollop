@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import cardBack from 'assets/images/card-back.png';
 import weatheredCardBack from 'assets/images/weathered-card-back.png';
 import CardLink from '../../layout/CardLink/CardLink';
-import isFoolsDay from 'lib/foolsDay';
+import { isFoolsDay } from '@expert-dollop/shared/utils';
 import { Card } from '@space-cow-media/spellbook-client';
 
 type Props = {

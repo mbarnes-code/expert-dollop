@@ -6,7 +6,7 @@ import TextWithMagicSymbol from '../../layout/TextWithMagicSymbol/TextWithMagicS
 import pluralize from 'pluralize';
 import { Deck, Variant, VariantPrices } from '@space-cow-media/spellbook-client';
 import React, { useRef, useState } from 'react';
-import { countPrerequisites } from 'lib/prerequisitesProcessor';
+import { countPrerequisites } from '@expert-dollop/tcg/data-access';
 
 type ResultProps = {
   decklist?: Map<string, number>; // If passed in, will highlight cards in the combo that are not in the deck

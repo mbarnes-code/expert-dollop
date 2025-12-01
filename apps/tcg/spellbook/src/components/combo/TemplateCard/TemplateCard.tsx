@@ -1,12 +1,12 @@
 import cardBack from 'assets/images/card-back.png';
-import isFoolsDay from 'lib/foolsDay';
+import { isFoolsDay } from '@expert-dollop/shared/utils';
 import weatheredCardBack from 'assets/images/weathered-card-back.png';
 import TextWithMagicSymbol from 'components/layout/TextWithMagicSymbol/TextWithMagicSymbol';
 import React, { useEffect, useState } from 'react';
 import TemplateReplacementsModal from 'components/combo/TemplateCard/TemplateReplacementsModal/TemplateReplacementsModal';
 import ScryfallResultsWheel from 'components/combo/TemplateCard/ScryfallResultsWheel/ScryfallResultsWheel';
 import { Template, TemplateInVariant } from '@space-cow-media/spellbook-client';
-import ScryfallService, { ScryfallResultsPage } from 'services/scryfall.service';
+import { ScryfallService, type ScryfallResultsPage } from '@expert-dollop/tcg/data-access';
 import FlipperCard from 'components/layout/FlipperCard/FlipperCard';
 
 type Props = {

@@ -4,15 +4,13 @@ import MultiSearchInput, {
   InputData,
   OperatorOption,
 } from '../components/advancedSearch/MultiSearchInput/MultiSearchInput';
-import { DEFAULT_VENDOR } from '../lib/constants';
+import { DEFAULT_VENDOR, LEGALITY_FORMATS, colorAutocomplete } from '@expert-dollop/tcg/data-access';
 import React, { useEffect, useState } from 'react';
-import COLOR_AUTOCOMPLETES from '../lib/colorAutocompletes';
 import styles from './advanced-search.module.scss';
 import RadioSearchInput from '../components/advancedSearch/RadioSearchInput/RadioSearchInput';
 import { useRouter } from 'next/router';
 import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
 import { SpellbookIcon } from '../components/layout/Icon/Icon';
-import { LEGALITY_FORMATS } from 'lib/types';
 
 type TagOption = {
   name: string;
@@ -425,7 +423,7 @@ const AdvancedSearch: React.FC = () => {
   const router = useRouter();
 
   const [formState, setFormStateHook] = useState<Data>({
-    colorAutocompletes: COLOR_AUTOCOMPLETES,
+    colorAutocompletes: colorAutocomplete,
     cards: [{ ...CARD_OPERATOR_OPTIONS[0], value: '' }],
     templates: [{ ...CARD_OPERATOR_OPTIONS[0], value: '' }],
     cardAmounts: [{ ...CARD_AMOUNT_OPERATOR_OPTIONS[0], value: '' }],

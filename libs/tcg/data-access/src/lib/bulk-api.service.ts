@@ -40,10 +40,10 @@ export class BulkApiServiceImpl extends BaseBulkApiService {
    * Reset the singleton instance (useful for testing).
    */
   static resetInstance(): void {
-    BulkApiServiceImpl.instance = null;
     if (BulkApiServiceImpl.instance) {
       BulkApiServiceImpl.instance.cachedLegacyMap = null;
     }
+    BulkApiServiceImpl.instance = null;
   }
 
   /**

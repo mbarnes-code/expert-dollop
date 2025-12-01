@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 import FeatureSubmission from '../Feature Submission/FeatureSubmission';
 import Loader from '../../layout/Loader/Loader';
 import ErrorMessage from '../ErrorMessage/ErrorMessage';
-import { ComboSubmissionErrorType } from '../../../lib/types';
+import { ComboSubmissionErrorType, apiConfiguration } from '@expert-dollop/tcg/data-access';
 import Alert from 'components/layout/Alert/Alert';
 import ExternalLink from 'components/layout/ExternalLink/ExternalLink';
 import { confirmAlert } from 'react-confirm-alert';
@@ -25,7 +25,6 @@ import {
   VariantSuggestionsApi,
   ZoneLocationsEnum,
 } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
 import { useDebounce } from 'use-debounce';
 
 type Props = {

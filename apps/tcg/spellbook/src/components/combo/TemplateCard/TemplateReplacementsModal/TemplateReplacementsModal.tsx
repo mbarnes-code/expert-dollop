@@ -1,13 +1,11 @@
 import Modal from 'components/ui/Modal/Modal';
 import React, { useEffect, useState } from 'react';
 import Dimmer from 'components/ui/Dimmer/Dimmer';
-import edhrecService from 'services/edhrec.service';
+import { EDHRECService, ScryfallService, type ScryfallResultsPage } from '@expert-dollop/tcg/data-access';
 import TextWithMagicSymbol from 'components/layout/TextWithMagicSymbol/TextWithMagicSymbol';
 import ExternalLink from 'components/layout/ExternalLink/ExternalLink';
 import { Template, TemplateInVariant } from '@space-cow-media/spellbook-client';
-import { ScryfallResultsPage } from 'services/scryfall.service';
 import Card from 'scryfall-client/dist/models/card';
-import ScryfallService from 'services/scryfall.service';
 import Loader from 'components/layout/Loader/Loader';
 
 type Props = {
@@ -93,7 +91,7 @@ const TemplateReplacementsModal: React.FC<Props> = ({
         )}
         <div className="flex flex-wrap gap-3 justify-center">
           {results.map((result) => (
-            <a href={edhrecService.getCardUrl(result.name)} target="_blank" rel="noopener noreferrer" key={result.id}>
+            <a href={EDHRECService.getCardUrl(result.name)} target="_blank" rel="noopener noreferrer" key={result.id}>
               <img
                 className="rounded-xl"
                 width="240"

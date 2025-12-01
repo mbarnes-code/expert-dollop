@@ -3,7 +3,7 @@ import ArtCircle from '../../layout/ArtCircle/ArtCircle';
 import { useRouter } from 'next/router';
 import Loader from '../../layout/Loader/Loader';
 import ErrorMessage from '../ErrorMessage/ErrorMessage';
-import { ComboSubmissionErrorType } from '../../../lib/types';
+import { ComboSubmissionErrorType, apiConfiguration } from '@expert-dollop/tcg/data-access';
 import ExternalLink from 'components/layout/ExternalLink/ExternalLink';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import Link from 'next/link';
@@ -15,7 +15,6 @@ import {
   VariantUpdateSuggestionRequest,
   VariantUpdateSuggestionsApi,
 } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
 import VariantIdSubmission from '../VariantIdSubmission/VariantIdSubmission';
 import { useDebounce } from 'use-debounce';
 

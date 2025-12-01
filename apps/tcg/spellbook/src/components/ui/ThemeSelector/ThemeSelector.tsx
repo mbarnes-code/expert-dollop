@@ -1,6 +1,6 @@
 import Icon from 'components/layout/Icon/Icon';
 import React, { useEffect } from 'react';
-import { DARK_THEME, LIGHT_THEME, SYSTEM_THEME, applyTheme } from 'services/theme.service';
+import { DARK_THEME, LIGHT_THEME, SYSTEM_THEME, applyTheme } from '@expert-dollop/shared/utils';
 import { useCookies } from 'react-cookie';
 import styles from './ThemeSelector.module.scss';
 

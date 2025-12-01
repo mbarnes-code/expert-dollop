@@ -557,6 +557,15 @@ importers:
 
   apps/tcg/spellbook:
     dependencies:
+      '@expert-dollop/shared-data-access':
+        specifier: workspace:*
+        version: link:../../../libs/shared/data-access
+      '@expert-dollop/shared-utils':
+        specifier: workspace:*
+        version: link:../../../libs/shared/utils
+      '@expert-dollop/tcg-data-access':
+        specifier: workspace:*
+        version: link:../../../libs/tcg/data-access
       '@fortawesome/fontawesome-svg-core':
         specifier: ^7.1.0
         version: 7.1.0

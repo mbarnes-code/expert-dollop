@@ -1,6 +1,6 @@
 import { CardDetail, CardsApi } from '@space-cow-media/spellbook-client';
 import { NextPageContext } from 'next';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 
 type SitemapCache = {
   sitemap?: string;

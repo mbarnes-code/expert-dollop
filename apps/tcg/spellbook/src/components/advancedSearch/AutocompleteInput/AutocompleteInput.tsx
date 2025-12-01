@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import styles from './autocompleteInput.module.scss';
 import { useState } from 'react';
-import normalizeStringInput from '../../../lib/normalizeStringInput';
+import { normalizeStringInput } from '@expert-dollop/shared/utils';
 import TextWithMagicSymbol from '../../layout/TextWithMagicSymbol/TextWithMagicSymbol';
 import Loader from '../../layout/Loader/Loader';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 import { FeaturesApi, FeaturesListStatusEnum, TemplatesApi } from '@space-cow-media/spellbook-client';
 import scryfall from 'scryfall-client';
 import { useDebounce } from 'use-debounce';

@@ -3,7 +3,7 @@ import ArtCircle from '../components/layout/ArtCircle/ArtCircle';
 import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
 import Link from 'next/link';
 import { GetServerSideProps } from 'next';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 import { PropertiesApi, ResponseError } from '@space-cow-media/spellbook-client';
 
 const MissingComboOfTheDay: React.FC = () => {

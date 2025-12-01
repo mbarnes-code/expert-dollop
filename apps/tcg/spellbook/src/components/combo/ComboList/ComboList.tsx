@@ -2,9 +2,9 @@ import styles from './comboList.module.scss';
 import TextWithMagicSymbol from '../../layout/TextWithMagicSymbol/TextWithMagicSymbol';
 import React, { useEffect, useState } from 'react';
 import PlaceholderText from '../../layout/PlaceholderText/PlaceholderText';
-import { addPeriod } from '../../../lib/addPeriod';
+import { addPeriod } from '@expert-dollop/shared/utils';
 import { CardInVariant, Template, TemplateInVariant } from '@space-cow-media/spellbook-client';
-import { ScryfallResultsPage } from 'services/scryfall.service';
+import { type ScryfallResultsPage } from '@expert-dollop/tcg/data-access';
 
 type Props = {
   title: string;
