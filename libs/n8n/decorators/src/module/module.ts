@@ -106,6 +106,7 @@ export const BackendModule =
       instanceTypes: opts?.instanceTypes,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return Service()(target);
+    // Service decorator returns the modified class constructor
+    // The return type is complex due to TypeScript decorator limitations
+    return Service()(target) as unknown as void;
   };

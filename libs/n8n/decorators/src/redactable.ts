@@ -45,8 +45,7 @@ type FieldName = 'user' | 'inviter' | 'invitee';
 export const Redactable =
   (fieldName: FieldName = 'user'): MethodDecorator =>
   (_target, _propertyName, propertyDescriptor: PropertyDescriptor) => {
-    // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    const originalMethod = propertyDescriptor.value as Function;
+    const originalMethod = propertyDescriptor.value as (...args: unknown[]) => unknown;
 
     type MethodArgs = Array<{ [fieldName: string]: UserLike }>;
 
@@ -57,10 +56,9 @@ export const Redactable =
 
       const userLike = args[index]?.[fieldName];
 
-      // @ts-expect-error Transformation
+      // @ts-expect-error Transformation - intentionally modifying input for redaction
       if (userLike) args[index][fieldName] = toRedactable(userLike);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return originalMethod.apply(this, args);
     };
 
