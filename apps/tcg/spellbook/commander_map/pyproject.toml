@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "commander-map"
+version = "0.1.0"
+description = "MTG Commander Map - UMAP/HDBSCAN-based deck analysis for the TCG Spellbook"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Expert Dollop Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment :: Board Games",
+]
+
+dependencies = [
+    "numpy>=1.21.0",
+    "pandas>=1.1.3",
+    "scipy>=1.7.1",
+    "umap-learn>=0.5.1",
+    "scikit-learn>=1.0.2",
+    "hdbscan>=0.8.0",
+    "requests>=2.24.0",
+    "pydash>=5.1.0",
+    "inflect>=5.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["domain*", "application*", "infrastructure*", "adapters*"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
