@@ -101,14 +101,18 @@ export function canAccessResource(
     return true;
   }
 
-  // Check resource-specific scopes
-  if (resourceId) {
-    const scopeMap = resourceScopes[resourceType];
-    if (scopeMap instanceof Map) {
-      const scopes = scopeMap.get(resourceId);
-      if (scopes?.includes(requiredScope)) {
-        return true;
-      }
+  // Check resource-specific scopes if resourceId is provided
+  if (resourceId && resourceType !== 'global') {
+    // Type-safe access to resource scope maps
+    const scopeMap = resourceType === 'project' 
+      ? resourceScopes.project 
+      : resourceType === 'credential'
+        ? resourceScopes.credential
+        : resourceScopes.workflow;
+    
+    const scopes = scopeMap.get(resourceId);
+    if (scopes?.includes(requiredScope)) {
+      return true;
     }
   }
 

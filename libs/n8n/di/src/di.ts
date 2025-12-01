@@ -71,14 +71,19 @@ class ContainerClass {
    * @param type The constructor of the type to retrieve
    * @returns An instance of the specified type with all dependencies injected
    * @throws {DIError} If circular dependencies are detected or if the type is not injectable
+   * @remarks When resolving a dependency chain, undefined may be returned for optional
+   * constructor parameters that are not decorated with @Service. This is by design
+   * to support optional dependencies in the n8n codebase.
    */
   get<T>(type: ServiceIdentifier<T>): T {
     const { resolutionStack } = this;
     const metadata = instances.get(type) as Metadata<T>;
     if (!metadata) {
       // Special case: Allow undefined returns for non-decorated constructor params
-      // when resolving a dependency chain (i.e., resolutionStack not empty)
-      if (resolutionStack.length) return undefined as T;
+      // when resolving a dependency chain (i.e., resolutionStack not empty).
+      // This supports optional dependencies that may not be registered.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (resolutionStack.length) return undefined as any as T;
       throw new DIError(`${type.name} is not decorated with ${Service.name}`);
     }
 

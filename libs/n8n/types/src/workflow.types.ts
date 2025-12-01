@@ -189,7 +189,12 @@ export interface IWorkflowSettings {
 }
 
 /**
- * Pin data
+ * Pin data - cached execution data for nodes
+ * 
+ * Pin data allows users to "pin" (cache) the output of specific nodes
+ * to avoid re-executing them during development and testing.
+ * When a node has pin data, its cached output is used instead of
+ * executing the node again.
  */
 export interface IPinData {
   [nodeName: string]: INodeExecutionData[];

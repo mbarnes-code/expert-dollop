@@ -189,16 +189,19 @@ export function setSafeObjectProperty<T extends object>(
 
 /**
  * Get file type from MIME type
+ * Note: Order matters - specific types like 'text/html' are checked before generic 'text/'
  */
 export function fileTypeFromMimeType(
   mimeType: string,
 ): 'text' | 'json' | 'image' | 'audio' | 'video' | 'pdf' | 'html' | 'unknown' {
-  if (mimeType.startsWith('text/')) return 'text';
+  // Check specific MIME types first
+  if (mimeType === 'text/html') return 'html';
   if (mimeType === 'application/json') return 'json';
+  if (mimeType === 'application/pdf') return 'pdf';
+  // Then check generic type prefixes
+  if (mimeType.startsWith('text/')) return 'text';
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('audio/')) return 'audio';
   if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType === 'application/pdf') return 'pdf';
-  if (mimeType === 'text/html') return 'html';
   return 'unknown';
 }
