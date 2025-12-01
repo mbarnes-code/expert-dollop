@@ -1,24 +1,13 @@
-import { Variant } from '@space-cow-media/spellbook-client';
+/**
+ * EDHREC service re-export from TCG data access library.
+ * This file provides backward compatibility for imports from services/edhrec.service.
+ * Following DDD modular monolith best practices, the actual implementation
+ * is in @expert-dollop/tcg/data-access.
+ */
 
-const getComboUrl = (variant: Variant) => {
-  return `https://edhrec.com/combos/${variant.identity.toLowerCase()}/${variant.id}`;
-};
-
-const getCardUrl = (cardName: string) => {
-  const normalizedName = cardName
-    .split(' // ')[0]
-    .normalize('NFD')
-    .toLowerCase()
-    .replaceAll(/[^a-zA-Z0-9-_+\s/]/g, '')
-    .replaceAll(/\+/g, 'plus ')
-    .replaceAll(/[\s/]+/g, '-');
-
-  return `https://edhrec.com/cards/${normalizedName}`;
-};
-
-const EDHRECService = {
-  getComboUrl,
-  getCardUrl,
-};
-
-export default EDHRECService;
+// Re-export everything from the TCG EDHREC service
+export {
+  EdhrecService,
+  BaseEdhrecService,
+  EDHRECService as default,
+} from '@expert-dollop/tcg/data-access';

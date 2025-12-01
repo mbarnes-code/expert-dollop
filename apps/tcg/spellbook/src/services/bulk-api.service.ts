@@ -1,19 +1,13 @@
-const ID_MAP_URL = 'https://json.commanderspellbook.com/variant_id_map.json';
+/**
+ * Bulk API service re-export from TCG data access library.
+ * This file provides backward compatibility for imports from services/bulk-api.service.
+ * Following DDD modular monolith best practices, the actual implementation
+ * is in @expert-dollop/tcg/data-access.
+ */
 
-var cachedLegacyMap: Record<string, string> | null = null;
-
-const fetchLegacyMap = async () => {
-  if (cachedLegacyMap) {
-    return cachedLegacyMap;
-  }
-  const response = await fetch(ID_MAP_URL);
-  const legacyMap: Record<string, string> = await response.json();
-  cachedLegacyMap = legacyMap;
-  return legacyMap;
-};
-
-const BulkApiService = {
-  fetchLegacyMap,
-};
-
-export default BulkApiService;
+// Re-export everything from the TCG Bulk API service
+export {
+  BulkApiServiceImpl,
+  BaseBulkApiService,
+  BulkApiService as default,
+} from '@expert-dollop/tcg/data-access';

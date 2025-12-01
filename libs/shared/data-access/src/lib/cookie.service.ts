@@ -133,6 +133,17 @@ export function remove(key: string, options?: OptionsType): void {
   UniversalCookieService.getInstance().remove(key, options);
 }
 
+/**
+ * Create a logout function that removes specific cookies.
+ * @param cookieKeys - Array of cookie keys to remove on logout
+ * @returns A logout function
+ */
+export function createLogoutFunction(cookieKeys: string[]): () => void {
+  return () => {
+    cookieKeys.forEach((key) => remove(key));
+  };
+}
+
 const CookieService = {
   get,
   set,

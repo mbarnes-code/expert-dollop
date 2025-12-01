@@ -1,45 +1,43 @@
-import { deleteCookie, getCookie, OptionsType, setCookie } from 'cookies-next';
+/**
+ * Cookie service re-export from shared library.
+ * This file provides backward compatibility for imports from services/cookie.service.
+ * Following DDD modular monolith best practices, the actual implementation
+ * is in @expert-dollop/shared/data-access.
+ */
 
-export const expirationDurations = {
-  hour: 3600,
-  hours: 10800,
-  day: 86400,
-  week: 604800,
-  month: 2592000,
-  year: 31536000,
-};
+// Re-export everything from the shared cookie service
+export {
+  expirationDurations,
+  get,
+  set,
+  remove,
+  createLogoutFunction,
+  type ExpirationDuration,
+} from '@expert-dollop/shared/data-access';
 
-export function get<T = string>(path: string, options?: OptionsType): T | undefined {
-  // @ts-ignore
-  const result = getCookie(path, { path: '/', ...options });
+import { get, set, remove, createLogoutFunction } from '@expert-dollop/shared/data-access';
 
-  return result as T;
-}
+/**
+ * Spellbook-specific cookie keys used for authentication.
+ */
+const SPELLBOOK_AUTH_COOKIE_KEYS = [
+  'csbRefresh',
+  'csbJwt',
+  'csbUsername',
+  'csbUserId',
+  'csbIsStaff',
+] as const;
 
-export function set(key: string, value: any, age?: keyof typeof expirationDurations, options?: OptionsType) {
-  const maxAge = age ? expirationDurations[age] : undefined;
+/**
+ * Logout function for Commander Spellbook.
+ * Removes all authentication-related cookies.
+ */
+export const logout = createLogoutFunction([...SPELLBOOK_AUTH_COOKIE_KEYS]);
 
-  setCookie(key, value, {
-    path: '/',
-    maxAge,
-    sameSite: 'strict',
-    httpOnly: false,
-    ...options,
-  });
-}
-
-export function remove(key: string, options?: OptionsType) {
-  deleteCookie(key, { path: '/', ...options });
-}
-
-export function logout() {
-  remove('csbRefresh');
-  remove('csbJwt');
-  remove('csbUsername');
-  remove('csbUserId');
-  remove('csbIsStaff');
-}
-
+/**
+ * CookieService with Spellbook-specific logout function.
+ * Provides backward compatibility for imports using `CookieService.logout()`.
+ */
 const CookieService = {
   get,
   set,

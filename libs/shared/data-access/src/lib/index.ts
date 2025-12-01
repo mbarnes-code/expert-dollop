@@ -15,6 +15,7 @@ export {
   get,
   set,
   remove,
+  createLogoutFunction,
   default as CookieService,
   type ExpirationDuration,
 } from './cookie.service';
