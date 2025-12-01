@@ -164,7 +164,7 @@ export function hasLongSequentialRepeat(text: string, threshold = 1000): boolean
  */
 export function getMetadataFiltersValues(
   options: Record<string, unknown>
-): Record<string, never> | undefined {
+): Record<string, string> | undefined {
   if (options.metadata) {
     const { metadataValues: metadata } = options.metadata as {
       metadataValues: Array<{
@@ -175,7 +175,7 @@ export function getMetadataFiltersValues(
     if (metadata && metadata.length > 0) {
       return metadata.reduce(
         (acc, { name, value }) => ({ ...acc, [name]: value }),
-        {} as Record<string, never>
+        {} as Record<string, string>
       );
     }
   }

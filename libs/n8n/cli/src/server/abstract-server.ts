@@ -195,13 +195,21 @@ export interface HealthCheckStatus {
 }
 
 /**
+ * Response interface for health check handlers
+ */
+export interface HealthCheckResponse {
+  status: (code: number) => { send: (data: unknown) => void };
+  send: (data: unknown) => void;
+}
+
+/**
  * Creates a health check handler
  * @param getStatus - Function to get current status
  * @returns Health check handler
  */
 export function createHealthCheckHandler(
   getStatus: () => HealthCheckStatus
-): (req: unknown, res: { status: (code: number) => { send: (data: unknown) => void }; send: (data: unknown) => void }) => void {
+): (req: unknown, res: HealthCheckResponse) => void {
   return (_req, res) => {
     const status = getStatus();
     if (status.status === 'ok') {

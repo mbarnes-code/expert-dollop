@@ -126,17 +126,51 @@ export interface RawBodyReaderOptions {
 }
 
 /**
+ * Parses a size limit string (e.g., '16mb') to bytes
+ * @param limit - Size limit string or number
+ * @returns Size in bytes
+ */
+function parseSizeLimit(limit: string | number): number {
+  if (typeof limit === 'number') {
+    return limit;
+  }
+  const match = limit.match(/^(\d+)(kb|mb|gb)?$/i);
+  if (!match) {
+    return 16 * 1024 * 1024; // Default 16MB
+  }
+  const value = parseInt(match[1], 10);
+  const unit = (match[2] ?? '').toLowerCase();
+  switch (unit) {
+    case 'kb':
+      return value * 1024;
+    case 'mb':
+      return value * 1024 * 1024;
+    case 'gb':
+      return value * 1024 * 1024 * 1024;
+    default:
+      return value;
+  }
+}
+
+/**
  * Creates a raw body reader middleware that stores raw body in req.rawBody
  * @param options - Raw body reader options
  * @returns Raw body reader middleware
  */
 export function createRawBodyReader(options: RawBodyReaderOptions = {}): MiddlewareFunction {
-  const limit = options.limit ?? '16mb';
+  const limitBytes = parseSizeLimit(options.limit ?? '16mb');
 
-  return (req: Request, _res: Response, next: NextFunction): void => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const chunks: Buffer[] = [];
+    let totalSize = 0;
 
     req.on('data', (chunk: Buffer) => {
+      totalSize += chunk.length;
+      if (totalSize > limitBytes) {
+        res.status(413).json({ error: 'Payload too large' });
+        req.destroy();
+        return;
+      }
       chunks.push(chunk);
     });
 
