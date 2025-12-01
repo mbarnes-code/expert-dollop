@@ -1,9 +1,8 @@
 import { Canvas, CanvasRenderingContext2D, createCanvas, loadImage } from 'canvas';
 import { Variant, VariantsApi } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration, countPrerequisites } from '@expert-dollop/tcg/data-access';
 import { NextApiRequest, NextApiResponse } from 'next';
 import serverPath from 'lib/serverPath';
-import { countPrerequisites } from 'lib/prerequisitesProcessor';
 
 const width = 1080;
 const manaOffset = width / 25;

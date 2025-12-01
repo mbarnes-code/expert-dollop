@@ -2,12 +2,11 @@ import React, { useEffect } from 'react';
 import ArtCircle from '../../components/layout/ArtCircle/ArtCircle';
 import styles from '../report-error.module.scss';
 import SpellbookHead from '../../components/SpellbookHead/SpellbookHead';
-import TokenService from '../../services/token.service';
-import CookieService from '../../services/cookie.service';
+import { TokenService, apiConfiguration } from '@expert-dollop/tcg/data-access';
+import { CookieService } from '@expert-dollop/shared/data-access';
 import Link from 'next/link';
 import ExternalLink from '../../components/layout/ExternalLink/ExternalLink';
 import { useRouter } from 'next/router';
-import { apiConfiguration } from 'services/api.service';
 import { UsersApi } from '@space-cow-media/spellbook-client';
 
 const Login: React.FC = () => {

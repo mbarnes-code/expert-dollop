@@ -2,7 +2,7 @@ import React from 'react';
 import SplashPage from '../components/layout/SplashPage/SplashPage';
 import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
 import { GetServerSidePropsContext } from 'next';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 import { VariantsApi } from '@space-cow-media/spellbook-client';
 
 const Random: React.FC = () => {

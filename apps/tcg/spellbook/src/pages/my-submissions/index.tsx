@@ -5,13 +5,11 @@ import NoCombosFound from 'components/layout/NoCombosFound/NoCombosFound';
 import SearchPagination from 'components/search/SearchPagination/SearchPagination';
 import styles from './my-submissions.module.scss';
 import { GetServerSideProps } from 'next';
-import CookieService from 'services/cookie.service';
-import { apiConfiguration } from 'services/api.service';
-import { queryParameterAsString } from 'lib/queryParameters';
+import { CookieService } from '@expert-dollop/shared/data-access';
+import { apiConfiguration, TokenService, ComboSubmission, variantSuggestionFromSubmission, variantSuggestionToSubmission } from '@expert-dollop/tcg/data-access';
+import { queryParameterAsString } from '@expert-dollop/shared/utils';
 import ComboSubmissionItem from 'components/submission/ComboSubmissionItem/ComboSubmissionItem';
 import SpellbookHead from 'components/SpellbookHead/SpellbookHead';
-import TokenService from 'services/token.service';
-import { ComboSubmission, variantSuggestionFromSubmission, variantSuggestionToSubmission } from 'lib/types';
 
 const PAGE_SIZE = 20;
 

@@ -4,16 +4,16 @@ import { useRouter } from 'next/router';
 import SearchPagination from 'components/search/SearchPagination/SearchPagination';
 import styles from './my-update-submissions.module.scss';
 import { GetServerSideProps } from 'next';
-import CookieService from 'services/cookie.service';
-import { apiConfiguration } from 'services/api.service';
-import { queryParameterAsString } from 'lib/queryParameters';
-import SpellbookHead from 'components/SpellbookHead/SpellbookHead';
-import TokenService from 'services/token.service';
+import { CookieService } from '@expert-dollop/shared/data-access';
 import {
+  apiConfiguration,
+  TokenService,
   UpdateSubmission,
   variantUpdateSuggestionFromSubmission,
   variantUpdateSuggestionToSubmission,
-} from 'lib/types';
+} from '@expert-dollop/tcg/data-access';
+import { queryParameterAsString } from '@expert-dollop/shared/utils';
+import SpellbookHead from 'components/SpellbookHead/SpellbookHead';
 import UpdateSubmissionItem from 'components/submission/UpdateSubmissionItem/UpdateSubmissionItem';
 import SplashPage from 'components/layout/SplashPage/SplashPage';
 import Link from 'next/link';

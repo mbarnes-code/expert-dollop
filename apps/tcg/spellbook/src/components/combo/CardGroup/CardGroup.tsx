@@ -3,7 +3,7 @@ import React from 'react';
 import CardImage from '../../layout/CardImage/CardImage';
 import TemplateCard from 'components/combo/TemplateCard/TemplateCard';
 import { CardInVariant, Template, TemplateInVariant } from '@space-cow-media/spellbook-client';
-import { ScryfallResultsPage } from 'services/scryfall.service';
+import { type ScryfallResultsPage } from '@expert-dollop/tcg/data-access';
 
 type Props = {
   cards: CardInVariant[];

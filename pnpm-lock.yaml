@@ -557,6 +557,15 @@ importers:
 
   apps/tcg/spellbook:
     dependencies:
+      '@expert-dollop/shared-data-access':
+        specifier: workspace:*
+        version: link:../../../libs/shared/data-access
+      '@expert-dollop/shared-utils':
+        specifier: workspace:*
+        version: link:../../../libs/shared/utils
+      '@expert-dollop/tcg-data-access':
+        specifier: workspace:*
+        version: link:../../../libs/tcg/data-access
       '@fortawesome/fontawesome-svg-core':
         specifier: ^7.1.0
         version: 7.1.0
@@ -704,13 +713,44 @@ importers:
 
   libs/security/feature: {}
 
-  libs/shared/data-access: {}
+  libs/shared/data-access:
+    dependencies:
+      cookies-next:
+        specifier: ^6.0.0
+        version: 6.1.1(next@16.0.5(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2))(react@19.2.0)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.25
 
   libs/shared/ui: {}
 
   libs/shared/utils: {}
 
-  libs/tcg/data-access: {}
+  libs/tcg/data-access:
+    dependencies:
+      '@expert-dollop/shared-data-access':
+        specifier: workspace:*
+        version: link:../../shared/data-access
+      '@space-cow-media/spellbook-client':
+        specifier: ^4.8.0
+        version: 4.8.19
+      cookies-next:
+        specifier: ^6.0.0
+        version: 6.1.1(next@14.2.33(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2))(react@19.2.0)
+      next:
+        specifier: ^14.2.0
+        version: 14.2.33(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2)
+      scryfall-client:
+        specifier: ^0.24.8
+        version: 0.24.8
+    devDependencies:
+      '@scryfall/api-types':
+        specifier: ^1.0.0-alpha.4
+        version: 1.0.0-alpha.4
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.25
 
   libs/tcg/feature: {}
 
@@ -9834,6 +9874,18 @@ snapshots:
       next: 14.2.33(@babel/core@7.28.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.94.2)
       react: 18.3.1
 
+  cookies-next@6.1.1(next@14.2.33(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2))(react@19.2.0):
+    dependencies:
+      cookie: 1.1.1
+      next: 14.2.33(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2)
+      react: 19.2.0
+
+  cookies-next@6.1.1(next@16.0.5(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2))(react@19.2.0):
+    dependencies:
+      cookie: 1.1.1
+      next: 16.0.5(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2)
+      react: 19.2.0
+
   cookies@0.9.1:
     dependencies:
       depd: 2.0.0
@@ -11713,6 +11765,32 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
+  next@14.2.33(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2):
+    dependencies:
+      '@next/env': 14.2.33
+      '@swc/helpers': 0.5.5
+      busboy: 1.6.0
+      caniuse-lite: 1.0.30001757
+      graceful-fs: 4.2.11
+      postcss: 8.4.31
+      react: 19.2.0
+      react-dom: 19.2.0(react@19.2.0)
+      styled-jsx: 5.1.1(@babel/core@7.28.5)(react@19.2.0)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 14.2.33
+      '@next/swc-darwin-x64': 14.2.33
+      '@next/swc-linux-arm64-gnu': 14.2.33
+      '@next/swc-linux-arm64-musl': 14.2.33
+      '@next/swc-linux-x64-gnu': 14.2.33
+      '@next/swc-linux-x64-musl': 14.2.33
+      '@next/swc-win32-arm64-msvc': 14.2.33
+      '@next/swc-win32-ia32-msvc': 14.2.33
+      '@next/swc-win32-x64-msvc': 14.2.33
+      sass: 1.94.2
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
   next@16.0.5(@babel/core@7.28.5)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(sass@1.94.2):
     dependencies:
       '@next/env': 16.0.5
@@ -13222,6 +13300,13 @@ snapshots:
     dependencies:
       client-only: 0.0.1
       react: 18.3.1
+    optionalDependencies:
+      '@babel/core': 7.28.5
+
+  styled-jsx@5.1.1(@babel/core@7.28.5)(react@19.2.0):
+    dependencies:
+      client-only: 0.0.1
+      react: 19.2.0
     optionalDependencies:
       '@babel/core': 7.28.5
 

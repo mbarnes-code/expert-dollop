@@ -2,7 +2,7 @@ import React from 'react';
 import SearchMessage from '../components/search/SearchMessage/SearchMessage';
 import StyledSelect, { Option } from '../components/layout/StyledSelect/StyledSelect';
 import { useRouter } from 'next/router';
-import { DEFAULT_ORDER, DEFAULT_ORDERING, DEFAULT_SORT } from '../lib/constants';
+import { DEFAULT_ORDER, DEFAULT_ORDERING, DEFAULT_SORT } from '@expert-dollop/tcg/data-access';
 import SearchPagination from '../components/search/SearchPagination/SearchPagination';
 import ComboResults from '../components/search/ComboResults/ComboResults';
 import NoCombosFound from '../components/layout/NoCombosFound/NoCombosFound';
@@ -10,8 +10,8 @@ import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
 import { GetServerSideProps } from 'next';
 import ArtCircle from 'components/layout/ArtCircle/ArtCircle';
 import { PropertiesApi, Variant, VariantsApi } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
-import { queryParameterAsString } from 'lib/queryParameters';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
+import { queryParameterAsString } from '@expert-dollop/shared/utils';
 
 const PAGE_SIZE = 50;
 

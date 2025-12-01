@@ -7,7 +7,7 @@ import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
 import UserDropdown from '../components/layout/UserDropdown/UserDropdown';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 import { PropertiesApi } from '@space-cow-media/spellbook-client';
 
 type FeaturedTab = {

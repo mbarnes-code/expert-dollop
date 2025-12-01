@@ -9,8 +9,15 @@ import { GetServerSideProps } from 'next';
 import SpellbookHead from '../../../components/SpellbookHead/SpellbookHead';
 import React, { useEffect, useState } from 'react';
 import PrerequisiteList from '../../../components/combo/PrerequisiteList/PrerequisiteList';
-import { getPrerequisiteList } from '../../../lib/prerequisitesProcessor';
-import EDHRECService from '../../../services/edhrec.service';
+import {
+  getPrerequisiteList,
+  EDHRECService,
+  apiConfiguration,
+  BulkApiService,
+  DEFAULT_ORDERING,
+  ScryfallService,
+  type ScryfallResultsPage,
+} from '@expert-dollop/tcg/data-access';
 import NoCombosFound from 'components/layout/NoCombosFound/NoCombosFound';
 import {
   FindMyCombosApi,
@@ -20,14 +27,10 @@ import {
   VariantAliasesApi,
   VariantsApi,
 } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
-import BulkApiService from 'services/bulk-api.service';
 import Loader from 'components/layout/Loader/Loader';
 import ComboResults from 'components/search/ComboResults/ComboResults';
 import Link from 'next/link';
 import Icon from 'components/layout/Icon/Icon';
-import { DEFAULT_ORDERING } from 'lib/constants';
-import ScryfallService, { ScryfallResultsPage } from 'services/scryfall.service';
 import ExternalLink from 'components/layout/ExternalLink/ExternalLink';
 
 type Props = {

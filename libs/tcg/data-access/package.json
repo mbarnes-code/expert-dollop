@@ -3,5 +3,18 @@
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
-  "types": "./src/index.ts"
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@expert-dollop/shared-data-access": "workspace:*",
+    "@space-cow-media/spellbook-client": "^4.8.0",
+    "cookies-next": "^6.0.0",
+    "scryfall-client": "^0.24.8"
+  },
+  "devDependencies": {
+    "@scryfall/api-types": "^1.0.0-alpha.4",
+    "@types/node": "^20.0.0"
+  },
+  "peerDependencies": {
+    "next": "^14.2.0"
+  }
 }

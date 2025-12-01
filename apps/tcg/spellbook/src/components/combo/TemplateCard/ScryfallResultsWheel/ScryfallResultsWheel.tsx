@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from 'components/layout/Icon/Icon';
-import edhrecService from 'services/edhrec.service';
-import ScryfallService, { ScryfallResultsPage } from 'services/scryfall.service';
+import { EDHRECService, ScryfallService, type ScryfallResultsPage } from '@expert-dollop/tcg/data-access';
 import Loader from 'components/layout/Loader/Loader';
 import { useSwipeable } from 'react-swipeable';
 
@@ -104,7 +103,7 @@ const ScryfallResultsWheel: React.FC<Props> = ({ fetchResults }) => {
       <div className="h-full flex justify-center items-center">
         <a
           className="h-full"
-          href={edhrecService.getCardUrl(current.name ?? '')}
+          href={EDHRECService.getCardUrl(current.name ?? '')}
           target="_blank"
           rel="noopener noreferrer"
         >

@@ -1,10 +1,9 @@
-import { ComboPrerequisites } from '../../../lib/types';
+import { type ComboPrerequisites, type ScryfallResultsPage } from '@expert-dollop/tcg/data-access';
+import { addPeriod } from '@expert-dollop/shared/utils';
 import TextWithMagicSymbol from '../../layout/TextWithMagicSymbol/TextWithMagicSymbol';
 import Icon, { SpellbookIcon } from '../../layout/Icon/Icon';
-import { addPeriod } from '../../../lib/addPeriod';
 import { CardInVariant, Template, TemplateInVariant } from '@space-cow-media/spellbook-client';
 import React from 'react';
-import { ScryfallResultsPage } from 'services/scryfall.service';
 
 type Props = {
   prerequisites: ComboPrerequisites[];

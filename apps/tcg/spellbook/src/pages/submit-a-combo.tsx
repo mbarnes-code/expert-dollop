@@ -3,11 +3,10 @@ import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
 import { GetServerSideProps } from 'next';
 import 'react-confirm-alert/src/react-confirm-alert.css';
 import ComboSubmissionForm from '../components/submission/ComboSubmissionForm/ComboSubmissionForm';
-import CookieService from 'services/cookie.service';
-import TokenService from 'services/token.service';
-import { queryParameterAsString } from 'lib/queryParameters';
+import { CookieService } from '@expert-dollop/shared/data-access';
+import { TokenService, apiConfiguration } from '@expert-dollop/tcg/data-access';
+import { queryParameterAsString } from '@expert-dollop/shared/utils';
 import { Variant, VariantsApi } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
 
 type Props = {
   variant?: Variant;

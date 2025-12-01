@@ -4,7 +4,7 @@ import styles from './find-my-combos.module.scss';
 import ArtCircle from '../components/layout/ArtCircle/ArtCircle';
 import ComboResults from '../components/search/ComboResults/ComboResults';
 import SpellbookHead from '../components/SpellbookHead/SpellbookHead';
-import { isValidHttpUrl } from '../lib/url-check';
+import { isValidHttpUrl, queryParameterAsString, normalizeStringInput, DownloadFileService } from '@expert-dollop/shared/utils';
 import ErrorMessage from 'components/submission/ErrorMessage/ErrorMessage';
 import { useRouter } from 'next/router';
 import {
@@ -18,14 +18,8 @@ import {
   DeckFromJSON,
   ResponseError,
 } from '@space-cow-media/spellbook-client';
-import { apiConfiguration } from 'services/api.service';
-import { queryParameterAsString } from 'lib/queryParameters';
-import { LEGALITY_FORMATS } from 'lib/types';
+import { apiConfiguration, LEGALITY_FORMATS, DEFAULT_ORDERING, CombosExportService } from '@expert-dollop/tcg/data-access';
 import StyledSelect from 'components/layout/StyledSelect/StyledSelect';
-import { DEFAULT_ORDERING } from 'lib/constants';
-import CombosExportService from 'services/combos-export.service';
-import DownloadFileService from 'services/download-file.service';
-import normalizeStringInput from 'lib/normalizeStringInput';
 import Modal from 'components/ui/Modal/Modal';
 
 const LOCAL_STORAGE_DECK_STORAGE_KEY = 'commander-spellbook-combo-finder-last-decklist';

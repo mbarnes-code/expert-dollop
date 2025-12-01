@@ -1,7 +1,7 @@
 import '../assets/globals.scss';
 import type { AppContext, AppProps } from 'next/app';
 import 'react-tooltip/dist/react-tooltip.css';
-import { pageview } from '../lib/googleAnalytics';
+import { pageview } from '@expert-dollop/shared/utils';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import NextNProgress from 'nextjs-progressbar';

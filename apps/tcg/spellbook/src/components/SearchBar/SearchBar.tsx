@@ -3,10 +3,10 @@ import Link from 'next/link';
 import styles from './searchBar.module.scss';
 import { NextRouter, useRouter } from 'next/router';
 import UserDropdown from '../layout/UserDropdown/UserDropdown';
-import { apiConfiguration } from 'services/api.service';
+import { apiConfiguration } from '@expert-dollop/tcg/data-access';
 import { VariantsApi } from '@space-cow-media/spellbook-client';
 import ThemeSelector from 'components/ui/ThemeSelector/ThemeSelector';
-import CookieService from 'services/cookie.service';
+import { CookieService } from '@expert-dollop/shared/data-access';
 
 type Props = {
   onHomepage?: boolean;

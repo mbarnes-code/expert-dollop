@@ -16,6 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "*": ["./src/*"],
+      "@expert-dollop/shared/utils": ["../../../libs/shared/utils/src/index.ts"],
+      "@expert-dollop/shared/data-access": ["../../../libs/shared/data-access/src/index.ts"],
       "@expert-dollop/tcg/data-access": ["../../../libs/tcg/data-access/src/index.ts"],
       "@expert-dollop/tcg/feature": ["../../../libs/tcg/feature/src/index.ts"]
     },

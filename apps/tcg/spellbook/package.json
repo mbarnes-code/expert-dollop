@@ -9,6 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@expert-dollop/shared-data-access": "workspace:*",
+    "@expert-dollop/shared-utils": "workspace:*",
+    "@expert-dollop/tcg-data-access": "workspace:*",
     "@fortawesome/fontawesome-svg-core": "^7.1.0",
     "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/react-fontawesome": "^0.2.3",

@@ -1,7 +1,14 @@
 packages:
-  - 'apps/**'
-  - 'libs/**'
-  - 'backend/**'
-  - 'tools/**'
+  - apps/**
+  - libs/**
+  - backend/**
+  - tools/**
 
 autoInstallPeers: true
+
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - canvas
+  - esbuild
+  - nx
+  - sharp

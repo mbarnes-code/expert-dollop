@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import React from 'react';
 import { useRouter } from 'next/router';
-import { GA_TRACKING_ID } from 'lib/googleAnalytics';
+import { GA_TRACKING_ID } from '@expert-dollop/shared/utils';
 
 type Props = {
   children?: React.ReactNode;
