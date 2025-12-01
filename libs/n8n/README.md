@@ -385,6 +385,83 @@ nodeTypes.addNodeTypeDescriptions(descriptions);
 const nodeType = nodeTypes.getByNameAndVersion('n8n-nodes-base.http', 1);
 ```
 
+### @expert-dollop/n8n-workflow
+
+Core workflow interfaces, types, and utilities:
+- **Interfaces**: `INode`, `IConnections`, `IWorkflowBase`, `INodeExecutionData`
+- **Types**: `WorkflowExecuteMode`, `ExecutionStatus`, `NodeConnectionType`
+- **Workflow class**: `AbstractWorkflow` with node traversal and graph operations
+- **Common utilities**: `getChildNodes`, `getParentNodes`, `mapConnectionsByDestination`
+- **Error classes**: `NodeOperationError`, `NodeApiError`, `ExpressionError`
+- **Constants**: Starting node types, connection types, HTTP methods
+
+```typescript
+import { 
+  AbstractWorkflow,
+  INode,
+  IConnections,
+  NodeConnectionTypes,
+  NodeOperationError,
+  type WorkflowExecuteMode,
+  type ExecutionStatus
+} from '@expert-dollop/n8n-workflow';
+
+// Create a workflow
+class MyWorkflow extends AbstractWorkflow {
+  // Custom implementation
+}
+
+// Get child nodes
+const children = workflow.getChildNodes('triggerNode');
+
+// Check connection types
+if (connectionType === NodeConnectionTypes.Main) { ... }
+```
+
+### @expert-dollop/n8n-core
+
+Core functionality and execution engine for workflows:
+- **Execution engine**: `AbstractWorkflowExecutor`, `SimpleWorkflowExecutor`
+- **Binary data**: `AbstractBinaryDataService`, `InMemoryBinaryDataService`
+- **Encryption**: `AbstractEncryptionService`, `SimpleEncryptionService`
+- **Credentials**: `AbstractCredentialsService`, `InMemoryCredentialsService`
+- **Node loader**: `AbstractNodeLoader`, `InMemoryNodeLoader`
+- **Instance settings**: `AbstractInstanceSettings`, `SimpleInstanceSettings`
+- **Utilities**: HTML sanitization, HTTP proxy, crypto helpers
+
+```typescript
+import { 
+  AbstractWorkflowExecutor,
+  AbstractBinaryDataService,
+  AbstractEncryptionService,
+  SimpleInstanceSettings,
+  sanitizeHtml,
+  generateHash
+} from '@expert-dollop/n8n-core';
+
+// Custom workflow executor
+class MyExecutor extends AbstractWorkflowExecutor {
+  protected async executeWorkflow(context, workflow, options) {
+    // Execution logic
+    return runData;
+  }
+  
+  protected createExecutionContext(executionId, workflow, mode) {
+    return { workflowId: workflow.id, executionId, mode, ... };
+  }
+}
+
+// Encryption service
+class MyEncryptionService extends AbstractEncryptionService {
+  protected getEncryptionKey() {
+    return process.env.ENCRYPTION_KEY!;
+  }
+}
+
+// HTML sanitization
+const safe = sanitizeHtml(userInput);
+```
+
 ### @expert-dollop/n8n-api-types
 
 API type definitions and DTOs for n8n REST API:

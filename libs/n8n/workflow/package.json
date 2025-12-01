@@ -1,0 +1,37 @@
+{
+  "name": "@expert-dollop/n8n-workflow",
+  "version": "1.0.0",
+  "description": "Core workflow interfaces and types for n8n integration - DDD modular monolith pattern",
+  "types": "src/index.ts",
+  "main": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
+    },
+    "./common": {
+      "types": "./src/common/index.ts",
+      "import": "./src/common/index.ts",
+      "require": "./src/common/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:dev": "vitest --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expert-dollop/n8n-errors": "workspace:*",
+    "@expert-dollop/n8n-types": "workspace:*",
+    "@expert-dollop/n8n-di": "workspace:*",
+    "luxon": "^3.4.0",
+    "lodash": "^4.17.21",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
