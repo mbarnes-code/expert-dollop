@@ -15,7 +15,9 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "*": ["./src/*"]
+      "*": ["./src/*"],
+      "@expert-dollop/tcg/data-access": ["../../../libs/tcg/data-access/src/index.ts"],
+      "@expert-dollop/tcg/feature": ["../../../libs/tcg/feature/src/index.ts"]
     },
     "plugins": [
       {
