@@ -282,8 +282,10 @@ export class CardSortService {
   }
 
   /**
-   * Get the primary type for sorting purposes.
-   * Uses explicit priority: Creature > Planeswalker > Enchantment > Artifact > Instant > Sorcery > Land > Other
+   * Get the primary type for grouping purposes.
+   * When a card has multiple types, returns the most important one for categorization.
+   * Priority: Creature > Planeswalker > Enchantment > Artifact > Battle > Instant > Sorcery > Land > Other
+   * Note: This is different from TYPE_ORDER which controls sort order within color groups.
    */
   private getPrimaryType(types: string[]): string {
     const typePriority = [

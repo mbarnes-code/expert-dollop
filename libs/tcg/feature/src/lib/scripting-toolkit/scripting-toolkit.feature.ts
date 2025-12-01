@@ -120,21 +120,29 @@ export class ScriptingToolkitFeature extends BaseFeature {
 
   /**
    * Initialize the feature and its services.
+   * Uses lazy initialization with error handling to ensure partial failures
+   * don't prevent the feature from being used.
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
       return;
     }
 
-    // Initialize all service instances
-    this.propertyService = CardPropertyService.getInstance();
-    this.colorService = CardColorService.getInstance();
-    this.typeService = CardTypeService.getInstance();
-    this.legalityService = CardLegalityService.getInstance();
-    this.sortService = CardSortService.getInstance();
-    this.listService = CardListService.getInstance();
+    try {
+      // Initialize all service instances with error handling
+      this.propertyService = CardPropertyService.getInstance();
+      this.colorService = CardColorService.getInstance();
+      this.typeService = CardTypeService.getInstance();
+      this.legalityService = CardLegalityService.getInstance();
+      this.sortService = CardSortService.getInstance();
+      this.listService = CardListService.getInstance();
 
-    this.initialized = true;
+      this.initialized = true;
+    } catch (error) {
+      // Log error but allow partial initialization
+      console.error('Failed to initialize ScriptingToolkitFeature:', error);
+      throw new Error(`ScriptingToolkitFeature initialization failed: ${error}`);
+    }
   }
 
   /**

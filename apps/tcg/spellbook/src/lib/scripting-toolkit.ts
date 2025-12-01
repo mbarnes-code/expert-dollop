@@ -43,11 +43,11 @@ export interface CardStats {
   total: number;
   /** Average converted mana cost */
   averageCmc: number;
-  /** Number of creatures */
+  /** Number of creatures (includes creature lands like Dryad Arbor) */
   creatureCount: number;
-  /** Number of non-creature spells */
+  /** Number of non-creature, non-land spells (instants, sorceries, artifacts, enchantments, planeswalkers) */
   nonCreatureCount: number;
-  /** Number of lands */
+  /** Number of pure lands (excludes creature lands which are counted in creatureCount) */
   landCount: number;
   /** Distribution by color group */
   colorDistribution: Record<string, number>;
@@ -119,6 +119,9 @@ export class CardAnalyzer {
       totalCmc += card.cmc;
 
       // Type counts - track separately to handle creature lands correctly
+      // Creature lands (like Dryad Arbor) count as creatures, not lands, for deck building purposes
+      // This matches common MTG convention where mana producers that are creatures
+      // are typically counted with creatures rather than lands
       const isCreature = this.typeService.isCreature(card);
       const isLand = this.typeService.isLand(card);
       const isSpell = !isCreature && !isLand;
