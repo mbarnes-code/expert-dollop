@@ -258,7 +258,16 @@ export class CardColorService extends BaseCardUtility {
       return ColorGroup.Colorless;
     }
 
-    return cardColors[0] as unknown as ColorGroup;
+    // Map Color enum to ColorGroup enum safely
+    const colorToGroupMap: Record<Color, ColorGroup> = {
+      [Color.White]: ColorGroup.White,
+      [Color.Blue]: ColorGroup.Blue,
+      [Color.Black]: ColorGroup.Black,
+      [Color.Red]: ColorGroup.Red,
+      [Color.Green]: ColorGroup.Green,
+    };
+
+    return colorToGroupMap[cardColors[0]];
   }
 
   /**

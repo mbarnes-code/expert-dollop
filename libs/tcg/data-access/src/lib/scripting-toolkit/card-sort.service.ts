@@ -242,7 +242,7 @@ export class CardSortService {
 
     for (const card of cards) {
       const types = this.typeService.parseTypes(card).types;
-      const primaryType = types[types.length - 1] || 'Other';
+      const primaryType = this.getPrimaryType(types);
 
       if (!groups.has(primaryType)) {
         groups.set(primaryType, []);
@@ -261,7 +261,8 @@ export class CardSortService {
     const colorGroupIndex = COLOR_GROUP_ORDER[colorGroup] ?? 99;
 
     const cardTypes = this.typeService.parseTypes(card).types;
-    const cardTypeIndex = TYPE_ORDER[cardTypes[cardTypes.length - 1]] ?? 99;
+    const primaryType = this.getPrimaryType(cardTypes);
+    const cardTypeIndex = TYPE_ORDER[primaryType] ?? 99;
 
     const needsColorIdentitySort =
       colorGroup === ColorGroup.Multicolor || colorGroup === ColorGroup.Land;
@@ -278,6 +279,31 @@ export class CardSortService {
       devotion: card.mana_cost?.length ?? 0,
       name: card.name,
     };
+  }
+
+  /**
+   * Get the primary type for sorting purposes.
+   * Uses explicit priority: Creature > Planeswalker > Enchantment > Artifact > Instant > Sorcery > Land > Other
+   */
+  private getPrimaryType(types: string[]): string {
+    const typePriority = [
+      'Creature',
+      'Planeswalker',
+      'Enchantment',
+      'Artifact',
+      'Battle',
+      'Instant',
+      'Sorcery',
+      'Land',
+    ];
+
+    for (const priority of typePriority) {
+      if (types.includes(priority)) {
+        return priority;
+      }
+    }
+
+    return types[0] || 'Other';
   }
 
   /**

@@ -109,6 +109,7 @@ export class CardAnalyzer {
     // Calculate statistics
     let creatureCount = 0;
     let landCount = 0;
+    let spellCount = 0;
     let totalCmc = 0;
     const colorDistribution: Record<string, number> = {};
     const typeDistribution: Record<string, number> = {};
@@ -117,12 +118,20 @@ export class CardAnalyzer {
       // CMC
       totalCmc += card.cmc;
 
-      // Type counts
-      if (this.typeService.isCreature(card)) {
+      // Type counts - track separately to handle creature lands correctly
+      const isCreature = this.typeService.isCreature(card);
+      const isLand = this.typeService.isLand(card);
+      const isSpell = !isCreature && !isLand;
+
+      if (isCreature) {
         creatureCount++;
       }
-      if (this.typeService.isLand(card)) {
+      if (isLand && !isCreature) {
+        // Pure lands only (not creature lands like Dryad Arbor)
         landCount++;
+      }
+      if (isSpell) {
+        spellCount++;
       }
 
       // Color distribution
@@ -140,7 +149,7 @@ export class CardAnalyzer {
       total: cards.length,
       averageCmc: totalCmc / cards.length,
       creatureCount,
-      nonCreatureCount: cards.length - creatureCount - landCount,
+      nonCreatureCount: spellCount,
       landCount,
       colorDistribution,
       typeDistribution,

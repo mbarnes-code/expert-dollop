@@ -13,6 +13,9 @@
  *   CardPropertyService,
  *   CardSortService,
  *   CardColorService,
+ *   ScryfallApiService,
+ *   CubeCobraService,
+ *   MoxfieldService,
  *   Card,
  *   ColorGroup,
  * } from '@expert-dollop/tcg/data-access';
@@ -28,6 +31,14 @@
  * // Get card color group
  * const colorService = CardColorService.getInstance();
  * const group = colorService.getColorGroup(card);
+ * 
+ * // Search Scryfall
+ * const scryfallService = ScryfallApiService.getInstance();
+ * const cards = await scryfallService.search('type:creature cmc:3');
+ * 
+ * // Fetch cube from Cube Cobra
+ * const cubeService = CubeCobraService.getInstance();
+ * const cubeList = await cubeService.fetchCubeList('myCubeId');
  * ```
  */
 
@@ -73,3 +84,71 @@ export {
 export {
   CardListService,
 } from './card-list.service';
+
+// Scryfall Services
+export {
+  ScryfallApiService,
+  SCRYFALL_CONFIG,
+  type BulkDataType,
+  type SortOrder,
+  type SortDirection,
+  type RollupMode,
+  type SearchOptions,
+  type FetchCardOptions,
+  type CollectionResult,
+  type CardArtInfo,
+  ScryfallCatalogService,
+  type CatalogType,
+} from './scryfall';
+
+// Cube Cobra Services
+export {
+  CubeCobraService,
+  CUBE_COBRA_CONFIG,
+  type CubeCobraColor,
+  type CubeCobraRarity,
+  type CubeCobraCard,
+  type CubeCobraCardDetails,
+  type CubeCobraUser,
+  type CubeCobraCube,
+} from './cube-cobra';
+
+// Moxfield Services
+export {
+  MoxfieldService,
+  MOXFIELD_CONFIG,
+  type MoxfieldColor,
+  type MoxfieldLegality,
+  type MoxfieldUser,
+  type MoxfieldCard,
+  type MoxfieldBoardItem,
+  type MoxfieldBoard,
+  type MoxfieldDeck,
+} from './moxfield';
+
+// Commander Spellbook Services
+export {
+  CommanderSpellbookService,
+  COMMANDER_SPELLBOOK_CONFIG,
+  type Combo,
+} from './commander-spellbook';
+
+// Utility Services
+export {
+  CacheService,
+  type CacheConfig,
+  LogColor,
+  applyColor,
+  log,
+  wordCount,
+  isPresentString,
+  regexEscape,
+  average,
+  median,
+  standardDeviation,
+  toObjectKeyedOn,
+  eachAsync,
+  toggle,
+  permutations,
+  splitSeries,
+} from './utils';
