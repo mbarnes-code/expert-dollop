@@ -1,24 +1,14 @@
-import { GetServerSidePropsContext } from 'next';
-import tokenService from './token.service';
-import { Configuration, HTTPHeaders } from '@space-cow-media/spellbook-client';
+/**
+ * API configuration service re-export from TCG data access library.
+ * This file provides backward compatibility for imports from services/api.service.
+ * Following DDD modular monolith best practices, the actual implementation
+ * is in @expert-dollop/tcg/data-access.
+ */
 
-export function apiConfiguration(serverContext?: GetServerSidePropsContext) {
-  const headers: HTTPHeaders = {};
-
-  if (serverContext && serverContext.req.headers['x-forwarded-for']) {
-    if (typeof serverContext.req.headers['x-forwarded-for'] === 'string') {
-      headers['x-forwarded-for'] = serverContext.req.headers['x-forwarded-for'];
-    }
-    headers['x-forwarded-for'] = serverContext.req.headers['x-forwarded-for'][0];
-  }
-  return new Configuration({
-    basePath: process.env.NEXT_PUBLIC_EDITOR_BACKEND_URL,
-    accessToken: function (_name?: string, _scopes?: string[]) {
-      if (serverContext) {
-        return tokenService.getTokenFromServerContext(serverContext);
-      }
-      return tokenService.getToken();
-    },
-    headers: headers,
-  });
-}
+// Re-export everything from the TCG API configuration service
+export {
+  apiConfiguration,
+  SpellbookApiConfigurationService,
+  BaseApiConfigurationService,
+  type SpellbookApiConfigOptions,
+} from '@expert-dollop/tcg/data-access';
