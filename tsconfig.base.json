@@ -30,7 +30,9 @@
       "@expert-dollop/n8n-constants": ["libs/n8n/constants/src/index.ts"],
       "@expert-dollop/n8n-di": ["libs/n8n/di/src/index.ts"],
       "@expert-dollop/n8n-errors": ["libs/n8n/errors/src/index.ts"],
-      "@expert-dollop/n8n-types": ["libs/n8n/types/src/index.ts"]
+      "@expert-dollop/n8n-types": ["libs/n8n/types/src/index.ts"],
+      "@expert-dollop/n8n-permissions": ["libs/n8n/permissions/src/index.ts"],
+      "@expert-dollop/n8n-backend-common": ["libs/n8n/backend-common/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

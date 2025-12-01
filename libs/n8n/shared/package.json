@@ -14,7 +14,9 @@
     "@expert-dollop/n8n-constants": "workspace:*",
     "@expert-dollop/n8n-di": "workspace:*",
     "@expert-dollop/n8n-errors": "workspace:*",
-    "@expert-dollop/n8n-types": "workspace:*"
+    "@expert-dollop/n8n-types": "workspace:*",
+    "@expert-dollop/n8n-permissions": "workspace:*",
+    "@expert-dollop/n8n-backend-common": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

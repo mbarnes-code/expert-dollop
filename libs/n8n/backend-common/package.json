@@ -1,0 +1,21 @@
+{
+  "name": "@expert-dollop/n8n-backend-common",
+  "version": "0.1.0",
+  "description": "Common backend utilities for n8n modules - hoisted shared dependency",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint . --quiet",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@expert-dollop/n8n-di": "workspace:*",
+    "@expert-dollop/n8n-constants": "workspace:*",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

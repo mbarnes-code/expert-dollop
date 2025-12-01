@@ -10,6 +10,8 @@ export * from '@expert-dollop/n8n-constants';
 export * from '@expert-dollop/n8n-di';
 export * from '@expert-dollop/n8n-errors';
 export * from '@expert-dollop/n8n-types';
+export * from '@expert-dollop/n8n-permissions';
+export * from '@expert-dollop/n8n-backend-common';
 
 // Abstract base classes
 export {
