@@ -628,6 +628,80 @@ All libraries are available via TypeScript path aliases defined in `tsconfig.bas
   "@expert-dollop/n8n-decorators": ["libs/n8n/decorators/src/index.ts"],
   "@expert-dollop/n8n-db": ["libs/n8n/db/src/index.ts"],
   "@expert-dollop/n8n-task-runner": ["libs/n8n/task-runner/src/index.ts"],
-  "@expert-dollop/n8n-api-types": ["libs/n8n/api-types/src/index.ts"]
+  "@expert-dollop/n8n-api-types": ["libs/n8n/api-types/src/index.ts"],
+  "@expert-dollop/n8n-nodes-langchain": ["libs/n8n/nodes-langchain/src/index.ts"],
+  "@expert-dollop/n8n-cli": ["libs/n8n/cli/src/index.ts"]
 }
+```
+
+### @expert-dollop/n8n-nodes-langchain
+
+LangChain/AI nodes library with abstract base classes:
+- **Abstract node classes**: `AbstractLLMNode`, `AbstractEmbeddingNode`, `AbstractVectorStoreNode`, `AbstractMemoryNode`, `AbstractAgentNode`, `AbstractChainNode`, `AbstractDocumentLoaderNode`, `AbstractTextSplitterNode`, `AbstractOutputParserNode`, `AbstractToolNode`
+- **Credential utilities**: `AbstractCredentialProvider`, `AbstractOpenAICompatibleCredentialProvider`
+- **Helper functions**: `hasMethods`, `isChatModel`, `escapeSingleCurlyBrackets`, `serializeChatHistory`, `hasLongSequentialRepeat`
+- **Types**: `LLMProvider`, `EmbeddingProvider`, `VectorStoreProvider`, `ChatMessage`, `Document`
+
+```typescript
+import { 
+  AbstractLLMNode,
+  AbstractVectorStoreNode,
+  AbstractAgentNode,
+  hasMethods,
+  serializeChatHistory,
+  type LLMModelConfig,
+  type ChatMessage
+} from '@expert-dollop/n8n-nodes-langchain';
+
+// Custom LLM node implementation
+class MyLLMNode extends AbstractLLMNode {
+  async invoke(prompt: string) { ... }
+  async invokeChat(messages: ChatMessage[]) { ... }
+  async *stream(prompt: string) { ... }
+}
+
+// Vector store implementation
+class MyVectorStore extends AbstractVectorStoreNode {
+  async addDocuments(documents) { ... }
+  async similaritySearch(query, k) { ... }
+}
+```
+
+### @expert-dollop/n8n-cli
+
+CLI abstractions and server utilities:
+- **Command abstractions**: `AbstractCommand`, `CommandRegistry`
+- **Server abstractions**: `AbstractServer`, `ServerConfig`, `EndpointConfig`
+- **Middleware utilities**: `createCorsMiddleware`, `createRawBodyReader`, `createRequestLoggingMiddleware`, `createRateLimitMiddleware`, `createAuthMiddleware`
+- **HTTP errors**: `BadRequestError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `InternalServerError`, `ValidationError`, `AuthenticationError`
+
+```typescript
+import { 
+  AbstractCommand,
+  AbstractServer,
+  createCorsMiddleware,
+  BadRequestError,
+  UnauthorizedError,
+  type ServerConfig
+} from '@expert-dollop/n8n-cli';
+
+// Custom CLI command
+class StartCommand extends AbstractCommand {
+  getCommandName() { return 'start'; }
+  async run() {
+    this.log('Starting server...');
+    // ...
+  }
+}
+
+// Custom server
+class MyServer extends AbstractServer {
+  async init() { ... }
+  async start() { ... }
+  protected setupHealthCheck() { ... }
+}
+
+// Middleware usage
+app.use(createCorsMiddleware({ origin: true }));
+app.use(createRateLimitMiddleware(100, 60000));
 ```

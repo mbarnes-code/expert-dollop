@@ -42,7 +42,9 @@
       "@expert-dollop/n8n-api-types": ["libs/n8n/api-types/src/index.ts"],
       "@expert-dollop/n8n-workflow": ["libs/n8n/workflow/src/index.ts"],
       "@expert-dollop/n8n-workflow/common": ["libs/n8n/workflow/src/common/index.ts"],
-      "@expert-dollop/n8n-core": ["libs/n8n/core/src/index.ts"]
+      "@expert-dollop/n8n-core": ["libs/n8n/core/src/index.ts"],
+      "@expert-dollop/n8n-nodes-langchain": ["libs/n8n/nodes-langchain/src/index.ts"],
+      "@expert-dollop/n8n-cli": ["libs/n8n/cli/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
