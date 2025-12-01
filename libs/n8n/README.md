@@ -338,6 +338,53 @@ const query = sql`
 if (isValidEmail(email)) { ... }
 ```
 
+### @expert-dollop/n8n-task-runner
+
+Task runner SDK for executing JavaScript code in n8n workflows:
+- **Core classes**: `TaskRunner`, `JsTaskRunner`, `TaskState`
+- **Configuration**: `MainConfig`, `BaseRunnerConfig`, `JsRunnerConfig`, `SentryConfig`
+- **Node types**: `TaskRunnerNodeTypes` for node type registry
+- **Built-ins parser**: `BuiltInsParser` for code analysis
+- **Data handling**: `DataRequestResponseReconstruct`
+- **Error classes**: `TimeoutError`, `TaskCancelledError`, `ExecutionError`, `DisallowedModuleError`
+- **Message types**: `BrokerMessage`, `RunnerMessage`, `RequesterMessage`
+
+```typescript
+import { 
+  JsTaskRunner,
+  MainConfig,
+  TaskRunnerNodeTypes,
+  TimeoutError,
+  type TaskParams,
+  type TaskResultData
+} from '@expert-dollop/n8n-task-runner';
+
+// Create and start a JS task runner
+const config = Container.get(MainConfig);
+const runner = new JsTaskRunner(config);
+
+// Runner automatically connects to broker and handles tasks
+runner.on('runner:reached-idle-timeout', () => {
+  console.log('Runner has been idle, shutting down...');
+});
+
+// Custom runner implementation
+class CustomRunner extends TaskRunner {
+  async executeTask(
+    taskParams: TaskParams,
+    signal: AbortSignal
+  ): Promise<TaskResultData> {
+    // Custom task execution logic
+    return { result: data };
+  }
+}
+
+// Node type management
+const nodeTypes = new TaskRunnerNodeTypes([]);
+nodeTypes.addNodeTypeDescriptions(descriptions);
+const nodeType = nodeTypes.getByNameAndVersion('n8n-nodes-base.http', 1);
+```
+
 ## Abstract Base Classes
 
 The shared library provides abstract base classes for DDD patterns:
@@ -465,6 +512,7 @@ All libraries are available via TypeScript path aliases defined in `tsconfig.bas
   "@expert-dollop/n8n-client-oauth2": ["libs/n8n/client-oauth2/src/index.ts"],
   "@expert-dollop/n8n-utils": ["libs/n8n/utils/src/index.ts"],
   "@expert-dollop/n8n-decorators": ["libs/n8n/decorators/src/index.ts"],
-  "@expert-dollop/n8n-db": ["libs/n8n/db/src/index.ts"]
+  "@expert-dollop/n8n-db": ["libs/n8n/db/src/index.ts"],
+  "@expert-dollop/n8n-task-runner": ["libs/n8n/task-runner/src/index.ts"]
 }
 ```
