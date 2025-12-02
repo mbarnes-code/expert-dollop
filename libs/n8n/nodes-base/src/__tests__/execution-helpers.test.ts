@@ -3,8 +3,8 @@
  */
 
 import {
-  wrapData,
-  wrapDataArray,
+  wrapExecutionData,
+  wrapExecutionDataArray,
   extractJsonData,
   createEmptyOutput,
   createOutputAt,
@@ -26,14 +26,14 @@ import {
   type IExecutionDataItem,
 } from '../execution/execution-helpers';
 
-describe('wrapData', () => {
+describe('wrapExecutionData', () => {
   it('should wrap a single object', () => {
     const result = wrapExecutionData({ name: 'test' });
     expect(result).toEqual({ json: { name: 'test' } });
   });
 });
 
-describe('wrapDataArray', () => {
+describe('wrapExecutionDataArray', () => {
   it('should wrap an array of objects', () => {
     const result = wrapExecutionDataArray([{ name: 'test1' }, { name: 'test2' }]);
     expect(result).toEqual([
