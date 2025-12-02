@@ -384,11 +384,14 @@ export function chunk<T>(arr: T[], size: number): T[][] {
  * @param depth Flatten depth
  */
 export function flatten<T>(arr: (T | T[])[], depth = 1): T[] {
-  if (depth === 0) return arr as T[];
+  if (depth === 0) {
+    // When depth is 0, return a shallow copy without flattening
+    return arr.flatMap(item => Array.isArray(item) ? item : [item]) as T[];
+  }
   
   return arr.reduce<T[]>((flat, item) => {
-    if (Array.isArray(item) && depth > 0) {
-      return flat.concat(flatten(item, depth - 1));
+    if (Array.isArray(item)) {
+      return flat.concat(flatten(item as (T | T[])[], depth - 1));
     }
     return flat.concat(item);
   }, []);

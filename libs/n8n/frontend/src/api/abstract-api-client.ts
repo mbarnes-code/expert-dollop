@@ -322,8 +322,15 @@ export class FetchApiClient extends AbstractApiClient {
 export class RestResourceClient<T extends { id: TId }, TId = string> {
   constructor(
     private apiClient: AbstractApiClient,
-    private resourcePath: string,
+    protected readonly resourcePath: string,
   ) {}
+
+  /**
+   * Get the API client for direct access in subclasses
+   */
+  protected getApiClient(): AbstractApiClient {
+    return this.apiClient;
+  }
 
   /**
    * Get all resources
@@ -401,8 +408,16 @@ export interface IPaginationParams {
  * Paginated resource client
  */
 export class PaginatedResourceClient<T extends { id: TId }, TId = string> extends RestResourceClient<T, TId> {
+  constructor(
+    apiClient: AbstractApiClient,
+    resourcePath: string,
+  ) {
+    super(apiClient, resourcePath);
+  }
+
   /**
    * Get paginated resources
+   * This method expects the API to return a paginated response structure
    * @param params Pagination parameters
    */
   async getPaginated(params: IPaginationParams = {}): Promise<IPaginatedResponse<T>> {
@@ -416,7 +431,12 @@ export class PaginatedResourceClient<T extends { id: TId }, TId = string> extend
       queryParams.sortOrder = params.sortOrder ?? 'asc';
     }
     
-    return this.getAll(queryParams) as unknown as Promise<IPaginatedResponse<T>>;
+    // Use the protected getApiClient method for paginated responses
+    // The API is expected to return IPaginatedResponse format
+    return this.getApiClient().get<IPaginatedResponse<T>>(
+      this.resourcePath,
+      queryParams
+    );
   }
 }
 

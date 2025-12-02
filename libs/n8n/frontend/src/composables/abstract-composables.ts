@@ -154,7 +154,7 @@ export function useLoadingState(options: LoadingStateOptions = {}): {
     isLoading,
     error,
     startLoading,
-    stopLoading: () => { stopLoading(); },
+    stopLoading,
     setError,
     clearError,
     withLoading,
@@ -279,9 +279,9 @@ export function useThrottle<T extends (...args: unknown[]) => unknown>(
  */
 export interface DeviceSupport {
   isTouchDevice: boolean;
-  isMobile: boolean;
-  isTablet: boolean;
-  isDesktop: boolean;
+  isMobile: ComputedRef<boolean>;
+  isTablet: ComputedRef<boolean>;
+  isDesktop: ComputedRef<boolean>;
   screenWidth: Ref<number>;
   screenHeight: Ref<number>;
   orientation: Ref<'portrait' | 'landscape'>;
@@ -326,9 +326,9 @@ export function useDeviceSupport(): DeviceSupport {
 
   return {
     isTouchDevice,
-    isMobile: isMobile.value,
-    isTablet: isTablet.value,
-    isDesktop: isDesktop.value,
+    isMobile,
+    isTablet,
+    isDesktop,
     screenWidth,
     screenHeight,
     orientation,
