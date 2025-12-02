@@ -4,9 +4,10 @@
  */
 
 /**
- * Node execution data item
+ * Execution data item interface
+ * Note: This is a local interface for use within execution helpers
  */
-export interface INodeExecutionData {
+export interface IExecutionDataItem {
   json: Record<string, unknown>;
   binary?: Record<string, unknown>;
   pairedItem?: { item: number } | Array<{ item: number }>;
@@ -16,7 +17,7 @@ export interface INodeExecutionData {
 /**
  * Node execution output
  */
-export type NodeExecutionOutput = INodeExecutionData[][];
+export type NodeExecutionOutput = IExecutionDataItem[][];
 
 /**
  * Execution error interface
@@ -41,7 +42,7 @@ export interface IContinueOnFailOptions {
  * Wrap a single data object in execution data format
  * @param data The data object
  */
-export function wrapData(data: Record<string, unknown>): INodeExecutionData {
+export function wrapExecutionData(data: Record<string, unknown>): IExecutionDataItem {
   return { json: data };
 }
 
@@ -49,15 +50,15 @@ export function wrapData(data: Record<string, unknown>): INodeExecutionData {
  * Wrap multiple data objects in execution data format
  * @param data Array of data objects
  */
-export function wrapDataArray(data: Array<Record<string, unknown>>): INodeExecutionData[] {
-  return data.map(item => wrapData(item));
+export function wrapExecutionDataArray(data: Array<Record<string, unknown>>): IExecutionDataItem[] {
+  return data.map(item => wrapExecutionData(item));
 }
 
 /**
  * Extract JSON data from execution data items
  * @param items Execution data items
  */
-export function extractJsonData(items: INodeExecutionData[]): Array<Record<string, unknown>> {
+export function extractJsonData(items: IExecutionDataItem[]): Array<Record<string, unknown>> {
   return items.map(item => item.json);
 }
 
@@ -76,7 +77,7 @@ export function createEmptyOutput(outputCount: number): NodeExecutionOutput {
  * @param totalOutputs Total number of outputs
  */
 export function createOutputAt(
-  items: INodeExecutionData[],
+  items: IExecutionDataItem[],
   outputIndex: number,
   totalOutputs: number,
 ): NodeExecutionOutput {
@@ -110,9 +111,9 @@ export function mergeOutputs(...outputs: NodeExecutionOutput[]): NodeExecutionOu
  * @param predicate Filter predicate
  */
 export function filterItems(
-  items: INodeExecutionData[],
-  predicate: (item: INodeExecutionData, index: number) => boolean,
-): INodeExecutionData[] {
+  items: IExecutionDataItem[],
+  predicate: (item: IExecutionDataItem, index: number) => boolean,
+): IExecutionDataItem[] {
   return items.filter(predicate);
 }
 
@@ -122,8 +123,8 @@ export function filterItems(
  * @param mapper Mapper function
  */
 export async function transformItems<T>(
-  items: INodeExecutionData[],
-  mapper: (item: INodeExecutionData, index: number) => Promise<T>,
+  items: IExecutionDataItem[],
+  mapper: (item: IExecutionDataItem, index: number) => Promise<T>,
 ): Promise<T[]> {
   return await Promise.all(items.map(mapper));
 }
@@ -135,9 +136,9 @@ export async function transformItems<T>(
  * @param processor Batch processor function
  */
 export async function processInBatches<T>(
-  items: INodeExecutionData[],
+  items: IExecutionDataItem[],
   batchSize: number,
-  processor: (batch: INodeExecutionData[], batchIndex: number) => Promise<T[]>,
+  processor: (batch: IExecutionDataItem[], batchIndex: number) => Promise<T[]>,
 ): Promise<T[]> {
   const results: T[] = [];
   
@@ -156,9 +157,9 @@ export async function processInBatches<T>(
  * @param sourceItemIndex Source item index
  */
 export function addPairedItem(
-  item: INodeExecutionData,
+  item: IExecutionDataItem,
   sourceItemIndex: number,
-): INodeExecutionData {
+): IExecutionDataItem {
   return {
     ...item,
     pairedItem: { item: sourceItemIndex },
@@ -171,9 +172,9 @@ export function addPairedItem(
  * @param sourceItemIndices Source item indices
  */
 export function addMultiplePairedItems(
-  item: INodeExecutionData,
+  item: IExecutionDataItem,
   sourceItemIndices: number[],
-): INodeExecutionData {
+): IExecutionDataItem {
   return {
     ...item,
     pairedItem: sourceItemIndices.map(index => ({ item: index })),
@@ -187,8 +188,8 @@ export function addMultiplePairedItems(
  */
 export function createErrorItem(
   error: Error,
-  originalItem?: INodeExecutionData,
-): INodeExecutionData {
+  originalItem?: IExecutionDataItem,
+): IExecutionDataItem {
   return {
     json: originalItem?.json ?? {},
     error,
@@ -203,9 +204,9 @@ export function createErrorItem(
  */
 export function handleContinueOnFail(
   error: Error,
-  item: INodeExecutionData,
+  item: IExecutionDataItem,
   options: IContinueOnFailOptions,
-): { success: INodeExecutionData | null; error: INodeExecutionData | null } {
+): { success: IExecutionDataItem | null; error: IExecutionDataItem | null } {
   if (!options.enabled) {
     throw error;
   }
@@ -226,7 +227,7 @@ export function handleContinueOnFail(
  * @param defaultValue Default value if not found
  */
 export function getValueByPath<T = unknown>(
-  item: INodeExecutionData,
+  item: IExecutionDataItem,
   path: string,
   defaultValue?: T,
 ): T | undefined {
@@ -250,10 +251,10 @@ export function getValueByPath<T = unknown>(
  * @param value Value to set
  */
 export function setValueByPath(
-  item: INodeExecutionData,
+  item: IExecutionDataItem,
   path: string,
   value: unknown,
-): INodeExecutionData {
+): IExecutionDataItem {
   const parts = path.split('.');
   const result = { ...item, json: { ...item.json } };
   let current: Record<string, unknown> = result.json;
@@ -275,7 +276,7 @@ export function setValueByPath(
  * Remove null/undefined values from execution data item
  * @param item Execution data item
  */
-export function removeEmptyValues(item: INodeExecutionData): INodeExecutionData {
+export function removeEmptyValues(item: IExecutionDataItem): IExecutionDataItem {
   const cleanObject = (obj: Record<string, unknown>): Record<string, unknown> => {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -301,7 +302,7 @@ export function removeEmptyValues(item: INodeExecutionData): INodeExecutionData 
  * @param item Execution data item
  * @param separator Key separator
  */
-export function flattenItem(item: INodeExecutionData, separator = '.'): INodeExecutionData {
+export function flattenItem(item: IExecutionDataItem, separator = '.'): IExecutionDataItem {
   const flatten = (
     obj: Record<string, unknown>,
     prefix = '',
@@ -332,7 +333,7 @@ export function flattenItem(item: INodeExecutionData, separator = '.'): INodeExe
  * @param item Execution data item
  * @param separator Key separator
  */
-export function unflattenItem(item: INodeExecutionData, separator = '.'): INodeExecutionData {
+export function unflattenItem(item: IExecutionDataItem, separator = '.'): IExecutionDataItem {
   const result: Record<string, unknown> = {};
   
   for (const [key, value] of Object.entries(item.json)) {
@@ -361,7 +362,7 @@ export function unflattenItem(item: INodeExecutionData, separator = '.'): INodeE
  * @param requiredFields Array of required field names
  */
 export function validateRequiredFields(
-  item: INodeExecutionData,
+  item: IExecutionDataItem,
   requiredFields: string[],
 ): { valid: boolean; missingFields: string[] } {
   const missingFields: string[] = [];
@@ -387,7 +388,7 @@ export function validateRequiredFields(
 export function createFromApiResponse(
   response: unknown,
   dataPath?: string,
-): INodeExecutionData[] {
+): IExecutionDataItem[] {
   let data: unknown = response;
   
   if (dataPath) {
@@ -400,12 +401,12 @@ export function createFromApiResponse(
   }
   
   if (Array.isArray(data)) {
-    return wrapDataArray(data as Array<Record<string, unknown>>);
+    return wrapExecutionDataArray(data as Array<Record<string, unknown>>);
   }
   
   if (data && typeof data === 'object') {
-    return [wrapData(data as Record<string, unknown>)];
+    return [wrapExecutionData(data as Record<string, unknown>)];
   }
   
-  return [wrapData({ value: data })];
+  return [wrapExecutionData({ value: data })];
 }

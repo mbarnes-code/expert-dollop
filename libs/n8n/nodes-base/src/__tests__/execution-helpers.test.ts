@@ -23,19 +23,19 @@ import {
   unflattenItem,
   validateRequiredFields,
   createFromApiResponse,
-  type INodeExecutionData,
+  type IExecutionDataItem,
 } from '../execution/execution-helpers';
 
 describe('wrapData', () => {
   it('should wrap a single object', () => {
-    const result = wrapData({ name: 'test' });
+    const result = wrapExecutionData({ name: 'test' });
     expect(result).toEqual({ json: { name: 'test' } });
   });
 });
 
 describe('wrapDataArray', () => {
   it('should wrap an array of objects', () => {
-    const result = wrapDataArray([{ name: 'test1' }, { name: 'test2' }]);
+    const result = wrapExecutionDataArray([{ name: 'test1' }, { name: 'test2' }]);
     expect(result).toEqual([
       { json: { name: 'test1' } },
       { json: { name: 'test2' } },
@@ -45,7 +45,7 @@ describe('wrapDataArray', () => {
 
 describe('extractJsonData', () => {
   it('should extract JSON data from items', () => {
-    const items: INodeExecutionData[] = [
+    const items: IExecutionDataItem[] = [
       { json: { name: 'test1' } },
       { json: { name: 'test2' } },
     ];
@@ -63,7 +63,7 @@ describe('createEmptyOutput', () => {
 
 describe('createOutputAt', () => {
   it('should create output with items at specific index', () => {
-    const items: INodeExecutionData[] = [{ json: { name: 'test' } }];
+    const items: IExecutionDataItem[] = [{ json: { name: 'test' } }];
     const result = createOutputAt(items, 1, 3);
     expect(result).toEqual([[], items, []]);
   });
@@ -71,8 +71,8 @@ describe('createOutputAt', () => {
 
 describe('mergeOutputs', () => {
   it('should merge multiple outputs', () => {
-    const output1: INodeExecutionData[][] = [[{ json: { a: 1 } }], []];
-    const output2: INodeExecutionData[][] = [[{ json: { b: 2 } }], [{ json: { c: 3 } }]];
+    const output1: IExecutionDataItem[][] = [[{ json: { a: 1 } }], []];
+    const output2: IExecutionDataItem[][] = [[{ json: { b: 2 } }], [{ json: { c: 3 } }]];
     
     const result = mergeOutputs(output1, output2);
     
@@ -88,7 +88,7 @@ describe('mergeOutputs', () => {
 
 describe('filterItems', () => {
   it('should filter items based on predicate', () => {
-    const items: INodeExecutionData[] = [
+    const items: IExecutionDataItem[] = [
       { json: { value: 1 } },
       { json: { value: 2 } },
       { json: { value: 3 } },
@@ -103,7 +103,7 @@ describe('filterItems', () => {
 
 describe('transformItems', () => {
   it('should transform items using async mapper', async () => {
-    const items: INodeExecutionData[] = [
+    const items: IExecutionDataItem[] = [
       { json: { value: 1 } },
       { json: { value: 2 } },
     ];
@@ -118,7 +118,7 @@ describe('transformItems', () => {
 
 describe('processInBatches', () => {
   it('should process items in batches', async () => {
-    const items: INodeExecutionData[] = Array.from({ length: 5 }, (_, i) => ({
+    const items: IExecutionDataItem[] = Array.from({ length: 5 }, (_, i) => ({
       json: { value: i },
     }));
     
@@ -135,7 +135,7 @@ describe('processInBatches', () => {
 
 describe('addPairedItem', () => {
   it('should add paired item reference', () => {
-    const item: INodeExecutionData = { json: { name: 'test' } };
+    const item: IExecutionDataItem = { json: { name: 'test' } };
     const result = addPairedItem(item, 5);
     
     expect(result.pairedItem).toEqual({ item: 5 });
@@ -144,7 +144,7 @@ describe('addPairedItem', () => {
 
 describe('addMultiplePairedItems', () => {
   it('should add multiple paired item references', () => {
-    const item: INodeExecutionData = { json: { name: 'test' } };
+    const item: IExecutionDataItem = { json: { name: 'test' } };
     const result = addMultiplePairedItems(item, [1, 2, 3]);
     
     expect(result.pairedItem).toEqual([{ item: 1 }, { item: 2 }, { item: 3 }]);
@@ -154,7 +154,7 @@ describe('addMultiplePairedItems', () => {
 describe('createErrorItem', () => {
   it('should create error item with original data', () => {
     const error = new Error('Test error');
-    const original: INodeExecutionData = { json: { name: 'test' } };
+    const original: IExecutionDataItem = { json: { name: 'test' } };
     
     const result = createErrorItem(error, original);
     
@@ -175,14 +175,14 @@ describe('createErrorItem', () => {
 describe('handleContinueOnFail', () => {
   it('should throw error when disabled', () => {
     const error = new Error('Test error');
-    const item: INodeExecutionData = { json: {} };
+    const item: IExecutionDataItem = { json: {} };
     
     expect(() => handleContinueOnFail(error, item, { enabled: false })).toThrow('Test error');
   });
 
   it('should return error item on main output', () => {
     const error = new Error('Test error');
-    const item: INodeExecutionData = { json: { name: 'test' } };
+    const item: IExecutionDataItem = { json: { name: 'test' } };
     
     const result = handleContinueOnFail(error, item, { enabled: true });
     
@@ -193,7 +193,7 @@ describe('handleContinueOnFail', () => {
 
   it('should return error item on error output', () => {
     const error = new Error('Test error');
-    const item: INodeExecutionData = { json: { name: 'test' } };
+    const item: IExecutionDataItem = { json: { name: 'test' } };
     
     const result = handleContinueOnFail(error, item, {
       enabled: true,
@@ -208,7 +208,7 @@ describe('handleContinueOnFail', () => {
 
 describe('getValueByPath', () => {
   it('should get value by dot-notation path', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { user: { name: { first: 'John' } } },
     };
     
@@ -217,7 +217,7 @@ describe('getValueByPath', () => {
   });
 
   it('should return default value when path not found', () => {
-    const item: INodeExecutionData = { json: {} };
+    const item: IExecutionDataItem = { json: {} };
     
     const result = getValueByPath(item, 'missing.path', 'default');
     expect(result).toBe('default');
@@ -226,14 +226,14 @@ describe('getValueByPath', () => {
 
 describe('setValueByPath', () => {
   it('should set value by dot-notation path', () => {
-    const item: INodeExecutionData = { json: {} };
+    const item: IExecutionDataItem = { json: {} };
     
     const result = setValueByPath(item, 'user.name', 'John');
     expect(result.json).toEqual({ user: { name: 'John' } });
   });
 
   it('should preserve existing values', () => {
-    const item: INodeExecutionData = { json: { existing: 'value' } };
+    const item: IExecutionDataItem = { json: { existing: 'value' } };
     
     const result = setValueByPath(item, 'new', 'value');
     expect(result.json).toEqual({ existing: 'value', new: 'value' });
@@ -242,7 +242,7 @@ describe('setValueByPath', () => {
 
 describe('removeEmptyValues', () => {
   it('should remove null and undefined values', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { a: 'value', b: null, c: undefined, d: 0 },
     };
     
@@ -251,7 +251,7 @@ describe('removeEmptyValues', () => {
   });
 
   it('should handle nested objects', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { outer: { inner: null, value: 'test' } },
     };
     
@@ -262,7 +262,7 @@ describe('removeEmptyValues', () => {
 
 describe('flattenItem', () => {
   it('should flatten nested objects', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { user: { name: 'John', address: { city: 'NYC' } } },
     };
     
@@ -274,7 +274,7 @@ describe('flattenItem', () => {
   });
 
   it('should support custom separator', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { user: { name: 'John' } },
     };
     
@@ -285,7 +285,7 @@ describe('flattenItem', () => {
 
 describe('unflattenItem', () => {
   it('should unflatten keys to nested objects', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { 'user.name': 'John', 'user.age': 30 },
     };
     
@@ -296,7 +296,7 @@ describe('unflattenItem', () => {
 
 describe('validateRequiredFields', () => {
   it('should return valid for all fields present', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { name: 'John', email: 'john@example.com' },
     };
     
@@ -306,7 +306,7 @@ describe('validateRequiredFields', () => {
   });
 
   it('should return missing fields', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { name: 'John' },
     };
     
@@ -316,7 +316,7 @@ describe('validateRequiredFields', () => {
   });
 
   it('should consider empty strings as missing', () => {
-    const item: INodeExecutionData = {
+    const item: IExecutionDataItem = {
       json: { name: '' },
     };
     

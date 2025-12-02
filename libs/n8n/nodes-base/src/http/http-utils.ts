@@ -4,9 +4,10 @@
  */
 
 /**
- * HTTP request options interface
+ * Extended HTTP request options interface
+ * Note: Extends the base interface from common/types
  */
-export interface IHttpRequestOptions {
+export interface IExtendedHttpRequestOptions {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
   headers?: Record<string, string>;
@@ -157,7 +158,7 @@ export function redactSecrets<T = unknown>(obj: T, secrets: string[]): T {
  * @param secrets Optional array of secret values to redact
  */
 export function sanitizeRequestForUi(
-  request: IHttpRequestOptions,
+  request: IExtendedHttpRequestOptions,
   authDataKeys: AuthDataSanitizeKeys = {},
   secrets: string[] = [],
 ): Record<string, unknown> {
@@ -353,9 +354,9 @@ export function parseLinkHeader(header: string): Record<string, string> {
 }
 
 /**
- * Retry configuration
+ * HTTP retry configuration
  */
-export interface IRetryConfig {
+export interface IHttpRetryConfig {
   /** Maximum number of retry attempts */
   maxRetries: number;
   /** Base delay in milliseconds */
@@ -371,7 +372,7 @@ export interface IRetryConfig {
 /**
  * Default retry configuration
  */
-export const DEFAULT_RETRY_CONFIG: IRetryConfig = {
+export const DEFAULT_RETRY_CONFIG: IHttpRetryConfig = {
   maxRetries: 3,
   baseDelay: 1000,
   maxDelay: 30000,
@@ -384,7 +385,7 @@ export const DEFAULT_RETRY_CONFIG: IRetryConfig = {
  * @param attempt Current attempt number (0-based)
  * @param config Retry configuration
  */
-export function calculateRetryDelay(attempt: number, config: IRetryConfig = DEFAULT_RETRY_CONFIG): number {
+export function calculateRetryDelay(attempt: number, config: IHttpRetryConfig = DEFAULT_RETRY_CONFIG): number {
   if (config.exponentialBackoff) {
     const delay = config.baseDelay * Math.pow(2, attempt);
     return Math.min(delay, config.maxDelay);
@@ -397,7 +398,7 @@ export function calculateRetryDelay(attempt: number, config: IRetryConfig = DEFA
  * @param statusCode HTTP status code
  * @param config Retry configuration
  */
-export function shouldRetry(statusCode: number, config: IRetryConfig = DEFAULT_RETRY_CONFIG): boolean {
+export function shouldRetry(statusCode: number, config: IHttpRetryConfig = DEFAULT_RETRY_CONFIG): boolean {
   return config.retryStatusCodes.includes(statusCode);
 }
 

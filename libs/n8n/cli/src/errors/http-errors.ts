@@ -3,12 +3,14 @@
  */
 export abstract class HttpError extends Error {
   abstract readonly statusCode: number;
-  abstract readonly errorCode: string;
+  readonly errorCode: string = 'ERROR';
 
   constructor(message: string) {
     super(message);
     this.name = this.constructor.name;
-    Error.captureStackTrace(this, this.constructor);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 
   /**
@@ -29,7 +31,7 @@ export abstract class HttpError extends Error {
  */
 export class BadRequestError extends HttpError {
   readonly statusCode = 400;
-  readonly errorCode = 'BAD_REQUEST';
+  override readonly errorCode = 'BAD_REQUEST';
 
   constructor(message = 'Bad Request') {
     super(message);
@@ -41,7 +43,7 @@ export class BadRequestError extends HttpError {
  */
 export class UnauthorizedError extends HttpError {
   readonly statusCode = 401;
-  readonly errorCode = 'UNAUTHORIZED';
+  override readonly errorCode = 'UNAUTHORIZED';
 
   constructor(message = 'Unauthorized') {
     super(message);
@@ -53,7 +55,7 @@ export class UnauthorizedError extends HttpError {
  */
 export class ForbiddenError extends HttpError {
   readonly statusCode = 403;
-  readonly errorCode = 'FORBIDDEN';
+  override readonly errorCode = 'FORBIDDEN';
 
   constructor(message = 'Forbidden') {
     super(message);
@@ -65,7 +67,7 @@ export class ForbiddenError extends HttpError {
  */
 export class NotFoundError extends HttpError {
   readonly statusCode = 404;
-  readonly errorCode = 'NOT_FOUND';
+  override readonly errorCode = 'NOT_FOUND';
 
   constructor(message = 'Not Found') {
     super(message);
@@ -77,7 +79,7 @@ export class NotFoundError extends HttpError {
  */
 export class MethodNotAllowedError extends HttpError {
   readonly statusCode = 405;
-  readonly errorCode = 'METHOD_NOT_ALLOWED';
+  override readonly errorCode = 'METHOD_NOT_ALLOWED';
 
   constructor(message = 'Method Not Allowed') {
     super(message);
@@ -89,7 +91,7 @@ export class MethodNotAllowedError extends HttpError {
  */
 export class ConflictError extends HttpError {
   readonly statusCode = 409;
-  readonly errorCode = 'CONFLICT';
+  override readonly errorCode = 'CONFLICT';
 
   constructor(message = 'Conflict') {
     super(message);
@@ -101,7 +103,7 @@ export class ConflictError extends HttpError {
  */
 export class UnprocessableEntityError extends HttpError {
   readonly statusCode = 422;
-  readonly errorCode = 'UNPROCESSABLE_ENTITY';
+  override readonly errorCode = 'UNPROCESSABLE_ENTITY';
 
   constructor(message = 'Unprocessable Entity') {
     super(message);
@@ -113,7 +115,7 @@ export class UnprocessableEntityError extends HttpError {
  */
 export class TooManyRequestsError extends HttpError {
   readonly statusCode = 429;
-  readonly errorCode = 'TOO_MANY_REQUESTS';
+  override readonly errorCode = 'TOO_MANY_REQUESTS';
 
   constructor(message = 'Too Many Requests') {
     super(message);
@@ -125,7 +127,7 @@ export class TooManyRequestsError extends HttpError {
  */
 export class InternalServerError extends HttpError {
   readonly statusCode = 500;
-  readonly errorCode = 'INTERNAL_SERVER_ERROR';
+  override readonly errorCode = 'INTERNAL_SERVER_ERROR';
 
   constructor(message = 'Internal Server Error') {
     super(message);
@@ -137,7 +139,7 @@ export class InternalServerError extends HttpError {
  */
 export class BadGatewayError extends HttpError {
   readonly statusCode = 502;
-  readonly errorCode = 'BAD_GATEWAY';
+  override readonly errorCode = 'BAD_GATEWAY';
 
   constructor(message = 'Bad Gateway') {
     super(message);
@@ -149,7 +151,7 @@ export class BadGatewayError extends HttpError {
  */
 export class ServiceUnavailableError extends HttpError {
   readonly statusCode = 503;
-  readonly errorCode = 'SERVICE_UNAVAILABLE';
+  override readonly errorCode = 'SERVICE_UNAVAILABLE';
 
   constructor(message = 'Service Unavailable') {
     super(message);
@@ -161,7 +163,7 @@ export class ServiceUnavailableError extends HttpError {
  */
 export class GatewayTimeoutError extends HttpError {
   readonly statusCode = 504;
-  readonly errorCode = 'GATEWAY_TIMEOUT';
+  override readonly errorCode = 'GATEWAY_TIMEOUT';
 
   constructor(message = 'Gateway Timeout') {
     super(message);
@@ -171,7 +173,8 @@ export class GatewayTimeoutError extends HttpError {
 /**
  * Validation error with field-level details
  */
-export class ValidationError extends BadRequestError {
+export class ValidationError extends HttpError {
+  readonly statusCode = 400;
   override readonly errorCode = 'VALIDATION_ERROR';
   readonly validationErrors: Record<string, string[]>;
 
@@ -194,7 +197,8 @@ export class ValidationError extends BadRequestError {
 /**
  * Authentication error with hint
  */
-export class AuthenticationError extends UnauthorizedError {
+export class AuthenticationError extends HttpError {
+  readonly statusCode = 401;
   override readonly errorCode = 'AUTHENTICATION_ERROR';
   readonly hint?: string;
 
