@@ -1,0 +1,19 @@
+{
+  "name": "@expert-dollop/n8n-permissions",
+  "version": "0.1.0",
+  "description": "Permission and scope management for n8n modules - hoisted shared dependency",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint . --quiet",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

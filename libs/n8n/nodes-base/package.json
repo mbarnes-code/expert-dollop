@@ -1,0 +1,22 @@
+{
+  "name": "@expert-dollop/n8n-nodes-base",
+  "version": "0.1.0",
+  "description": "Core node abstractions and utilities for n8n workflow automation",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "keywords": [
+    "n8n",
+    "nodes",
+    "workflow",
+    "automation"
+  ],
+  "peerDependencies": {
+    "@expert-dollop/n8n-workflow": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
