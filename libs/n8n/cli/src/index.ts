@@ -11,6 +11,12 @@ export * from './commands';
 // Server abstractions
 export * from './server';
 
+// Controller abstractions
+export * from './controllers';
+
+// Service abstractions
+export * from './services';
+
 // Middleware utilities
 export * from './middlewares';
 
