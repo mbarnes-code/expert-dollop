@@ -12,7 +12,7 @@ import {
   closeBullMQRedisConnection,
   getBullMQConnectionStatus,
   type EmailJobData,
-} from '../index';
+} from './index';
 
 async function testBullMQSetup() {
   console.log('=== BullMQ Infrastructure Test ===\n');

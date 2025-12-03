@@ -210,6 +210,12 @@ const daprClient = new DaprClient();
 const daprIntegratedWorker = createWorker(
   QueueName.FIRECRAWL_EXTRACT,
   async (job) => {
+    // Example processing function (would be defined elsewhere in real implementation)
+    const processExtraction = async (data: any) => {
+      // Processing logic here
+      return { success: true, data: 'processed' };
+    };
+    
     // Process the job
     const result = await processExtraction(job.data);
     
@@ -282,8 +288,8 @@ await emailQueue.add(
   }
 );
 
-// Schedule a job to run at specific time
-const targetTime = new Date('2024-12-03T15:00:00Z');
+// Schedule a job to run at specific time (tomorrow at this time)
+const targetTime = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
 const delayMs = targetTime.getTime() - Date.now();
 
 await emailQueue.add(

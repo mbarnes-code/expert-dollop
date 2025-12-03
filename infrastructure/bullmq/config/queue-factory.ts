@@ -46,11 +46,11 @@ export enum QueueName {
 // Default job options for all queues
 const DEFAULT_JOB_OPTIONS: JobsOptions = {
   removeOnComplete: {
-    age: 90000, // 25 hours
+    age: 90000000, // 25 hours (90000000ms = 25 * 60 * 60 * 1000)
     count: 1000,
   },
   removeOnFail: {
-    age: 90000, // 25 hours
+    age: 90000000, // 25 hours
     count: 5000,
   },
   attempts: 3,
