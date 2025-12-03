@@ -25,6 +25,7 @@
       "@expert-dollop/ai/feature": ["libs/ai/feature/src/index.ts"],
       "@expert-dollop/ai/data-access": ["libs/ai/data-access/src/index.ts"],
       "@expert-dollop/ai/agent-interface": ["libs/ai/agent-interface/src/index.ts"],
+      "@expert-dollop/ai/agent-dapr": ["libs/ai/agent-dapr/src/index.ts"],
       "@expert-dollop/tcg/feature": ["libs/tcg/feature/src/index.ts"],
       "@expert-dollop/tcg/data-access": ["libs/tcg/data-access/src/index.ts"],
       "@expert-dollop/n8n-shared": ["libs/n8n/shared/src/index.ts"],

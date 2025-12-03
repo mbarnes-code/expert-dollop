@@ -1,0 +1,36 @@
+# DAPR State Store Component: Goose AI Agent
+# Bounded Context: AI Agent domain
+# Schema Isolation: Goose owns its conversation and state data via schema restriction
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-goose
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres user=postgres password=postgres port=5432 dbname=expert_dollop sslmode=disable options='-c search_path=goose'"
+    - name: tableName
+      value: "dapr_state"
+    - name: keyPrefix
+      value: "goose"
+    - name: actorStateStore
+      value: "true"
+    - name: cleanupIntervalInSeconds
+      value: "3600"
+    - name: maxIdleTimeInSeconds
+      value: "3600"
+scopes:
+  # Goose services
+  - goose-server
+  - goose-cli
+  - ai-agent-service
+  
+  # Allow access from other AI services
+  - ai-chat
+  - ai-models
+  - ai-training
+  - ai-analytics
