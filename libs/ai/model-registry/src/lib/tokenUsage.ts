@@ -3,6 +3,8 @@
  * Consolidated from firecrawl token tracking
  */
 
+import { getModelPricing } from './models';
+
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
@@ -16,8 +18,6 @@ export interface TokenUsage {
  * @returns Cost in USD
  */
 export function calculateLLMCost(usage: TokenUsage, modelId: string): number {
-  const { getModelPricing } = require('./models');
-  
   const pricing = getModelPricing(modelId);
   
   if (!pricing || !pricing.inputTokenPrice || !pricing.outputTokenPrice) {
