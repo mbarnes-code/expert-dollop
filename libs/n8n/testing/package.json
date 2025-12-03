@@ -1,0 +1,24 @@
+{
+  "name": "@expert-dollop/n8n-testing",
+  "version": "0.1.0",
+  "description": "Shared test utilities, factories, and mocks for n8n modules",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint . --quiet",
+    "test": "echo \"Testing utilities - no tests needed\""
+  },
+  "dependencies": {
+    "@expert-dollop/n8n-types": "workspace:*",
+    "@expert-dollop/n8n-errors": "workspace:*",
+    "@expert-dollop/n8n-workflow": "workspace:*",
+    "@expert-dollop/n8n-db": "workspace:*",
+    "nanoid": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.9.3"
+  }
+}

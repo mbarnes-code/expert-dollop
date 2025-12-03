@@ -1,0 +1,20 @@
+{
+  "name": "@expert-dollop/integration-tests",
+  "version": "0.1.0",
+  "description": "Cross-module integration tests for n8n modules",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@expert-dollop/n8n-testing": "workspace:*",
+    "@expert-dollop/n8n-types": "workspace:*",
+    "@expert-dollop/n8n-workflow": "workspace:*",
+    "@expert-dollop/n8n-db": "workspace:*",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.9.3",
+    "vitest": "^1.0.0"
+  }
+}

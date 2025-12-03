@@ -1,0 +1,128 @@
+name: N8N Cross-Module Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'copilot/**'
+    paths:
+      - 'apps/ai/n8n/**'
+      - 'backend/api/n8n/**'
+      - 'backend/services/n8n/**'
+      - 'libs/n8n/**'
+      - 'tests/integration/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/ai/n8n/**'
+      - 'backend/api/n8n/**'
+      - 'backend/services/n8n/**'
+      - 'libs/n8n/**'
+      - 'tests/integration/**'
+
+jobs:
+  integration-tests:
+    name: Cross-Module Integration Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./tests/integration
+      
+      - name: Run integration tests
+        run: npm test
+        working-directory: ./tests/integration
+        env:
+          CI: true
+      
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "# Integration Test Results" > test-results.md
+          echo "" >> test-results.md
+          echo "**Node Version:** ${{ matrix.node-version }}" >> test-results.md
+          echo "**Date:** $(date)" >> test-results.md
+          echo "" >> test-results.md
+          
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "## Coverage Summary" >> test-results.md
+            cat coverage/coverage-summary.json >> test-results.md
+          fi
+        working-directory: ./tests/integration
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            tests/integration/test-results.md
+            tests/integration/coverage/
+          retention-days: 30
+      
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = 'Integration tests completed';
+            
+            try {
+              const resultsPath = 'tests/integration/test-results.md';
+              if (fs.existsSync(resultsPath)) {
+                report = fs.readFileSync(resultsPath, 'utf8');
+              }
+            } catch (error) {
+              console.error('Error reading test results:', error);
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+  
+  test-utilities-check:
+    name: Test Utilities Build Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./libs/n8n/testing
+      
+      - name: Build test utilities
+        run: npm run build
+        working-directory: ./libs/n8n/testing
+      
+      - name: Lint test utilities
+        run: npm run lint
+        working-directory: ./libs/n8n/testing
+        continue-on-error: true
