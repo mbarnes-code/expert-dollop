@@ -1,0 +1,1 @@
+../../../features/goose/crates/goose/src/providers/gcpauth.rs

@@ -1,0 +1,1 @@
+../../../features/goose/crates/goose-server/src/auth.rs
