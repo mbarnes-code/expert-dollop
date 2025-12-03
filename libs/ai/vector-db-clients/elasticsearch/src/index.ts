@@ -23,8 +23,8 @@ export {
 } from './lib/domain/repositories/elasticsearch.repository.interface';
 
 // Application Layer Exports
-// TODO: Add when implemented
-// export { ElasticsearchService } from './lib/application/services/elasticsearch.service';
+export { ElasticsearchService } from './lib/application/services/elasticsearch.service';
+export * from './lib/application/dtos';
 
 // Infrastructure Layer Exports
 // TODO: Add when implemented

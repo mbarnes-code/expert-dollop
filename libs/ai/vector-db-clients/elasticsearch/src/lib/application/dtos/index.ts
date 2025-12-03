@@ -8,6 +8,8 @@
 export * from './search-request.dto';
 export * from './bulk-index-request.dto';
 export * from './index-document-request.dto';
+export * from './update-document-request.dto';
+export * from './delete-document-request.dto';
 export * from './create-index-request.dto';
 
 // Response DTOs
