@@ -19,8 +19,12 @@
     "url": "https://github.com/mbarnes-code/expert-dollop"
   },
   "author": "expert-dollop contributors",
+  "dependencies": {
+    "pg": "^8.11.0"
+  },
   "peerDependencies": {},
   "devDependencies": {
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0"
   }
 }
