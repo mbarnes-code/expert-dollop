@@ -21,6 +21,21 @@ The integration follows Domain-Driven Design (DDD) principles with a modular mon
 - **Headless Browsers**: Chrome, Firefox support
 - **Actions**: Click, scroll, input, wait capabilities
 
+### Go HTML-to-Markdown Service (`apps/ai/go-html-to-md-service`)
+- **HTML Conversion**: Go-based service for converting HTML to Markdown
+- **High Performance**: Efficient HTML parsing and conversion
+- **Standalone Service**: Microservice architecture
+
+### Redis Service (`apps/ai/firecrawl-redis`)
+- **Queue Backend**: Redis configuration for BullMQ
+- **Caching Layer**: High-performance data caching
+- **Session Storage**: Job queue state management
+
+### NUQ Postgres (`apps/ai/nuq-postgres`)
+- **Queue Database**: PostgreSQL setup for NUQ (New Universal Queue)
+- **SQL Schema**: Database schema for queue management
+- **Persistence Layer**: Durable job queue storage
+
 ### UI (`apps/ai/firecrawl-ui`)
 - **React-based UI**: Vite + React + TypeScript
 - **Ingestion Interface**: Configure and monitor scraping jobs

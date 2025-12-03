@@ -28,7 +28,33 @@ Dedicated browser automation microservice:
 - Headless browser support
 - Browser actions (click, scroll, input)
 
-### 3. UI Components
+### 3. Go HTML-to-Markdown Service
+**From:** `features/firecrawl/apps/go-html-to-md-service`  
+**To:** `apps/ai/go-html-to-md-service`
+
+Go-based HTML conversion microservice:
+- High-performance HTML parsing
+- Markdown conversion
+- Standalone service architecture
+
+### 4. Redis Service
+**From:** `features/firecrawl/apps/redis`  
+**To:** `apps/ai/firecrawl-redis`
+
+Redis configuration and setup:
+- Queue backend for BullMQ
+- Caching layer
+- Session storage
+
+### 5. NUQ Postgres
+**From:** `features/firecrawl/apps/nuq-postgres`  
+**To:** `apps/ai/nuq-postgres`
+
+PostgreSQL setup for NUQ (New Universal Queue):
+- Queue database schema
+- Persistence layer for job queues
+
+### 6. UI Components
 **From:** `features/firecrawl/apps/ui/ingestion-ui`  
 **To:** `apps/ai/firecrawl-ui`
 
@@ -37,7 +63,7 @@ React-based ingestion interface:
 - Radix UI components
 - Tailwind CSS styling
 
-### 4. SDKs
+### 7. SDKs
 **From:** `features/firecrawl/apps/*-sdk`  
 **To:** `apps/ai/firecrawl-sdks/`
 
@@ -46,7 +72,7 @@ Multi-language SDK support:
 - Python SDK
 - Rust SDK (for goose integration)
 
-### 5. Examples
+### 8. Examples
 **From:** `features/firecrawl/examples`  
 **To:** `apps/ai/firecrawl-examples`
 
@@ -56,7 +82,7 @@ Multi-language SDK support:
 - Web crawlers
 - Data extraction pipelines
 
-### 6. Database Schema
+### 9. Database Schema
 **Created:** `infrastructure/postgres/schemas/firecrawl.sql`
 
 PostgreSQL schema with tables:
@@ -74,7 +100,7 @@ PostgreSQL schema with tables:
 - `events` - Event log
 - `dapr_state` - DAPR state store
 
-### 7. DDD Backend Module
+### 10. DDD Backend Module
 **Created:** `backend/api/firecrawl/`
 
 Python DDD module following clean architecture:
@@ -89,7 +115,7 @@ backend/api/firecrawl/
 └── presentation/         # API controllers
 ```
 
-### 8. DAPR Integration
+### 11. DAPR Integration
 **Created:**
 - `infrastructure/dapr/components/statestore-firecrawl.yaml`
 - `infrastructure/dapr/components/pubsub-firecrawl.yaml`
@@ -139,6 +165,9 @@ expert-dollop/
 │   ├── firecrawl-api/          # TypeScript API service
 │   ├── firecrawl-ui/           # React UI
 │   ├── playwright-service/     # Browser automation
+│   ├── go-html-to-md-service/  # Go HTML conversion service
+│   ├── firecrawl-redis/        # Redis configuration
+│   ├── nuq-postgres/           # NUQ database setup
 │   ├── firecrawl-sdks/         # Multi-language SDKs
 │   │   ├── js-sdk/
 │   │   ├── python-sdk/
