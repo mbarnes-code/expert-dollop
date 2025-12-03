@@ -1,0 +1,13 @@
+{
+  "name": "@expert-dollop/ai-vector-db-clients-elasticsearch",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

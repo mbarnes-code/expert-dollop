@@ -31,6 +31,7 @@
       "@expert-dollop/ai-error-handling": ["libs/ai/error-handling/src/index.ts"],
       "@expert-dollop/ai-model-registry": ["libs/ai/model-registry/src/index.ts"],
       "@expert-dollop/ai-prompt-manager": ["libs/ai/prompt-manager/src/index.ts"],
+      "@expert-dollop/ai-vector-db-clients-elasticsearch": ["libs/ai/vector-db-clients/elasticsearch/src/index.ts"],
       "@expert-dollop/tcg/feature": ["libs/tcg/feature/src/index.ts"],
       "@expert-dollop/tcg/data-access": ["libs/tcg/data-access/src/index.ts"],
       "@expert-dollop/n8n-shared": ["libs/n8n/shared/src/index.ts"],
