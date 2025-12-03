@@ -27,6 +27,4 @@ export { ElasticsearchService } from './lib/application/services/elasticsearch.s
 export * from './lib/application/dtos';
 
 // Infrastructure Layer Exports
-// TODO: Add when implemented
-// export { ElasticsearchRepository } from './lib/infrastructure/repositories/elasticsearch.repository';
-// export { ElasticsearchClientConfig } from './lib/infrastructure/client/elasticsearch-client.config';
+export { ElasticsearchRepository } from './lib/infrastructure/repositories/elasticsearch.repository';
