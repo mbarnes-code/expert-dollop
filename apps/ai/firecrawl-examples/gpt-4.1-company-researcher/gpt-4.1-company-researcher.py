@@ -5,6 +5,7 @@ import requests
 from dotenv import load_dotenv
 from serpapi.google_search import GoogleSearch
 from openai import OpenAI
+from urllib.parse import urlparse
 
 # ANSI color codes
 class Colors:
@@ -100,7 +101,10 @@ def validate_official_source(url, company):
     if "crunchbase.com/organization/" in url_lower:
         return True
         
-    if "producthunt.com" in url_lower:
+    # Safely check for producthunt.com only in the hostname
+    parsed = urlparse(url)
+    host = parsed.hostname.lower() if parsed.hostname else ''
+    if host == "producthunt.com" or host.endswith(".producthunt.com"):
         return True
         
     # Main domain check - more flexible approach
