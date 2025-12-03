@@ -1,0 +1,39 @@
+# DAPR State Store Component: Firecrawl
+# Bounded Context: Firecrawl web scraping domain
+# Schema Isolation: Firecrawl owns its scraping jobs and state data via schema restriction
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-firecrawl
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres user=postgres password=postgres port=5432 dbname=expert_dollop sslmode=disable options='-c search_path=firecrawl'"
+    - name: tableName
+      value: "dapr_state"
+    - name: keyPrefix
+      value: "firecrawl"
+    - name: actorStateStore
+      value: "true"
+    - name: cleanupIntervalInSeconds
+      value: "3600"
+    - name: maxIdleTimeInSeconds
+      value: "3600"
+scopes:
+  # Firecrawl services
+  - firecrawl-api
+  - firecrawl-worker
+  - firecrawl-ui
+  - playwright-service
+  
+  # Allow access from AI services that need web scraping
+  - ai-chat
+  - ai-models
+  - ai-training
+  - ai-analytics
+  - goose-server
+  - goose-cli
