@@ -1,52 +1,57 @@
-# Goose Phase 5: Complete Migration Guide
+# Goose Phase 5: Native TypeScript Implementation - Planning Guide
 
 ## Overview
 
-**Phase**: 5 - Complete Migration  
-**Status**: ✅ Complete  
-**Completed**: 2025-12-03  
-**Goal**: Full DDD-compliant implementation with native code replacing symlinks
+**Phase**: 5 - Native TypeScript Implementation  
+**Status**: ⏳ Not Started - Future Enhancement  
+**Goal**: Full DDD-compliant implementation with native TypeScript/Node.js services
 
 ## Executive Summary
 
-Phase 5 completes the Goose AI Agent strangler fig migration by replacing all symlinks with native TypeScript/Node.js implementations while maintaining backward compatibility with the original Rust codebase. This creates a production-ready, DAPR-native microservices architecture fully aligned with Domain-Driven Design principles.
+Phase 5 is a **planned future enhancement** that would create a complete TypeScript/Node.js rewrite of the Goose AI Agent. This would replace the current Rust implementation with DAPR-native microservices, providing an alternative for teams preferring a Node.js-only stack. 
 
-## Objectives Completed
+**Current State**: The Rust implementation is fully integrated and production-ready. Phases 1-4 are complete, providing source code integration and TypeScript interfaces. Phase 5 is optional.
 
-- [x] Replace symlinks with native TypeScript implementations
-- [x] Create DAPR-native microservices for all Goose components
-- [x] Implement unified testing strategy across all services
-- [x] Remove hard dependency on features/goose
-- [x] Create production deployment configurations
-- [x] Implement comprehensive monitoring and observability
-- [x] Document complete migration and operation procedures
+## Objectives (Planned)
+
+- [ ] Replace Rust implementation with native TypeScript services
+- [ ] Create DAPR-native microservices for all Goose components
+- [ ] Implement unified testing strategy across all services
+- [ ] Create production deployment configurations
+- [ ] Implement comprehensive monitoring and observability
+- [ ] Achieve 100% feature parity with Rust implementation
+- [ ] Document complete migration and operation procedures
 
 ## Architecture Evolution
 
-### Before Phase 5 (Symlink-based)
+### Current State (Rust + TypeScript Interfaces)
 
 ```
 apps/ai/goose/
-├── desktop → ../../../features/goose/ui/desktop    # Symlink
-└── documentation → ../../../features/goose/documentation  # Symlink
-
+├── desktop/                 # Electron app (Rust backend)
+└── documentation/           # Docusaurus docs
 backend/services/goose/
-└── crates → ../../../features/goose/crates         # Symlink
+└── crates/                  # Rust workspace (fully functional)
+
+libs/ai/
+├── agent-interface/         # TypeScript interfaces (Phase 2)
+├── agent-dapr/              # DAPR implementations (Phase 3)
+└── ui/                      # React components (Phase 4)
 ```
 
-### After Phase 5 (Native Implementation)
+### Planned Phase 5 Architecture (TypeScript Services)
 
 ```
 apps/ai/goose/
-├── web/                                # NEW: Next.js web application
+├── web/                                # PLANNED: Next.js web application
 │   ├── app/                           # App router
 │   ├── components/                    # UI components (using @expert-dollop/ai/ui)
 │   └── lib/                           # Utilities and API clients
-├── desktop/                            # MIGRATED: Electron app (optional)
-└── documentation/                      # MIGRATED: Docusaurus docs
+├── desktop/                            # EXISTING: Electron app (could be updated)
+└── documentation/                      # EXISTING: Docusaurus docs
 
 backend/services/goose/
-├── agent-service/                      # NEW: DAPR microservice for agent
+├── agent-service/                      # PLANNED: DAPR microservice for agent
 │   ├── src/
 │   │   ├── agent/                     # Agent orchestration logic
 │   │   ├── conversation/              # Conversation management
@@ -54,27 +59,28 @@ backend/services/goose/
 │   │   └── tools/                     # Tool implementations
 │   ├── Dockerfile
 │   └── package.json
-├── recipe-service/                     # NEW: DAPR microservice for recipes
+├── recipe-service/                     # PLANNED: DAPR microservice for recipes
 │   ├── src/
 │   │   ├── executor/                  # Recipe execution engine
 │   │   ├── validator/                 # Recipe validation
 │   │   └── sub-recipe/                # Sub-recipe management
 │   ├── Dockerfile
 │   └── package.json
-├── extension-service/                  # NEW: DAPR microservice for extensions
+├── extension-service/                  # PLANNED: DAPR microservice for extensions
 │   ├── src/
 │   │   ├── manager/                   # Extension lifecycle
 │   │   ├── loader/                    # MCP extension loading
 │   │   └── registry/                  # Extension registry
 │   ├── Dockerfile
 │   └── package.json
-└── api-gateway/                        # NEW: API Gateway (aggregates services)
-    ├── src/
-    │   ├── routes/                    # API routes
-    │   ├── middleware/                # Auth, logging, etc.
-    │   └── graphql/                   # GraphQL schema (optional)
-    ├── Dockerfile
-    └── package.json
+├── api-gateway/                        # PLANNED: API Gateway (aggregates services)
+│   ├── src/
+│   │   ├── routes/                    # API routes
+│   │   ├── middleware/                # Auth, logging, etc.
+│   │   └── graphql/                   # GraphQL schema (optional)
+│   ├── Dockerfile
+│   └── package.json
+└── crates/                             # EXISTING: Rust workspace (can coexist or be replaced)
 
 libs/ai/                                # Shared libraries from Phases 2-4
 ├── agent-interface/                    # TypeScript interfaces (Phase 2)

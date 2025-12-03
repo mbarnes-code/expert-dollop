@@ -21,11 +21,11 @@ The Strangler Fig pattern is a gradual migration strategy named after the strang
 
 ## Migration Structure
 
-### Phase 1: Symlink Integration (Current)
+### Current State: Source Code Integrated
 
 ```
 expert-dollop/
-├── features/goose/              # Original goose project (unchanged)
+├── features/goose/              # Original goose project (source reference - optional)
 │   ├── ui/desktop/              # Electron desktop app
 │   ├── documentation/           # Docusaurus docs
 │   └── crates/                  # Rust workspace
@@ -35,27 +35,27 @@ expert-dollop/
 │       ├── goose-cli/           # CLI interface
 │       └── ...
 │
-├── apps/ai/goose/               # New frontend location
-│   ├── desktop -> ../../../features/goose/ui/desktop
-│   ├── documentation -> ../../../features/goose/documentation
+├── apps/ai/goose/               # Frontend location (actual code, not symlinks)
+│   ├── desktop/                 # Electron desktop app (copied)
+│   ├── documentation/           # Docusaurus docs (copied)
 │   └── README.md
 │
-├── backend/services/goose/      # New backend location
-│   ├── crates -> ../../../features/goose/crates
+├── backend/services/goose/      # Backend location (actual code, not symlinks)
+│   ├── crates/                  # Rust workspace (copied)
 │   └── README.md
 │
-└── backend/auth/goose/          # New auth location
-    ├── server_auth.rs -> ../../../features/goose/crates/goose-server/src/auth.rs
-    ├── oauth -> ../../../features/goose/crates/goose/src/oauth
-    ├── provider_oauth.rs -> ../../../features/goose/crates/goose/src/providers/oauth.rs
-    ├── azureauth.rs -> ../../../features/goose/crates/goose/src/providers/azureauth.rs
-    ├── gcpauth.rs -> ../../../features/goose/crates/goose/src/providers/gcpauth.rs
+└── backend/auth/goose/          # Auth location (actual code, not symlinks)
+    ├── server_auth.rs           # Server auth (copied)
+    ├── oauth/                   # OAuth directory (copied)
+    ├── provider_oauth.rs        # OAuth provider (copied)
+    ├── azureauth.rs             # Azure auth (copied)
+    ├── gcpauth.rs               # GCP auth (copied)
     └── README.md
 ```
 
-### Critical Components Preserved
+### Critical Components Integrated
 
-All critical components are accessible through symlinks:
+All critical components are now fully integrated into the monorepo:
 
 #### Frontend (`apps/ai/goose/desktop`)
 - Electron desktop application
@@ -204,16 +204,20 @@ The Goose integration represents a distinct bounded context within the AI domain
 
 ## Migration Phases
 
-### Phase 1: Symlink Integration ✅ (Complete)
+### Phase 1: Source Code Integration ✅ (Complete)
 
-**Goal:** Expose Goose functionality in new locations without modifying code.
+**Goal:** Replace symlinks with actual source code in monorepo structure.
 
 **Actions:**
-- [x] Create directory structure
-- [x] Create symlinks
-- [x] Document integration
-- [x] Verify symlink accessibility
-- [x] Create comprehensive documentation
+- [x] Remove symlinks from apps/ai/goose
+- [x] Copy desktop app from features/goose/ui/desktop
+- [x] Copy documentation from features/goose/documentation
+- [x] Remove symlinks from backend/services/goose
+- [x] Copy crates from features/goose/crates
+- [x] Remove symlinks from backend/auth/goose
+- [x] Copy auth files from features/goose
+- [x] Verify all code is accessible
+- [x] Update comprehensive documentation
 
 ### Phase 2: Shared Abstractions ✅ (Complete)
 
@@ -274,22 +278,23 @@ The Goose integration represents a distinct bounded context within the AI domain
 - Comprehensive documentation and usage examples
 - Integration guide for apps/ai/chat
 
-### Phase 5: Complete Migration ✅ (Complete)
+### Phase 5: Native TypeScript Implementation ⏳ (Future)
 
-**Goal:** Full DDD-compliant implementation.
+**Goal:** Full DDD-compliant implementation with native TypeScript/Node.js services.
 
-**Actions:**
-- [x] Create native TypeScript/Node.js microservices
-- [x] Implement DAPR-native agent, recipe, and extension services
-- [x] Build API gateway for unified REST/GraphQL API
-- [x] Create Next.js web application
-- [x] Deploy with Kubernetes and Docker Compose
-- [x] Implement comprehensive testing (unit, integration, e2e)
-- [x] Add monitoring with OpenTelemetry, Prometheus, and Winston
-- [x] Prepare migration path to remove symlinks
-- [x] Document complete architecture and deployment
+**Status:** Not Started - Future Enhancement
 
-**Deliverables:**
+**Planned Actions:**
+- [ ] Create native TypeScript/Node.js microservices
+- [ ] Implement DAPR-native agent, recipe, and extension services
+- [ ] Build API gateway for unified REST/GraphQL API
+- [ ] Create Next.js web application
+- [ ] Deploy with Kubernetes and Docker Compose
+- [ ] Implement comprehensive testing (unit, integration, e2e)
+- [ ] Add monitoring with OpenTelemetry, Prometheus, and Winston
+- [ ] Achieve feature parity with Rust implementation
+
+**Planned Deliverables:**
 - `backend/services/goose/agent-service/` - DAPR microservice for agent orchestration
 - `backend/services/goose/recipe-service/` - DAPR microservice for recipe execution
 - `backend/services/goose/extension-service/` - DAPR microservice for MCP extensions
@@ -297,36 +302,47 @@ The Goose integration represents a distinct bounded context within the AI domain
 - `apps/ai/goose/web/` - Next.js web application
 - `infrastructure/kubernetes/` - Kubernetes manifests
 - `infrastructure/docker-compose/` - Development environment
-- Complete testing suite and monitoring setup
-- Comprehensive documentation in `docs/goose-phase5-complete-migration.md`
+
+**Note:** The current Rust implementation is fully functional and production-ready. Phase 5 would provide a TypeScript alternative for those preferring a Node.js-only stack. See `docs/goose-phase5-complete-migration.md` for detailed planning.
 
 ## Development Workflow
 
 ### Making Changes
 
-**To the original Goose code:**
+**To the integrated Goose code:**
 ```bash
-cd features/goose
-# Make changes as normal
+# Desktop app
+cd apps/ai/goose/desktop
+npm install
+npm run build
+
+# Backend services
+cd backend/services/goose
 cargo build
+cargo test
+
+# Documentation
+cd apps/ai/goose/documentation
+npm install
 npm run build
 ```
 
-**Changes are immediately visible** in new locations due to symlinks.
+**Note:** The code is now fully integrated into the monorepo. Changes should be made in the monorepo locations (apps/ai/goose, backend/services/goose, backend/auth/goose), not in features/goose which is kept as a reference.
 
 ### Adding New Features
 
-**Should I modify features/goose or create new code?**
+**Where to add code:**
 
-- **Goose-specific features**: Modify `features/goose`
-- **Integration features**: Create in `apps/ai/goose` or `backend/services/goose`
-- **Shared features**: Create in `libs/ai/`
+- **Goose Rust features**: Modify `backend/services/goose/crates`
+- **Goose UI features**: Modify `apps/ai/goose/desktop`
+- **Integration features**: Create in appropriate monorepo location
+- **Shared TypeScript features**: Create in `libs/ai/`
 
 ### Testing
 
 ```bash
-# Test original Goose
-cd features/goose
+# Test integrated Goose backend
+cd backend/services/goose
 cargo test --workspace
 npm test
 
@@ -379,15 +395,6 @@ info!("Agent started");
 
 ## Troubleshooting
 
-### Symlinks not working?
-
-Check if Git is configured to handle symlinks:
-```bash
-git config core.symlinks true
-```
-
-On Windows, ensure Developer Mode is enabled or run as Administrator.
-
 ### Build failures?
 
 Ensure Rust toolchain is installed:
@@ -409,9 +416,9 @@ npm install
 When contributing to the Goose integration:
 
 1. **Understand the pattern** - Read this guide first
-2. **Minimal changes** - Prefer symlinks over code changes
+2. **Make changes in monorepo** - Modify code in apps/ai/goose, backend/services/goose, backend/auth/goose
 3. **Document integration** - Update READMEs
-4. **Test thoroughly** - Ensure both old and new paths work
+4. **Test thoroughly** - Ensure functionality works
 5. **Follow DDD** - Respect bounded contexts
 
 ## References
