@@ -108,19 +108,33 @@ Following the principle of **thoroughness over speed**, I've implemented the fou
 
 ---
 
-### 2. libs/ai/vector-db-clients/elasticsearch ✅ DOMAIN LAYER COMPLETE
+### 2. libs/ai/vector-db-clients/elasticsearch ✅ DOMAIN & APPLICATION LAYERS STARTED
 
-**Status:** 🟡 30% Complete (Domain layer production-ready)
+**Status:** 🟡 40% Complete (Domain layer complete, Application layer started)
 
-**Latest Progress:** Domain layer with value objects and repository interface implemented
+**Latest Progress (Session 3):** Application layer DTOs designed, service interface ready
 
 #### Completed Components ✅
 
-**Domain Layer (100% Complete)** 🎉 NEW
+**Domain Layer (100% Complete)**
 - ✅ `IndexName` value object - Validated Elasticsearch index names
 - ✅ `QueryDSL` value object - Type-safe query builder with factory methods
 - ✅ `IElasticsearchRepository` interface - Repository contract with full CRUD
 - ✅ Type-safe search results and bulk operation types
+
+**Application Layer (20% Complete)** 🔄 IN PROGRESS (Session 3)
+- ✅ DTO design complete (10 DTOs designed)
+  - SearchRequestDto, SearchResponseDto
+  - BulkIndexRequestDto, BulkIndexResponseDto
+  - IndexDocumentRequestDto, IndexDocumentResponseDto
+  - UpdateDocumentRequestDto, DeleteDocumentRequestDto
+  - CreateIndexRequestDto, IndexMappingResponseDto
+  - HealthCheckResponseDto
+- ⏳ `ElasticsearchService` - Implementation started (needs completion)
+- ⏳ DTOs - Files need to be created from design
+- [ ] Query orchestration and result transformation
+- [ ] Pagination helpers
+- [ ] Aggregation builders
 
 **Configuration (100% Complete)**
 - ✅ `package.json` - NPM package configuration with @elastic/elasticsearch dependency
@@ -141,12 +155,12 @@ Following the principle of **thoroughness over speed**, I've implemented the fou
 
 #### Remaining Work ⏳
 
-**Application Layer**
-- [ ] `ElasticsearchService` - Business logic orchestration
-- [ ] DTOs (SearchRequestDto, SearchResponseDto, BulkRequestDto)
-- [ ] Query orchestration and result transformation
-- [ ] Pagination helpers
-- [ ] Aggregation builders
+**Application Layer (Immediate - Session 4)**
+- [ ] Complete DTO file creation (10 files) - 1-2 hours
+- [ ] Complete `ElasticsearchService` implementation - 2-3 hours
+- [ ] Add pagination helpers - 1 hour
+- [ ] Add aggregation builders - 2-3 hours
+- **Estimated: 1-2 days**
 
 **Infrastructure Layer**
 - [ ] `ElasticsearchRepository` - Implement IElasticsearchRepository
@@ -171,11 +185,18 @@ Following the principle of **thoroughness over speed**, I've implemented the fou
 - [ ] Security best practices
 
 #### Estimated Time to Complete
-- Application layer: 3-5 days
+- Application layer: 1-2 days (80% designed, need file creation)
 - Infrastructure layer: 1.5 weeks
 - Testing: 1 week
 - Documentation: 2-3 days
-- **Total remaining: 3-4 weeks**
+- **Total remaining: 2.5-3.5 weeks**
+
+#### Next Session Tasks (Priority Order)
+1. **Immediate (1-2 hours):** Create 10 DTO files from design
+2. **Short-term (2-3 hours):** Complete ElasticsearchService implementation
+3. **Short-term (2-3 hours):** Add pagination and aggregation helpers
+4. **Medium-term (1.5 weeks):** Infrastructure layer with @elastic/elasticsearch
+5. **Long-term (1 week):** Comprehensive testing
 
 #### Source Files Extracted
 ```
@@ -301,12 +322,12 @@ features/dispatch/src/dispatch/ai/service.py
 | Component | Status | Progress | Time Invested | Time Remaining |
 |-----------|--------|----------|---------------|----------------|
 | **libs/ai/prompt-manager** | 🟢 In Progress | 80% | 8 hours | 1.5-2 weeks |
-| **libs/ai/vector-db-clients** | 🟡 In Progress | 30% | 2 hours | 3-4 weeks |
+| **libs/ai/vector-db-clients** | 🟡 In Progress | 40% | 4 hours | 2.5-3.5 weeks |
 | **libs/ai/llm-clients** | 🟡 Enhancement | 0% | 0 | 2 weeks |
 | **apps/ai/incident-ai** | 🔴 Not Started | 0% | 0 | 3-4 weeks |
 | **apps/ai/alert-intelligence** | 🔴 Not Started | 0% | 0 | 6-7 weeks |
 
-**Total Progress:** 22% (2 of 5 components in progress, averaging 55% completion)
+**Total Progress:** 24% (2 of 5 components in progress, averaging 60% completion)
 
 ### Quality Metrics (Completed Work)
 
