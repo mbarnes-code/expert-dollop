@@ -1,0 +1,43 @@
+[package]
+name = "goose-n8n-extension"
+version = "0.1.0"
+edition = "2021"
+description = "Native Goose extension for n8n workflow execution"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.35", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Async trait support
+async-trait = "0.1"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+
+# Optional: For building as native Node.js module
+[dependencies.napi]
+version = "2.14"
+optional = true
+features = ["async", "serde-json"]
+
+[dependencies.napi-derive]
+version = "2.14"
+optional = true
+
+[features]
+default = []
+napi-module = ["napi", "napi-derive"]
+
+[build-dependencies]
+napi-build = "2.1"
