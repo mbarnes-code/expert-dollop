@@ -24,6 +24,7 @@ export enum QueueName {
   // N8N queues (placeholder for integration)
   N8N_WORKFLOW = '{n8nWorkflowQueue}',
   N8N_WEBHOOK = '{n8nWebhookQueue}',
+  N8N_EXECUTION = '{n8nExecutionQueue}',
   
   // Inspector queues (placeholder for integration)
   INSPECTOR_ANALYSIS = '{inspectorAnalysisQueue}',
@@ -32,9 +33,38 @@ export enum QueueName {
   DISPATCH_ROUTING = '{dispatchRoutingQueue}',
   DISPATCH_NOTIFICATIONS = '{dispatchNotificationsQueue}',
   
-  // MCP queues (placeholder for integration)
-  MCP_VIRUSTOTAL = '{mcpVirusTotalQueue}',
-  MCP_FIRECRAWL = '{mcpFirecrawlQueue}',
+  // Actual (personal finance) queues (placeholder for integration)
+  ACTUAL_SYNC = '{actualSyncQueue}',
+  ACTUAL_BACKUP = '{actualBackupQueue}',
+  
+  // Ghostwriter queues (placeholder for integration)
+  GHOSTWRITER_COLLAB = '{ghostwriterCollabQueue}',
+  GHOSTWRITER_EXPORT = '{ghostwriterExportQueue}',
+  
+  // Mealie queues (placeholder for integration)
+  MEALIE_RECIPE_IMPORT = '{mealieRecipeImportQueue}',
+  MEALIE_IMAGE_PROCESSING = '{mealieImageProcessingQueue}',
+  
+  // MTG Scripting Toolkit queues (placeholder for integration)
+  MTG_CARD_ANALYSIS = '{mtgCardAnalysisQueue}',
+  MTG_DECK_OPTIMIZATION = '{mtgDeckOptimizationQueue}',
+  
+  // CyberChef queues (placeholder for integration)
+  CYBERCHEF_OPERATION = '{cyberchefOperationQueue}',
+  
+  // IT-Tools queues (placeholder for integration)
+  IT_TOOLS_CONVERSION = '{itToolsConversionQueue}',
+  
+  // Commander Spellbook queues (placeholder for integration)
+  SPELLBOOK_COMBO_SEARCH = '{spellbookComboSearchQueue}',
+  
+  // Nemesis queues (placeholder for integration)
+  NEMESIS_FILE_ENRICHMENT = '{nemesisFileEnrichmentQueue}',
+  NEMESIS_DATA_PROCESSING = '{nemesisDataProcessingQueue}',
+  
+  // FileScopeMCP queues (placeholder for integration)
+  FILESCOPE_INDEXING = '{filescopeIndexingQueue}',
+  FILESCOPE_DEPENDENCY_ANALYSIS = '{filescopeDependencyAnalysisQueue}',
   
   // Generic application queues (placeholder for future use)
   EMAIL = '{emailQueue}',

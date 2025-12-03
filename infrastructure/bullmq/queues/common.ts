@@ -25,11 +25,11 @@ export function createEmailQueue() {
         delay: 10000,
       },
       removeOnComplete: {
-        age: 86400, // 24 hours
+        age: 86400000, // 24 hours
         count: 500,
       },
       removeOnFail: {
-        age: 604800, // 7 days (for debugging)
+        age: 604800000, // 7 days (for debugging)
         count: 2000,
       },
     },
@@ -49,11 +49,11 @@ export function createNotificationsQueue() {
         delay: 5000,
       },
       removeOnComplete: {
-        age: 43200, // 12 hours
+        age: 43200000, // 12 hours
         count: 1000,
       },
       removeOnFail: {
-        age: 172800, // 2 days
+        age: 172800000, // 2 days
         count: 5000,
       },
     },
@@ -73,11 +73,11 @@ export function createAnalyticsQueue() {
         delay: 3000,
       },
       removeOnComplete: {
-        age: 86400, // 24 hours
+        age: 86400000, // 24 hours
         count: 5000,
       },
       removeOnFail: {
-        age: 259200, // 3 days
+        age: 259200000, // 3 days
         count: 10000,
       },
       priority: 5, // Low priority - can be delayed
@@ -98,11 +98,11 @@ export function createBackgroundJobsQueue() {
         delay: 5000,
       },
       removeOnComplete: {
-        age: 86400, // 24 hours
+        age: 86400000, // 24 hours
         count: 1000,
       },
       removeOnFail: {
-        age: 259200, // 3 days
+        age: 259200000, // 3 days
         count: 5000,
       },
     },

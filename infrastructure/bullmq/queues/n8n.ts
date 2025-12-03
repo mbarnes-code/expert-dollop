@@ -4,12 +4,12 @@
  * 
  * When integrating N8N from features/n8n:
  * 1. Import this configuration
- * 2. Create workers for workflow and webhook processing
+ * 2. Create workers for workflow, webhook, and execution processing
  * 3. Update job data types as needed
  */
 
 import { createQueue, QueueName } from '../config/queue-factory';
-import type { N8NWorkflowJobData, N8NWebhookJobData } from '../types';
+import type { N8NWorkflowJobData, N8NWebhookJobData, N8NExecutionJobData } from '../types';
 
 /**
  * N8N Workflow Queue
@@ -24,11 +24,11 @@ export function createN8NWorkflowQueue() {
         delay: 5000,
       },
       removeOnComplete: {
-        age: 86400, // 24 hours
+        age: 86400000, // 24 hours
         count: 100,
       },
       removeOnFail: {
-        age: 259200, // 3 days
+        age: 259200000, // 3 days
         count: 500,
       },
     },
@@ -48,12 +48,36 @@ export function createN8NWebhookQueue() {
         delay: 2000,
       },
       removeOnComplete: {
-        age: 43200, // 12 hours
+        age: 43200000, // 12 hours
         count: 200,
       },
       removeOnFail: {
-        age: 86400, // 24 hours
+        age: 86400000, // 24 hours
         count: 1000,
+      },
+    },
+  });
+}
+
+/**
+ * N8N Execution Queue
+ * Handles workflow execution tracking and monitoring
+ */
+export function createN8NExecutionQueue() {
+  return createQueue<N8NExecutionJobData>(QueueName.N8N_EXECUTION, {
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 3000,
+      },
+      removeOnComplete: {
+        age: 86400000, // 24 hours
+        count: 150,
+      },
+      removeOnFail: {
+        age: 172800000, // 2 days
+        count: 500,
       },
     },
   });

@@ -124,6 +124,13 @@ export interface N8NWebhookJobData extends BaseJobData {
   payload: Record<string, any>;
 }
 
+export interface N8NExecutionJobData extends BaseJobData {
+  executionId: string;
+  workflowId: string;
+  mode: 'manual' | 'webhook' | 'trigger';
+  data?: Record<string, any>;
+}
+
 /**
  * Inspector job data types (placeholders)
  */
@@ -152,19 +159,128 @@ export interface DispatchNotificationJobData extends BaseJobData {
 }
 
 /**
- * MCP job data types (placeholders)
+ * Actual (personal finance) job data types (placeholders)
  */
-export interface MCPVirusTotalJobData extends BaseJobData {
-  hash?: string;
-  url?: string;
-  ip?: string;
-  domain?: string;
-  scanType: 'file' | 'url' | 'ip' | 'domain';
+export interface ActualSyncJobData extends BaseJobData {
+  accountId: string;
+  syncType: 'full' | 'incremental';
+  options?: Record<string, any>;
 }
 
-export interface MCPFirecrawlJobData extends BaseJobData {
-  url: string;
-  action: 'scrape' | 'crawl' | 'extract';
+export interface ActualBackupJobData extends BaseJobData {
+  budgetId: string;
+  backupType: 'local' | 'cloud';
+  destination?: string;
+}
+
+/**
+ * Ghostwriter job data types (placeholders)
+ */
+export interface GhostwriterCollabJobData extends BaseJobData {
+  documentId: string;
+  userId: string;
+  operation: 'edit' | 'comment' | 'review';
+  data?: Record<string, any>;
+}
+
+export interface GhostwriterExportJobData extends BaseJobData {
+  documentId: string;
+  format: 'pdf' | 'docx' | 'html' | 'markdown';
+  options?: Record<string, any>;
+}
+
+/**
+ * Mealie job data types (placeholders)
+ */
+export interface MealieRecipeImportJobData extends BaseJobData {
+  sourceUrl?: string;
+  sourceFile?: string;
+  userId: string;
+  importType: 'url' | 'file' | 'ocr';
+}
+
+export interface MealieImageProcessingJobData extends BaseJobData {
+  recipeId: string;
+  imageUrl: string;
+  operations: Array<'resize' | 'optimize' | 'thumbnail'>;
+}
+
+/**
+ * MTG Scripting Toolkit job data types (placeholders)
+ */
+export interface MTGCardAnalysisJobData extends BaseJobData {
+  cardIds: string[];
+  analysisType: 'pricing' | 'legality' | 'synergy' | 'meta';
+  options?: Record<string, any>;
+}
+
+export interface MTGDeckOptimizationJobData extends BaseJobData {
+  deckId: string;
+  format: 'standard' | 'modern' | 'commander' | 'legacy';
+  constraints?: Record<string, any>;
+}
+
+/**
+ * CyberChef job data types (placeholders)
+ */
+export interface CyberChefOperationJobData extends BaseJobData {
+  input: string | Buffer;
+  recipe: Array<{
+    op: string;
+    args: any[];
+  }>;
+  outputFormat?: 'string' | 'byteArray' | 'number';
+}
+
+/**
+ * IT-Tools job data types (placeholders)
+ */
+export interface ITToolsConversionJobData extends BaseJobData {
+  input: string;
+  toolType: 'base64' | 'hash' | 'jwt' | 'xml' | 'json' | 'yaml';
+  operation: string;
+  options?: Record<string, any>;
+}
+
+/**
+ * Commander Spellbook job data types (placeholders)
+ */
+export interface SpellbookComboSearchJobData extends BaseJobData {
+  cardNames?: string[];
+  colorIdentity?: string[];
+  commanderFormat?: boolean;
+  minCards?: number;
+  maxCards?: number;
+}
+
+/**
+ * Nemesis job data types (placeholders)
+ */
+export interface NemesisFileEnrichmentJobData extends BaseJobData {
+  fileId: string;
+  filePath: string;
+  enrichmentTypes: Array<'metadata' | 'hash' | 'yara' | 'strings'>;
+}
+
+export interface NemesisDataProcessingJobData extends BaseJobData {
+  dataType: 'credential' | 'file' | 'network' | 'process';
+  payload: Record<string, any>;
+  processingSteps: string[];
+}
+
+/**
+ * FileScopeMCP job data types (placeholders)
+ */
+export interface FileScopeIndexingJobData extends BaseJobData {
+  repositoryPath: string;
+  filePatterns?: string[];
+  excludePatterns?: string[];
+  deep?: boolean;
+}
+
+export interface FileScopeDependencyAnalysisJobData extends BaseJobData {
+  filePath: string;
+  analysisType: 'imports' | 'exports' | 'dependencies' | 'references';
   options?: Record<string, any>;
 }
 

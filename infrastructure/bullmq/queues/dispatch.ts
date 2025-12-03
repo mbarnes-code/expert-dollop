@@ -24,11 +24,11 @@ export function createDispatchRoutingQueue() {
         delay: 1000,
       },
       removeOnComplete: {
-        age: 259200, // 3 days (audit trail)
+        age: 259200000, // 3 days (audit trail)
         count: 1000,
       },
       removeOnFail: {
-        age: 604800, // 7 days (investigation)
+        age: 604800000, // 7 days (investigation)
         count: 5000,
       },
       priority: 1, // High priority queue
@@ -49,11 +49,11 @@ export function createDispatchNotificationsQueue() {
         delay: 2000,
       },
       removeOnComplete: {
-        age: 86400, // 24 hours
+        age: 86400000, // 24 hours
         count: 500,
       },
       removeOnFail: {
-        age: 172800, // 2 days
+        age: 172800000, // 2 days
         count: 2000,
       },
       priority: 2, // High priority
