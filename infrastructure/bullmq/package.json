@@ -1,0 +1,29 @@
+{
+  "name": "@expert-dollop/bullmq-infrastructure",
+  "version": "1.0.0",
+  "description": "Shared BullMQ infrastructure for Node.js projects in expert-dollop monorepo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "bullmq",
+    "redis",
+    "queue",
+    "job-queue",
+    "background-jobs"
+  ],
+  "author": "Expert-Dollop Team",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "bullmq": "^5.56.7",
+    "ioredis": "^5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}
