@@ -2,17 +2,18 @@
 
 ## Overview
 
-This directory contains comprehensive documentation for the deep integration between **Goose AI Agent** (Rust/TypeScript) and **n8n workflow automation platform** (TypeScript/Node.js), implementing multiple integration layers from MCP protocol to system-level database and event-driven architecture.
+This directory contains comprehensive documentation for the deep integration between **Goose AI Agent** (Rust/TypeScript) and **n8n workflow automation platform** (TypeScript/Node.js), implementing multiple integration layers from MCP protocol to **native code-level integration** for maximum performance and tight coupling.
 
 ## Integration Summary
 
-The integration provides **five layers** of integration:
+The integration provides **six layers** of integration:
 
-1. **MCP Protocol** - High-level tool integration (already exists)
-2. **Direct API** - Performance-optimized adapters
-3. **Event-Driven** - DAPR pub/sub for asynchronous operations
-4. **Database** - Shared PostgreSQL schema for correlation and analytics
-5. **Shared Libraries** - Common TypeScript types and utilities
+1. **MCP Protocol** - High-level tool integration (existing)
+2. **Code-Level Integration** - Native nodes and extensions for direct execution ⭐ **NEW**
+3. **Direct API** - Performance-optimized adapters
+4. **Event-Driven** - DAPR pub/sub for asynchronous operations
+5. **Database** - Shared PostgreSQL schema for correlation and analytics
+6. **Shared Libraries** - Common TypeScript types and utilities
 
 ## Documentation Structure
 
@@ -25,7 +26,24 @@ The integration provides **five layers** of integration:
 
 **Comprehensive integration guides:**
 
-1. **[n8n-Goose Integration Guide](n8n-goose-integration.md)** (25KB)
+1. **[Code-Level Integration Guide](code-level-integration.md)** (18KB) ⭐ **NEW**
+   - Native n8n nodes for Goose (GooseAgent, GooseRecipe, GooseSkill)
+   - Goose extension for n8n (n8n_native in Rust)
+   - Integration adapters library (GooseAgentBridge, N8nWorkflowAdapter)
+   - Recipe-Workflow bidirectional converter
+   - Shared execution context
+   - Performance optimization (2-5x faster than MCP)
+   - Installation and configuration
+
+2. **[Code Integration Examples](code-integration-examples.md)** (18KB) ⭐ **NEW**
+   - Hybrid agent-workflow pipelines
+   - Recipe to workflow conversion
+   - Shared context patterns
+   - Bi-directional tool integration
+   - Performance benchmarks and optimization
+   - Real-world use cases
+
+3. **[n8n-Goose Integration Guide](n8n-goose-integration.md)** (25KB)
    - Complete integration walkthrough
    - Installation and configuration
    - Usage examples with code
@@ -33,7 +51,7 @@ The integration provides **five layers** of integration:
    - Troubleshooting
    - Best practices
 
-2. **[System-Level Integration Architecture](system-level-integration-architecture.md)** (35KB)
+4. **[System-Level Integration Architecture](system-level-integration-architecture.md)** (35KB)
    - Detailed architecture diagrams
    - All integration layers explained
    - Shared TypeScript libraries design
@@ -42,7 +60,7 @@ The integration provides **five layers** of integration:
    - Custom nodes design
    - API gateway design
 
-3. **[Integration Implementation Summary](integration-implementation-summary.md)** (15KB)
+5. **[Integration Implementation Summary](integration-implementation-summary.md)** (15KB)
    - Current implementation status
    - What's completed vs. planned
    - Integration patterns with examples
