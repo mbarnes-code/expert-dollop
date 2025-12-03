@@ -40,7 +40,7 @@ The platform uses DAPR (Distributed Application Runtime) to enforce Domain-Drive
 - `nemesis` - Nemesis game backend
 - `security` - Security services backend
 
-#### PostgreSQL Schemas (8)
+#### PostgreSQL Schemas (9)
 | Schema | Purpose |
 |--------|---------|
 | dispatch | Dispatch and routing operations |
@@ -51,6 +51,7 @@ The platform uses DAPR (Distributed Application Runtime) to enforce Domain-Drive
 | main | Core application data |
 | ghostwriter | Content management |
 | nemsis | NEMSIS medical data |
+| firecrawl | Web scraping and crawling data |
 
 #### Redis Databases (9)
 | DB | Purpose |
@@ -65,7 +66,7 @@ The platform uses DAPR (Distributed Application Runtime) to enforce Domain-Drive
 | 7 | AI model cache |
 | 8 | Analytics data |
 
-#### DAPR State Stores (8)
+#### DAPR State Stores (9)
 Each state store maps to a PostgreSQL schema (bounded context):
 
 | State Store | Schema |
@@ -78,6 +79,7 @@ Each state store maps to a PostgreSQL schema (bounded context):
 | statestore-mealie | mealie |
 | statestore-ghostwriter | ghostwriter |
 | statestore-nemsis | nemsis |
+| statestore-firecrawl | firecrawl |
 
 #### MCP Server Integration
 - Extensible MCP server framework
@@ -174,6 +176,16 @@ Applications for task management, calendar, notes, document editing, project man
 
 ### AI Domain
 Applications for AI chat interfaces, model management, training pipelines, and AI analytics.
+
+#### Firecrawl Integration
+Web scraping and crawling service integrated using the strangler fig pattern:
+- **firecrawl-api**: TypeScript API service with Express.js and BullMQ
+- **playwright-service**: Dedicated browser automation microservice
+- **firecrawl-ui**: React-based ingestion interface
+- **firecrawl-sdks**: Multi-language SDKs (JavaScript, Python, Rust)
+- **firecrawl-examples**: 50+ AI/ML integration examples
+
+See `apps/ai/README-FIRECRAWL.md` for detailed documentation.
 
 ### TCG Domain
 Applications for trading card game collection management, deck building, marketplace, tournaments, and analytics.
