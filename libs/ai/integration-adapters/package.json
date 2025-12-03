@@ -1,0 +1,24 @@
+{
+  "name": "@expert-dollop/integration-adapters",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Integration adapters for Goose-n8n system-level integration",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@expert-dollop/workflow-agent-types": "*",
+    "@dapr/dapr": "^3.3.0",
+    "pg": "^8.11.3",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.10.9",
+    "typescript": "^5.3.0"
+  }
+}

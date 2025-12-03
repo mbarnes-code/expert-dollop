@@ -1,0 +1,10 @@
+target/
+node_modules/
+dist/
+*.node
+index.node
+index.d.ts
+*.so
+*.dylib
+*.dll
+.DS_Store

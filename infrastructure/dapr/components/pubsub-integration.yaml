@@ -1,0 +1,114 @@
+# DAPR Pub/Sub Component for Goose-n8n Integration
+# Enables event-driven communication between Goose and n8n
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: integration-pubsub
+  namespace: default
+spec:
+  type: pubsub.rabbitmq
+  version: v1
+  metadata:
+    # RabbitMQ connection
+    - name: host
+      value: "amqp://rabbitmq:5672"
+    
+    # Authentication (use secrets in production)
+    - name: username
+      value: "guest"
+    - name: password
+      value: "guest"
+    
+    # Message durability
+    - name: durable
+      value: "true"
+    
+    # Queue configuration
+    - name: deletedWhenUnused
+      value: "false"
+    
+    # Message acknowledgment
+    - name: autoAck
+      value: "false"
+    
+    # Delivery mode (2 = persistent)
+    - name: deliveryMode
+      value: "2"
+    
+    # Requeue failed messages
+    - name: requeueInFailure
+      value: "true"
+    
+    # Prefetch count (for load balancing)
+    - name: prefetchCount
+      value: "10"
+    
+    # Connection timeout
+    - name: reconnectWait
+      value: "5s"
+    
+    # Exchange type
+    - name: exchangeKind
+      value: "topic"
+
+---
+
+# Topic subscriptions for integration events
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: agent-workflow-events
+spec:
+  pubsubname: integration-pubsub
+  topic: agent-workflow-events
+  routes:
+    default: /integration/events/agent-workflow
+  scopes:
+    - n8n-server
+    - goose-server
+
+---
+
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: workflow-agent-events
+spec:
+  pubsubname: integration-pubsub
+  topic: workflow-agent-events
+  routes:
+    default: /integration/events/workflow-agent
+  scopes:
+    - goose-server
+    - n8n-server
+
+---
+
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: recipe-events
+spec:
+  pubsubname: integration-pubsub
+  topic: recipe-events
+  routes:
+    default: /integration/events/recipe
+  scopes:
+    - n8n-server
+    - integration-gateway
+
+---
+
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: workflow-execution-events
+spec:
+  pubsubname: integration-pubsub
+  topic: workflow-execution-events
+  routes:
+    default: /integration/events/workflow-execution
+  scopes:
+    - goose-server
+    - integration-gateway

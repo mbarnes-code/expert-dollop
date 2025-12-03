@@ -1,0 +1,36 @@
+[package]
+name = "goose-api-server"
+version = "0.1.0"
+edition = "2021"
+description = "HTTP API server for Goose AI Agent integration"
+
+[dependencies]
+# Web framework
+axum = "0.7"
+tokio = { version = "1.35", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+
+# Goose agent (from features directory)
+# Note: This creates a dependency on the features directory
+# In a full implementation, we'd import goose as a workspace member
+# For now, this documents the intended integration
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Environment configuration
+dotenvy = "0.15"
+
+[dev-dependencies]
+reqwest = { version = "0.11", features = ["json"] }
