@@ -102,62 +102,23 @@ spec:
         trip: consecutive-failures
         consecutiveFailures: 5
 
----
+# Note: Application-specific configuration (app-id, ports, etc.) should be
+# configured via DAPR CLI when running the application:
+#
+# For Goose:
+#   dapr run --app-id goose-server --app-port 8000 --dapr-http-port 3500 \
+#            --config ./infrastructure/dapr/components/configuration.yaml \
+#            -- <command to run goose>
+#
+# For n8n:
+#   dapr run --app-id n8n-server --app-port 5678 --dapr-http-port 3501 \
+#            --config ./infrastructure/dapr/components/configuration.yaml \
+#            -- <command to run n8n>
+#
+# Or via Kubernetes using deployment annotations:
+#   dapr.io/enabled: "true"
+#   dapr.io/app-id: "goose-server"
+#   dapr.io/app-port: "8000"
+#   dapr.io/config: "integration-config"
 
-# Application configuration for Goose
-apiVersion: dapr.io/v1alpha1
-kind: AppConfiguration
-metadata:
-  name: goose-app-config
-spec:
-  appId: goose-server
-  
-  # HTTP/gRPC ports
-  appPort: 8000
-  appProtocol: http
-  
-  # DAPR sidecar
-  daprHTTPPort: 3500
-  daprGRPCPort: 50001
-  
-  # Service invocation targets
-  serviceInvocations:
-    - name: n8n
-      appId: n8n-server
-      namespace: default
-  
-  # Pub/sub subscriptions
-  subscriptions:
-    - pubsubname: integration-pubsub
-      topic: workflow-execution-events
-      route: /integration/events/workflow-execution
 
----
-
-# Application configuration for n8n
-apiVersion: dapr.io/v1alpha1
-kind: AppConfiguration
-metadata:
-  name: n8n-app-config
-spec:
-  appId: n8n-server
-  
-  # HTTP/gRPC ports
-  appPort: 5678
-  appProtocol: http
-  
-  # DAPR sidecar
-  daprHTTPPort: 3500
-  daprGRPCPort: 50001
-  
-  # Service invocation targets
-  serviceInvocations:
-    - name: goose
-      appId: goose-server
-      namespace: default
-  
-  # Pub/sub subscriptions
-  subscriptions:
-    - pubsubname: integration-pubsub
-      topic: agent-workflow-events
-      route: /integration/events/agent-workflow
