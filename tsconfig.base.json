@@ -46,6 +46,8 @@
       "@expert-dollop/n8n-nodes-langchain": ["libs/n8n/nodes-langchain/src/index.ts"],
       "@expert-dollop/n8n-cli": ["libs/n8n/cli/src/index.ts"],
       "@expert-dollop/n8n-nodes-base": ["libs/n8n/nodes-base/src/index.ts"],
+      "@expert-dollop/n8n-frontend": ["libs/n8n/frontend/src/index.ts"],
+      "@expert-dollop/n8n-frontend/*": ["libs/n8n/frontend/src/*/index.ts"],
       "@expert-dollop/n8n-server": ["backend/services/n8n-server/src/index.ts"]
     }
   },

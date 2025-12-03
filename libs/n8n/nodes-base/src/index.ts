@@ -22,3 +22,9 @@ export * from './common/descriptions';
 
 // Credential Abstractions
 export * from './credentials/abstract-credentials';
+
+// HTTP Utilities
+export * from './http';
+
+// Execution Helpers
+export * from './execution';

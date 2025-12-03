@@ -17,6 +17,11 @@
     "@nx/workspace": "22.1.3",
     "eslint": "^9.39.1",
     "nx": "22.1.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vue": "3.5"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.1"
   }
 }
