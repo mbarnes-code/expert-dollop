@@ -1,0 +1,85 @@
+# DAPR State Store Component for Goose-n8n Integration
+# Provides shared state storage for integration data
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: integration-statestore
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    # PostgreSQL connection string
+    - name: connectionString
+      value: "host=postgres port=5432 user=postgres password=postgres dbname=expert_dollop sslmode=disable"
+    
+    # Schema for state storage
+    - name: tableName
+      value: "integration_state"
+    
+    # Schema name
+    - name: metadataTableName
+      value: "integration_state_metadata"
+    
+    # Connection pooling
+    - name: maxConns
+      value: "20"
+    
+    # Cleanup interval for expired state
+    - name: cleanupIntervalInSeconds
+      value: "3600"  # 1 hour
+    
+    # Query timeout
+    - name: timeout
+      value: "20"
+    
+    # Enable TTL
+    - name: enableTTL
+      value: "true"
+
+---
+
+# State store for agent-workflow correlation
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: agent-workflow-state
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres port=5432 user=postgres password=postgres dbname=expert_dollop sslmode=disable"
+    
+    - name: tableName
+      value: "agent_workflow_state"
+    
+    - name: metadataTableName
+      value: "agent_workflow_state_metadata"
+    
+    # TTL for temporary state (e.g., pending executions)
+    - name: cleanupIntervalInSeconds
+      value: "300"  # 5 minutes
+
+---
+
+# State store for workflow-agent actions
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: workflow-agent-state
+  namespace: default
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+    - name: connectionString
+      value: "host=postgres port=5432 user=postgres password=postgres dbname=expert_dollop sslmode=disable"
+    
+    - name: tableName
+      value: "workflow_agent_state"
+    
+    - name: metadataTableName
+      value: "workflow_agent_state_metadata"

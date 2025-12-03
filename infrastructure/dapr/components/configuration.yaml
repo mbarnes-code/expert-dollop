@@ -1,0 +1,163 @@
+# DAPR Service Invocation Configuration
+# Enables direct service-to-service calls between Goose and n8n
+
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: integration-config
+spec:
+  # Tracing configuration
+  tracing:
+    samplingRate: "1"
+    otel:
+      endpointAddress: "otel-collector:4317"
+      isSecure: false
+      protocol: grpc
+  
+  # Metrics configuration
+  metric:
+    enabled: true
+  
+  # mTLS configuration (disable for development, enable for production)
+  mtls:
+    enabled: false
+    workloadCertTTL: "24h"
+    allowedClockSkew: "15m"
+  
+  # Access control
+  accessControl:
+    defaultAction: allow
+    trustDomain: "expert-dollop"
+    
+    # Policies for service invocation
+    policies:
+      # Goose can call n8n
+      - appId: goose-server
+        defaultAction: allow
+        trustDomain: "expert-dollop"
+        namespace: "default"
+        operations:
+          - name: /api/workflows/*
+            httpVerb: ["POST", "GET", "PATCH"]
+            action: allow
+      
+      # n8n can call Goose
+      - appId: n8n-server
+        defaultAction: allow
+        trustDomain: "expert-dollop"
+        namespace: "default"
+        operations:
+          - name: /api/agent/*
+            httpVerb: ["POST", "GET"]
+            action: allow
+      
+      # Integration gateway can call both
+      - appId: integration-gateway
+        defaultAction: allow
+        trustDomain: "expert-dollop"
+        namespace: "default"
+  
+  # Features
+  features:
+    - name: "ServiceInvocation"
+      enabled: true
+    - name: "State"
+      enabled: true
+    - name: "PubSub"
+      enabled: true
+  
+  # API configuration
+  api:
+    allowed:
+      - name: "state"
+        version: "v1"
+        protocol: "http"
+      - name: "pubsub"
+        version: "v1"
+        protocol: "http"
+      - name: "invoke"
+        version: "v1"
+        protocol: "http"
+  
+  # Resiliency policies
+  resiliency:
+    # Retry policy for workflow executions
+    - name: workflow-execution-retry
+      spec:
+        policy: constant
+        duration: 5s
+        maxRetries: 3
+    
+    # Timeout policy for agent calls
+    - name: agent-call-timeout
+      spec:
+        timeout: 30s
+    
+    # Circuit breaker for service calls
+    - name: service-circuit-breaker
+      spec:
+        maxRequests: 10
+        interval: 10s
+        timeout: 60s
+        trip: consecutive-failures
+        consecutiveFailures: 5
+
+---
+
+# Application configuration for Goose
+apiVersion: dapr.io/v1alpha1
+kind: AppConfiguration
+metadata:
+  name: goose-app-config
+spec:
+  appId: goose-server
+  
+  # HTTP/gRPC ports
+  appPort: 8000
+  appProtocol: http
+  
+  # DAPR sidecar
+  daprHTTPPort: 3500
+  daprGRPCPort: 50001
+  
+  # Service invocation targets
+  serviceInvocations:
+    - name: n8n
+      appId: n8n-server
+      namespace: default
+  
+  # Pub/sub subscriptions
+  subscriptions:
+    - pubsubname: integration-pubsub
+      topic: workflow-execution-events
+      route: /integration/events/workflow-execution
+
+---
+
+# Application configuration for n8n
+apiVersion: dapr.io/v1alpha1
+kind: AppConfiguration
+metadata:
+  name: n8n-app-config
+spec:
+  appId: n8n-server
+  
+  # HTTP/gRPC ports
+  appPort: 5678
+  appProtocol: http
+  
+  # DAPR sidecar
+  daprHTTPPort: 3500
+  daprGRPCPort: 50001
+  
+  # Service invocation targets
+  serviceInvocations:
+    - name: goose
+      appId: goose-server
+      namespace: default
+  
+  # Pub/sub subscriptions
+  subscriptions:
+    - pubsubname: integration-pubsub
+      topic: agent-workflow-events
+      route: /integration/events/agent-workflow
