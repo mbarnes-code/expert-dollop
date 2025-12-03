@@ -21,7 +21,12 @@ export async function POST(request: Request) {
     // Record usage in analytics (if available)
     if (response.usage) {
       try {
-        await fetch('http://localhost:3000/api/usage', {
+        // Use relative URL to analytics service
+        const analyticsUrl = process.env.ANALYTICS_API_URL || '/api/usage';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                       (request.headers.get('host') ? `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host')}` : '');
+        
+        await fetch(`${baseUrl}${analyticsUrl}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
