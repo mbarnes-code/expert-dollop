@@ -1,0 +1,38 @@
+/**
+ * Shared TypeScript configuration for Next.js AI services
+ * 
+ * Usage in service tsconfig.json:
+ * {
+ *   "extends": "@expert-dollop/ai-next-app-base/tsconfig.base.json",
+ *   "compilerOptions": {
+ *     // Service-specific overrides
+ *   }
+ * }
+ */
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
