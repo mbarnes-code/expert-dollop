@@ -1,0 +1,57 @@
+# DAPR Pub/Sub Component: BullMQ Integration
+# Enables BullMQ queues to publish events to RabbitMQ for cross-service communication
+# This allows BullMQ jobs to trigger DAPR pub/sub events when needed
+# Topics:
+#   - bullmq.job.completed - Job processing completed
+#   - bullmq.job.failed - Job processing failed
+#   - bullmq.job.delayed - Job delayed for retry
+#   - bullmq.queue.paused - Queue paused
+#   - bullmq.queue.resumed - Queue resumed
+#   - bullmq.worker.error - Worker error occurred
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-bullmq
+  namespace: default
+spec:
+  type: pubsub.rabbitmq
+  version: v1
+  metadata:
+    - name: host
+      value: "amqp://rabbitmq:5672"
+    - name: consumerID
+      value: "bullmq-service"
+    - name: durable
+      value: "true"
+    - name: deletedWhenUnused
+      value: "false"
+    - name: autoAck
+      value: "false"
+    - name: deliveryMode
+      value: "2"  # Persistent messages
+    - name: requeueInFailure
+      value: "true"
+    - name: prefetchCount
+      value: "10"
+    - name: reconnectWait
+      value: "0"
+    - name: concurrency
+      value: parallel
+    - name: exchangeKind
+      value: "topic"
+scopes:
+  # All Node.js services that use BullMQ
+  - firecrawl-api
+  - firecrawl-worker
+  - n8n
+  - inspector
+  - dispatch
+  - mcp-virustotal
+  - mcp-firecrawl
+  - it-tools
+  - fastapi
+  - ai-chat
+  - ai-models
+  - ai-training
+  - ai-analytics

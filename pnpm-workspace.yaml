@@ -3,6 +3,7 @@ packages:
   - libs/**
   - backend/**
   - tools/**
+  - infrastructure/bullmq
 
 autoInstallPeers: true
 
