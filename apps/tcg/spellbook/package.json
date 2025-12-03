@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "worker": "tsx scripts/worker.ts"
   },
   "dependencies": {
+    "@expert-dollop/bullmq-infrastructure": "workspace:*",
     "@expert-dollop/shared-data-access": "workspace:*",
     "@expert-dollop/shared-utils": "workspace:*",
     "@expert-dollop/tcg-data-access": "workspace:*",
@@ -49,6 +51,7 @@
     "postcss": "^8.5.6",
     "sass": "^1.89.2",
     "tailwindcss": "^3.4.14",
+    "tsx": "^4.20.3",
     "typescript": "^5.9.0"
   }
 }
