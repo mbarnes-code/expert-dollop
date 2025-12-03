@@ -1,0 +1,59 @@
+# DAPR Pub/Sub Component: Goose Agent Events
+# Event-driven communication for AI agent activities
+# Topics:
+#   - goose.agent.message - Agent message events
+#   - goose.agent.tool - Tool execution events
+#   - goose.recipe.started - Recipe execution started
+#   - goose.recipe.completed - Recipe execution completed
+#   - goose.recipe.failed - Recipe execution failed
+#   - goose.extension.loaded - Extension loaded
+#   - goose.extension.unloaded - Extension unloaded
+#   - goose.conversation.created - Conversation created
+#   - goose.conversation.updated - Conversation updated
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-goose
+  namespace: default
+spec:
+  type: pubsub.rabbitmq
+  version: v1
+  metadata:
+    - name: host
+      value: "amqp://rabbitmq:5672"
+    - name: consumerID
+      value: "goose-agent"
+    - name: durable
+      value: "true"
+    - name: deletedWhenUnused
+      value: "false"
+    - name: autoAck
+      value: "false"
+    - name: deliveryMode
+      value: "2"  # Persistent messages
+    - name: requeueInFailure
+      value: "true"
+    - name: prefetchCount
+      value: "10"
+    - name: reconnectWait
+      value: "0"
+    - name: concurrency
+      value: parallel
+    - name: exchangeKind
+      value: "topic"
+    - name: maxLen
+      value: "10000"
+    - name: maxLenBytes
+      value: "104857600"  # 100MB
+scopes:
+  # Goose services can publish/subscribe
+  - goose-server
+  - goose-cli
+  - ai-agent-service
+  
+  # Other services can subscribe to events
+  - ai-chat
+  - ai-analytics
+  - n8n
+  - fastapi
