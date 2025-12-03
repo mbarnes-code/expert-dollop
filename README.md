@@ -59,12 +59,32 @@ The platform uses DAPR (Distributed Application Runtime) to enforce Domain-Drive
 | 0 | User sessions |
 | 1 | Application cache |
 | 2 | Rate limiting |
-| 3 | Job queues |
+| **3** | **Job queues (BullMQ)** |
 | 4 | Pub/sub channels |
 | 5 | Security tokens |
 | 6 | TCG state cache |
 | 7 | AI model cache |
 | 8 | Analytics data |
+
+#### BullMQ Job Queue System
+Centralized job queue management for all Node.js applications using BullMQ and Redis database 3.
+
+**Features:**
+- Shared connection pool and queue factory
+- Predefined queues for common use cases
+- TypeScript type safety
+- DAPR pub/sub integration
+- Support for: Firecrawl, N8N, Inspector, Dispatch, MCP servers
+
+**Usage:**
+```typescript
+import { createQueue, createWorker, QueueName } from '@expert-dollop/bullmq-infrastructure';
+
+const queue = createQueue(QueueName.EMAIL);
+await queue.add('send', { to: 'user@example.com', subject: 'Hello' });
+```
+
+See [BullMQ Infrastructure README](./infrastructure/bullmq/README.md) for details.
 
 #### DAPR State Stores (9)
 Each state store maps to a PostgreSQL schema (bounded context):
@@ -111,6 +131,10 @@ expert-dollop/
 │   │   └── ...                    # Django apps
 │   └── services/                  # Additional services (MCP)
 ├── infrastructure/                # Infrastructure configs
+│   ├── bullmq/                    # BullMQ job queue system
+│   │   ├── config/                # Connection & factory configs
+│   │   ├── queues/                # Predefined queue configs
+│   │   └── types/                 # TypeScript type definitions
 │   ├── dapr/                      # DAPR configuration
 │   │   ├── components/            # State stores & pub/sub
 │   │   └── config/                # DAPR config
