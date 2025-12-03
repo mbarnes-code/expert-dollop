@@ -2,6 +2,7 @@
 Domain Service for Scraping Operations
 Encapsulates core scraping business logic
 """
+import uuid
 from typing import Dict, Any, List, Optional
 from ..models.scrape_job import ScrapeJob, JobStatus
 from ..repositories.scrape_job_repository import IScrapeJobRepository
@@ -46,7 +47,6 @@ class ScrapeService:
             Created ScrapeJob instance
         """
         # Generate unique job ID
-        import uuid
         job_id = str(uuid.uuid4())
 
         # Create job instance
