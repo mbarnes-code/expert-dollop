@@ -28,3 +28,4 @@ export * from './lib/application/dtos';
 
 // Infrastructure Layer Exports
 export { ElasticsearchRepository } from './lib/infrastructure/repositories/elasticsearch.repository';
+export * from './lib/infrastructure/patterns';
