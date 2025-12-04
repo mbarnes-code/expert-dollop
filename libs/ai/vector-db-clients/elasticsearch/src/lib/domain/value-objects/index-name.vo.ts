@@ -29,7 +29,8 @@ export class IndexName {
 
     // Elasticsearch index naming rules:
     // - Must be lowercase
-    // - Cannot include \, /, *, ?, ", <, >, |, ` ` (space character), ,, #
+    // - Cannot include \, /, *, ?, ", <, >, |, ` ` (space character), ,, #, :
+    // - Cannot include control characters like backspace
     // - Cannot start with -, _, +
     // - Cannot be . or ..
     // - Cannot be longer than 255 bytes
@@ -47,7 +48,13 @@ export class IndexName {
       throw new Error('Index name cannot start with -, _, or +');
     }
 
-    if (/[\\/*?"<>|` ,#]/.test(trimmedValue)) {
+    // Check for invalid characters including colon
+    if (/[\\/*?"<>|` ,#:]/.test(trimmedValue)) {
+      throw new Error('Index name contains invalid characters');
+    }
+
+    // Check for backspace character explicitly (cannot use \b in regex as it means word boundary)
+    if (trimmedValue.includes('\b')) {
       throw new Error('Index name contains invalid characters');
     }
 
