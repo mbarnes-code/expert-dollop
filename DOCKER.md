@@ -2,6 +2,33 @@
 
 This directory contains the Docker configuration for the Expert Dollop monorepo, organized by service type (frontend, backend, and AI/ML models).
 
+> **📘 For complete infrastructure details**, see [INFRASTRUCTURE.md](INFRASTRUCTURE.md) which documents all 11 PostgreSQL schemas, 9 Redis databases, 11 DAPR state stores, BullMQ job queues, and the ELK stack.
+
+## Infrastructure Summary
+
+### PostgreSQL - 11 Schemas
+The platform uses **11 PostgreSQL schemas** for domain separation:
+- dispatch, firecrawl, ghostwriter, goose, hexstrike
+- integration, main, mealie, nemesis, nemsis, tcg
+
+### Redis - 9 Active Databases
+Redis is configured with **9 databases** (DB 0-8):
+- DB 0: User sessions
+- DB 1: Application cache  
+- DB 2: Rate limiting
+- **DB 3: BullMQ job queues** (Node.js background jobs)
+- DB 4: Pub/sub channels
+- DB 5: Security tokens
+- DB 6: TCG state cache
+- DB 7: AI model cache
+- DB 8: Analytics data
+
+### DAPR Service Mesh - 11 State Stores
+DAPR provides **11 state store components** (one per PostgreSQL schema) plus pub/sub messaging via RabbitMQ for Domain-Driven Design compliance.
+
+### BullMQ Job Queues
+Centralized job queue system for all Node.js applications using Redis DB 3. Located at `/infrastructure/bullmq/`.
+
 ## Overview
 
 The Docker setup consists of:
@@ -11,6 +38,7 @@ The Docker setup consists of:
 - **`docker-compose.yml`** - Main orchestration file for frontend and backend services
 - **`docker-compose-models.yml`** - Orchestration file for AI/ML models and related services
 - **`.env.example`** - Environment variable template
+- **`INFRASTRUCTURE.md`** - Complete infrastructure architecture documentation
 
 ## Quick Start
 
@@ -71,7 +99,11 @@ docker-compose -f docker-compose-models.yml --profile n8n up -d
 - **`django`** - Only Django services
 - **`fastapi`** - Only FastAPI services
 - **`frontend`** - All frontend services
-- **`workers`** - Celery workers and beat scheduler
+- **`workers`** - Celery workers, beat scheduler, and BullMQ workers
+- **`bullmq`** - BullMQ worker for Node.js job processing
+- **`dapr`** - DAPR placement service and sidecars (11 state stores)
+- **`elk`** - Elasticsearch, Kibana, Logstash analytics stack
+- **`analytics`** - Same as elk
 - **`proxy`** - Nginx reverse proxy
 - **`all`** - All services
 
@@ -153,9 +185,19 @@ The following backend services were identified:
 - Firecrawl PostgreSQL: `5433`
 - Firecrawl Redis: `6380`
 
+### Analytics & Monitoring (ELK Stack)
+- Elasticsearch: `9200`, `9300`
+- Kibana: `5601`
+- Logstash: `5044`, `9600`
+
 ### Reverse Proxy
 - Nginx HTTP: `80`
 - Nginx HTTPS: `443`
+
+### DAPR Service Mesh
+- Placement Service: `50006`
+- FastAPI DAPR HTTP: `3500`, GRPC: `50001`
+- Django Spellbook DAPR HTTP: `3501`, GRPC: `50002`
 
 ## Docker Multi-Stage Builds
 

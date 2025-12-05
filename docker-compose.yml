@@ -24,6 +24,8 @@ volumes:
     name: expert-dollop-static-files
   media_files:
     name: expert-dollop-media-files
+  elasticsearch_data:
+    name: expert-dollop-elasticsearch-data
 
 # Common environment variables
 x-common-env: &common-env
@@ -419,6 +421,89 @@ services:
       - all
 
   # ==============================================================================
+  # Optional Analytics Stack - Elasticsearch, Logstash, Kibana (HELK)
+  # ==============================================================================
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.16
+    container_name: expert-dollop-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - cluster.name=expert-dollop-cluster
+      - node.name=expert-dollop-es-1
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - elk
+      - analytics
+      - all
+    labels:
+      - "com.expert-dollop.service=elasticsearch"
+      - "com.expert-dollop.description=Search and analytics engine"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.16
+    container_name: expert-dollop-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - elk
+      - analytics
+      - all
+    labels:
+      - "com.expert-dollop.service=kibana"
+      - "com.expert-dollop.description=Data visualization dashboard"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.16
+    container_name: expert-dollop-logstash
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      XPACK_MONITORING_ENABLED: "true"
+      XPACK_MONITORING_ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "${LOGSTASH_PORT:-5044}:5044"
+      - "9600:9600"
+    volumes:
+      - ./infrastructure/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./infrastructure/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - elk
+      - analytics
+      - all
+    labels:
+      - "com.expert-dollop.service=logstash"
+      - "com.expert-dollop.description=Data processing pipeline"
+
+  # ==============================================================================
   # Reverse Proxy / API Gateway (Optional)
   # ==============================================================================
 
@@ -441,3 +526,5 @@ services:
     profiles:
       - proxy
       - all
+
+# Note: elasticsearch_data volume defined in main volumes section

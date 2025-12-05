@@ -115,6 +115,27 @@ firecrawl-up: ## Start Firecrawl services
 n8n-up: ## Start N8N workflow automation
 	docker compose -f docker-compose-models.yml --profile n8n up -d
 
+# ELK Stack targets
+.PHONY: elk-up
+elk-up: ## Start Elasticsearch, Kibana, Logstash stack
+	docker compose --profile elk up -d
+
+.PHONY: elk-down
+elk-down: ## Stop ELK stack
+	docker compose stop elasticsearch kibana logstash
+
+.PHONY: elk-logs
+elk-logs: ## View ELK stack logs
+	docker compose logs -f elasticsearch kibana logstash
+
+.PHONY: elasticsearch-up
+elasticsearch-up: ## Start only Elasticsearch
+	docker compose up -d elasticsearch
+
+.PHONY: kibana-up
+kibana-up: ## Start Kibana (requires Elasticsearch)
+	docker compose up -d kibana
+
 # Combined targets
 .PHONY: up
 up: infra-up backend-up frontend-up ## Start all main services (infra + backend + frontend)
