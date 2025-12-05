@@ -4,7 +4,7 @@
  */
 
 export interface ClusterConfig {
-  name: string;
+  name?: string;
   routing?: {
     allocation?: {
       disk?: {
