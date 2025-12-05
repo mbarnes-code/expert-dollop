@@ -41,7 +41,6 @@ RUN npm install -g pnpm@latest
 # Copy all package.json files for proper dependency resolution
 COPY apps/*/package.json ./apps/
 COPY apps/*/*/package.json ./apps/
-COPY apps/*/*/package.json ./apps/
 COPY libs/*/package.json ./libs/
 COPY libs/*/*/package.json ./libs/
 

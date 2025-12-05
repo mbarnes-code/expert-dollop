@@ -43,18 +43,32 @@ echo ""
 
 # Validate docker-compose.yml
 echo -n "Validating docker-compose.yml... "
-if docker compose -f docker-compose.yml config --quiet 2>&1 | grep -q "obsolete"; then
-    echo -e "${YELLOW}⚠${NC}  (version field is obsolete but ignored)"
+if docker compose -f docker-compose.yml config --quiet 2>&1; then
+    VALIDATION_OUTPUT=$(docker compose -f docker-compose.yml config --quiet 2>&1)
+    if echo "$VALIDATION_OUTPUT" | grep -q "obsolete"; then
+        echo -e "${YELLOW}⚠${NC}  (version field is obsolete but ignored)"
+    else
+        echo -e "${GREEN}✓${NC}"
+    fi
 else
-    echo -e "${GREEN}✓${NC}"
+    echo -e "${RED}✗${NC}"
+    echo "Validation failed. Run: docker compose -f docker-compose.yml config"
+    exit 1
 fi
 
 # Validate docker-compose-models.yml
 echo -n "Validating docker-compose-models.yml... "
-if docker compose -f docker-compose-models.yml config --quiet 2>&1 | grep -q "obsolete"; then
-    echo -e "${YELLOW}⚠${NC}  (version field is obsolete but ignored)"
+if docker compose -f docker-compose-models.yml config --quiet 2>&1; then
+    VALIDATION_OUTPUT=$(docker compose -f docker-compose-models.yml config --quiet 2>&1)
+    if echo "$VALIDATION_OUTPUT" | grep -q "obsolete"; then
+        echo -e "${YELLOW}⚠${NC}  (version field is obsolete but ignored)"
+    else
+        echo -e "${GREEN}✓${NC}"
+    fi
 else
-    echo -e "${GREEN}✓${NC}"
+    echo -e "${RED}✗${NC}"
+    echo "Validation failed. Run: docker compose -f docker-compose-models.yml config"
+    exit 1
 fi
 
 echo ""

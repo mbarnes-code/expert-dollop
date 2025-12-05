@@ -1,5 +1,3 @@
-version: '3.9'
-
 # Expert Dollop - AI/ML Models and Services Docker Compose Configuration
 # This file orchestrates AI-related services including LLM models, embeddings, and AI-powered tools
 

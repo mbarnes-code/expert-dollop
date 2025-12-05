@@ -1,5 +1,3 @@
-version: '3.9'
-
 # Expert Dollop - Root Docker Compose Configuration
 # This file orchestrates frontend and backend services for the entire application
 
