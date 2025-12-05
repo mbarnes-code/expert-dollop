@@ -1,0 +1,40 @@
+{
+  "name": "ai-prompt-manager",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ai/prompt-manager/src",
+  "projectType": "library",
+  "tags": ["type:library", "scope:ai", "layer:shared"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/ai/prompt-manager",
+        "main": "libs/ai/prompt-manager/src/index.ts",
+        "tsConfig": "libs/ai/prompt-manager/tsconfig.lib.json",
+        "assets": ["libs/ai/prompt-manager/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["libs/ai/prompt-manager/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/ai/prompt-manager/jest.config.ts",
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "codeCoverage": true
+        }
+      }
+    }
+  }
+}

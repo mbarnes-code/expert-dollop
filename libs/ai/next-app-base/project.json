@@ -1,0 +1,12 @@
+{
+  "name": "ai-next-app-base",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/ai/next-app-base/src",
+  "projectType": "library",
+  "tags": ["scope:ai", "type:util"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

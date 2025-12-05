@@ -1,18 +1,8 @@
-import type { Metadata } from 'next';
+import { BaseLayout, createMetadata } from '@expert-dollop/ai-next-app-base';
 
-export const metadata: Metadata = {
+export const metadata = createMetadata({
   title: 'ai-analytics',
   description: 'ai domain application',
-};
+});
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
+export default BaseLayout;
