@@ -1,0 +1,19 @@
+# HELK Logstash Pipeline Configuration
+
+pipeline.id: helk-main
+pipeline.workers: 4
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+path.config: /usr/share/logstash/pipeline
+
+config.reload.automatic: true
+config.reload.interval: 3s
+
+# Queue configuration
+queue.type: persisted
+queue.max_bytes: 1gb
+
+# Dead letter queue
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
