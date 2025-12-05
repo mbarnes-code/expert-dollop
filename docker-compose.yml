@@ -1,0 +1,341 @@
+version: '3.9'
+
+# Expert Dollop - Root Docker Compose Configuration
+# This file orchestrates frontend and backend services for the entire application
+
+networks:
+  expert-dollop:
+    driver: bridge
+    name: expert-dollop-network
+
+volumes:
+  postgres_data:
+    name: expert-dollop-postgres-data
+  redis_data:
+    name: expert-dollop-redis-data
+  rabbitmq_data:
+    name: expert-dollop-rabbitmq-data
+  static_files:
+    name: expert-dollop-static-files
+  media_files:
+    name: expert-dollop-media-files
+
+# Common environment variables
+x-common-env: &common-env
+  DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-expert_dollop}
+  REDIS_URL: redis://redis:6379/0
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-rabbitmq}@rabbitmq:5672/
+  SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+  DEBUG: ${DEBUG:-false}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+
+services:
+  # ==============================================================================
+  # Infrastructure Services
+  # ==============================================================================
+  
+  postgres:
+    image: postgres:16-alpine
+    container_name: expert-dollop-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-expert_dollop}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/schemas:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-expert_dollop}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: expert-dollop-redis
+    command: redis-server --appendonly yes --bind 0.0.0.0
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: expert-dollop-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-rabbitmq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+
+  # ==============================================================================
+  # Backend Services - Django
+  # ==============================================================================
+
+  django-spellbook:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: django-production
+    container_name: expert-dollop-django-spellbook
+    environment:
+      <<: *common-env
+      DJANGO_SETTINGS_MODULE: spellbook.settings
+      SERVICE_NAME: spellbook
+    ports:
+      - "${SPELLBOOK_PORT:-8001}:8000"
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+      - ./backend/django/spellbook:/app/backend/django/spellbook
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - django
+      - all
+
+  django-security:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: django-production
+    container_name: expert-dollop-django-security
+    environment:
+      <<: *common-env
+      DJANGO_SETTINGS_MODULE: security.settings
+      SERVICE_NAME: security
+      REDIS_URL: redis://redis:6379/1
+    ports:
+      - "${SECURITY_PORT:-8002}:8000"
+    volumes:
+      - ./backend/django/security:/app/backend/django/security
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - django
+      - all
+
+  django-mtg:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: django-production
+    container_name: expert-dollop-django-mtg
+    environment:
+      <<: *common-env
+      DJANGO_SETTINGS_MODULE: mtg.settings
+      SERVICE_NAME: mtg
+      REDIS_URL: redis://redis:6379/2
+    ports:
+      - "${MTG_PORT:-8003}:8000"
+    volumes:
+      - ./backend/django/mtg:/app/backend/django/mtg
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - django
+      - all
+
+  # ==============================================================================
+  # Backend Services - FastAPI
+  # ==============================================================================
+
+  fastapi-core:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: fastapi-production
+    container_name: expert-dollop-fastapi-core
+    environment:
+      <<: *common-env
+      SERVICE_NAME: fastapi-core
+      REDIS_URL: redis://redis:6379/3
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"
+    volumes:
+      - ./backend/api/fastapi:/app/backend/api/fastapi
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - fastapi
+      - all
+
+  # ==============================================================================
+  # Worker Services
+  # ==============================================================================
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: celery-worker
+    container_name: expert-dollop-celery-worker
+    environment:
+      <<: *common-env
+      CELERY_BROKER_URL: ${RABBITMQ_URL:-amqp://rabbitmq:rabbitmq@rabbitmq:5672/}
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - workers
+      - all
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: celery-beat
+    container_name: expert-dollop-celery-beat
+    environment:
+      <<: *common-env
+      CELERY_BROKER_URL: ${RABBITMQ_URL:-amqp://rabbitmq:rabbitmq@rabbitmq:5672/}
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - workers
+      - all
+
+  # ==============================================================================
+  # Frontend Services
+  # ==============================================================================
+
+  frontend-main:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+    container_name: expert-dollop-frontend-main
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./apps:/app/apps:ro
+    depends_on:
+      - fastapi-core
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - frontend
+      - all
+
+  # N8N Frontend
+  n8n-frontend:
+    build:
+      context: ./apps/n8n-frontend
+      dockerfile: ../../features/n8n/docker/images/n8n/Dockerfile
+    container_name: expert-dollop-n8n-frontend
+    environment:
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-http://localhost:5678}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+    ports:
+      - "${N8N_FRONTEND_PORT:-5678}:5678"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - frontend
+      - n8n
+      - all
+
+  # ==============================================================================
+  # Reverse Proxy / API Gateway (Optional)
+  # ==============================================================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: expert-dollop-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_files:/var/www/static:ro
+      - media_files:/var/www/media:ro
+    depends_on:
+      - fastapi-core
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - proxy
+      - all
