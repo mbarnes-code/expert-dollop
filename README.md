@@ -154,7 +154,34 @@ expert-dollop/
 - Docker & Docker Compose (for infrastructure)
 - DAPR CLI (optional, for local development)
 
-### Installation
+### Quick Start with Docker
+
+The easiest way to get started is using Docker:
+
+```bash
+# 1. Setup environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 2. Start infrastructure only
+make infra-up
+
+# 3. Start all backend services
+make backend-up
+
+# 4. Start all frontend services
+make frontend-up
+
+# 5. (Optional) Start AI/ML services
+make ai-up
+
+# See all available commands
+make help
+```
+
+For detailed Docker documentation, see [DOCKER.md](DOCKER.md).
+
+### Installation (Manual)
 
 ```bash
 # Install dependencies
@@ -188,6 +215,25 @@ pnpm nx dev security-auth
 
 # Build specific library
 pnpm nx build shared-ui
+```
+
+### Docker Management
+
+```bash
+# View all Docker commands
+make help
+
+# Start everything
+make up-all
+
+# View service status
+make ps
+
+# View logs
+make logs
+
+# Stop everything
+make down
 ```
 
 ## Domain Architecture

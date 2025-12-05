@@ -1,0 +1,371 @@
+# Expert Dollop - AI/ML Models and Services Docker Compose Configuration
+# This file orchestrates AI-related services including LLM models, embeddings, and AI-powered tools
+
+networks:
+  expert-dollop:
+    external: true
+    name: expert-dollop-network
+
+volumes:
+  ollama_data:
+    name: expert-dollop-ollama-data
+  chroma_data:
+    name: expert-dollop-chroma-data
+  firecrawl_redis_data:
+    name: expert-dollop-firecrawl-redis-data
+  firecrawl_postgres_data:
+    name: expert-dollop-firecrawl-postgres-data
+  n8n_data:
+    name: expert-dollop-n8n-data
+
+services:
+  # ==============================================================================
+  # LLM Model Services
+  # ==============================================================================
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: expert-dollop-ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+      OLLAMA_ORIGINS: "*"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - llm
+      - all
+
+  # ==============================================================================
+  # Vector Database / Embeddings
+  # ==============================================================================
+
+  chroma:
+    build:
+      context: ./features/chroma-mcp
+      dockerfile: Dockerfile
+    container_name: expert-dollop-chroma
+    ports:
+      - "${CHROMA_PORT:-8004}:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      CHROMA_SERVER_HOST: 0.0.0.0
+      CHROMA_SERVER_HTTP_PORT: 8000
+      ALLOW_RESET: ${CHROMA_ALLOW_RESET:-true}
+      IS_PERSISTENT: "true"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - embeddings
+      - all
+
+  # ==============================================================================
+  # Firecrawl - Web Scraping & Data Extraction
+  # ==============================================================================
+
+  firecrawl-postgres:
+    build:
+      context: ./apps/ai/nuq-postgres
+      dockerfile: Dockerfile
+    container_name: expert-dollop-firecrawl-postgres
+    environment:
+      POSTGRES_USER: ${FIRECRAWL_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${FIRECRAWL_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${FIRECRAWL_DB_NAME:-firecrawl}
+    ports:
+      - "${FIRECRAWL_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - firecrawl_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - firecrawl
+      - all
+
+  firecrawl-redis:
+    build:
+      context: ./apps/ai/firecrawl-redis
+      dockerfile: Dockerfile
+    container_name: expert-dollop-firecrawl-redis
+    command: redis-server --appendonly yes --bind 0.0.0.0
+    ports:
+      - "${FIRECRAWL_REDIS_PORT:-6380}:6379"
+    volumes:
+      - firecrawl_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - firecrawl
+      - all
+
+  playwright-service:
+    build:
+      context: ./apps/ai/playwright-service
+      dockerfile: Dockerfile
+    container_name: expert-dollop-playwright-service
+    environment:
+      PORT: 3000
+      PROXY_SERVER: ${PROXY_SERVER:-}
+      PROXY_USERNAME: ${PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+      BLOCK_MEDIA: ${BLOCK_MEDIA:-false}
+    ports:
+      - "${PLAYWRIGHT_PORT:-3001}:3000"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - firecrawl
+      - all
+
+  go-html-to-md:
+    build:
+      context: ./apps/ai/go-html-to-md-service
+      dockerfile: Dockerfile
+    container_name: expert-dollop-go-html-to-md
+    ports:
+      - "${HTML_TO_MD_PORT:-3002}:3000"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - firecrawl
+      - all
+
+  firecrawl-api:
+    build:
+      context: ./apps/ai/firecrawl-api
+      dockerfile: Dockerfile
+    container_name: expert-dollop-firecrawl-api
+    environment:
+      REDIS_URL: redis://firecrawl-redis:6379
+      REDIS_RATE_LIMIT_URL: redis://firecrawl-redis:6379
+      PLAYWRIGHT_MICROSERVICE_URL: http://playwright-service:3000/scrape
+      NUQ_DATABASE_URL: postgresql://${FIRECRAWL_DB_USER:-postgres}:${FIRECRAWL_DB_PASSWORD:-postgres}@firecrawl-postgres:5432/${FIRECRAWL_DB_NAME:-firecrawl}
+      USE_DB_AUTHENTICATION: ${USE_DB_AUTHENTICATION:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      MODEL_NAME: ${MODEL_NAME:-gpt-4}
+      MODEL_EMBEDDING_NAME: ${MODEL_EMBEDDING_NAME:-text-embedding-3-small}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      BULL_AUTH_KEY: ${BULL_AUTH_KEY:-}
+      LOGGING_LEVEL: ${LOGGING_LEVEL:-info}
+      HOST: 0.0.0.0
+      PORT: 3002
+      ENV: production
+    ports:
+      - "${FIRECRAWL_API_PORT:-3002}:3002"
+    depends_on:
+      firecrawl-postgres:
+        condition: service_healthy
+      firecrawl-redis:
+        condition: service_healthy
+      playwright-service:
+        condition: service_started
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - firecrawl
+      - all
+
+  # ==============================================================================
+  # Goose - AI Development Assistant
+  # ==============================================================================
+
+  goose:
+    build:
+      context: ./features/goose
+      dockerfile: Dockerfile
+    container_name: expert-dollop-goose
+    environment:
+      GOOSE_PROVIDER: ${GOOSE_PROVIDER:-openai}
+      GOOSE_PROVIDER__OPENAI__API_KEY: ${OPENAI_API_KEY:-}
+      GOOSE_PROVIDER__OPENAI__MODEL: ${GOOSE_MODEL:-gpt-4}
+    volumes:
+      - ./features/goose:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - goose
+      - all
+
+  # ==============================================================================
+  # N8N - Workflow Automation with AI
+  # ==============================================================================
+
+  n8n:
+    build:
+      context: ./apps/ai/n8n
+      dockerfile: ../../../features/n8n/docker/images/n8n/Dockerfile
+    container_name: expert-dollop-n8n
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      NODE_ENV: production
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      
+      # Database
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${N8N_DB_NAME:-n8n}
+      DB_POSTGRESDB_USER: ${DB_USER:-postgres}
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD:-postgres}
+      
+      # Redis Queue
+      QUEUE_BULL_REDIS_HOST: redis
+      QUEUE_BULL_REDIS_PORT: 6379
+      QUEUE_BULL_REDIS_DB: 5
+      EXECUTIONS_MODE: queue
+      
+      # AI Integration
+      N8N_AI_ENABLED: ${N8N_AI_ENABLED:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      
+      # Security
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}
+      N8N_USER_MANAGEMENT_JWT_SECRET: ${N8N_JWT_SECRET:-}
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./apps/ai/n8n-nodes-goose:/home/node/.n8n/custom
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - n8n
+      - workflow
+      - all
+
+  # ==============================================================================
+  # MCP Servers - Model Context Protocol Services
+  # ==============================================================================
+
+  mcp-virustotal:
+    build:
+      context: ./features/mcp-virustotal
+      dockerfile: Dockerfile
+    container_name: expert-dollop-mcp-virustotal
+    environment:
+      VIRUSTOTAL_API_KEY: ${VIRUSTOTAL_API_KEY:-}
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - mcp
+      - security
+      - all
+
+  firecrawl-mcp:
+    build:
+      context: ./features/firecrawl-mcp-server
+      dockerfile: Dockerfile.service
+    container_name: expert-dollop-firecrawl-mcp
+    environment:
+      FIRECRAWL_API_URL: http://firecrawl-api:3002
+      FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
+    depends_on:
+      - firecrawl-api
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - mcp
+      - firecrawl
+      - all
+
+  n8n-mcp:
+    build:
+      context: ./features/n8n-mcp-server
+      dockerfile: Dockerfile
+    container_name: expert-dollop-n8n-mcp
+    environment:
+      N8N_API_URL: http://n8n:5678
+      N8N_API_KEY: ${N8N_API_KEY:-}
+    depends_on:
+      - n8n
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - mcp
+      - n8n
+      - all
+
+  # ==============================================================================
+  # Model Analytics & Monitoring
+  # ==============================================================================
+
+  analytics:
+    build:
+      context: ./apps/ai/analytics
+      dockerfile: Dockerfile
+    container_name: expert-dollop-ai-analytics
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-expert_dollop}
+      REDIS_URL: redis://redis:6379/6
+    ports:
+      - "${AI_ANALYTICS_PORT:-3003}:3000"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - analytics
+      - all
+
+  # ==============================================================================
+  # Chat Interface
+  # ==============================================================================
+
+  chat:
+    build:
+      context: ./apps/ai/chat
+      dockerfile: Dockerfile
+    container_name: expert-dollop-ai-chat
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_OLLAMA_URL: ${OLLAMA_URL:-http://localhost:11434}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "${AI_CHAT_PORT:-3004}:3000"
+    depends_on:
+      - ollama
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - chat
+      - all

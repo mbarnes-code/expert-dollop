@@ -58,6 +58,11 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+secrets.env
+
+# Docker
+docker-compose.override.yml
+.docker
 
 # Lock files (pnpm-lock.yaml should be committed)
 package-lock.json
