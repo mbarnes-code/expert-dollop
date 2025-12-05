@@ -1,0 +1,11 @@
+{
+  "name": "@expert-dollop/ai-model-registry",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Centralized AI model configuration registry for all AI services",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
