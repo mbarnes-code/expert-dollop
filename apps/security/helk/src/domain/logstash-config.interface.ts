@@ -30,9 +30,9 @@ export interface LogstashOutputConfig {
 
 export interface LogstashPipelineConfig {
   'pipeline.id': string;
-  'pipeline.workers'?: number;
-  'pipeline.batch.size'?: number;
-  'pipeline.batch.delay'?: number;
+  'pipeline.workers'?: number;  // Recommended: Set to number of CPU cores
+  'pipeline.batch.size'?: number;  // Tune based on throughput needs (default: 125)
+  'pipeline.batch.delay'?: number;  // Tune based on latency requirements (default: 50ms)
   path?: {
     config?: string;
   };

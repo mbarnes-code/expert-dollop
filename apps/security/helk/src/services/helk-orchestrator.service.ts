@@ -148,10 +148,10 @@ export class HELKConfigOrchestrator {
 
   /**
    * Export configuration as YAML
+   * Note: For now exports as JSON. YAML serialization can be added via js-yaml library.
    */
   exportAsYAML(): string {
     const manifest = this.generateDeploymentManifest();
-    // In a real implementation, this would use a YAML library
     return JSON.stringify(manifest, null, 2);
   }
 

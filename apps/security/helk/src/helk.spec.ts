@@ -2,8 +2,8 @@
  * Simple validation test for HELK module
  */
 
-import { getHELKOrchestrator } from '../src/index';
-import { main as cliMain } from '../src/cli';
+import { getHELKOrchestrator } from './index';
+import { main as cliMain } from './cli';
 
 describe('HELK Module', () => {
   test('orchestrator should initialize', () => {

@@ -15,11 +15,16 @@ export abstract class LogstashConfigService {
 
 export class LogstashConfigServiceImpl extends LogstashConfigService {
   getPipelineConfig(): LogstashPipelineConfig {
+    // Note: These values can be overridden via environment variables or configuration
+    // Recommended to tune based on:
+    // - pipeline.workers: Number of CPU cores available
+    // - pipeline.batch.size: Balance between throughput and memory
+    // - pipeline.batch.delay: Balance between latency and efficiency
     return {
       'pipeline.id': 'helk-main',
-      'pipeline.workers': 4,
-      'pipeline.batch.size': 125,
-      'pipeline.batch.delay': 50,
+      'pipeline.workers': 4,  // Recommended: Set to CPU core count
+      'pipeline.batch.size': 125,  // Tune based on event volume
+      'pipeline.batch.delay': 50,  // Tune based on latency requirements
       path: {
         config: '/usr/share/logstash/pipeline',
       },
