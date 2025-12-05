@@ -2,14 +2,44 @@
 
 This module contains the HELK (Hunting ELK) platform integrated into the expert-dollop security domain using the strangler fig pattern. HELK is an advanced threat hunting platform with analytics capabilities including Elasticsearch, Kibana, Logstash, Jupyter notebooks, and Apache Spark.
 
+## 🚀 Quick Start (First-Time Installation)
+
+For first-time users installing the complete HELK + SecurityOnion platform:
+
+```bash
+cd apps/security/helk
+
+# Run the setup script
+./setup.sh
+
+# Start the Docker stack
+docker-compose up -d
+
+# Access the services
+# Kibana: http://localhost:5601
+# Jupyter: http://localhost:8888
+# Spark UI: http://localhost:8080
+```
+
+See **[DOCKER-README.md](DOCKER-README.md)** for complete Docker deployment guide with ECS normalization.
+
 ## Overview
 
 The HELK module provides:
 - **Elasticsearch**: Search and analytics engine with combined HELK and SecurityOnion configurations
 - **Kibana**: Data visualization and exploration
-- **Logstash**: Multi-source event correlation pipelines
+- **Logstash**: Multi-source event correlation with **Elastic Common Schema (ECS)** normalization
 - **Jupyter Notebooks**: Advanced analytics with Python, PySpark, and GraphFrames
 - **Apache Spark**: Distributed data processing for large-scale analysis
+
+### Docker Deployment (Recommended)
+
+This module includes a complete Docker Compose deployment that:
+- ✅ Merges HELK and SecurityOnion containers
+- ✅ Normalizes all data to **Elastic Common Schema (ECS) 8.0**
+- ✅ Provides SSL/TLS encryption
+- ✅ Includes automated setup for first-time users
+- ✅ Supports both HELK analytics and SecurityOnion security features
 
 ## Architecture
 

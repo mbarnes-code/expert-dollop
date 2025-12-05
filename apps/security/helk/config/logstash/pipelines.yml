@@ -1,0 +1,26 @@
+# Logstash Pipelines Configuration
+# Defines multiple pipelines for different data sources with ECS normalization
+
+- pipeline.id: beats-input-pipeline
+  path.config: "/usr/share/logstash/pipeline/00-beats-input.conf"
+  pipeline.workers: 2
+  
+- pipeline.id: syslog-input-pipeline
+  path.config: "/usr/share/logstash/pipeline/00-syslog-input.conf"
+  pipeline.workers: 2
+
+- pipeline.id: winevent-processing-pipeline
+  path.config: "/usr/share/logstash/pipeline/10-winevent-*.conf"
+  pipeline.workers: 4
+
+- pipeline.id: ecs-normalization-pipeline
+  path.config: "/usr/share/logstash/pipeline/50-ecs-*.conf"
+  pipeline.workers: 4
+
+- pipeline.id: enrichment-pipeline
+  path.config: "/usr/share/logstash/pipeline/80-enrichment-*.conf"
+  pipeline.workers: 2
+
+- pipeline.id: output-pipeline
+  path.config: "/usr/share/logstash/pipeline/99-output-*.conf"
+  pipeline.workers: 2

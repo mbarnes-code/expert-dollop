@@ -1,0 +1,229 @@
+version: '3.8'
+
+# HELK + SecurityOnion Merged Docker Compose Configuration
+# This combines containers from both platforms for threat hunting
+
+services:
+  # Elasticsearch - Merged configuration
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.8
+    container_name: helk-so-elasticsearch
+    hostname: elasticsearch
+    environment:
+      # Cluster settings
+      - cluster.name=helk-security-platform
+      - node.name=helk-so-node-1
+      - discovery.type=single-node
+      
+      # Memory and performance
+      - ES_JAVA_OPTS=-Xms4g -Xmx4g -Des.transport.cname_in_publish_address=true -Dlog4j2.formatMsgNoLookups=true
+      - bootstrap.memory_lock=true
+      
+      # X-Pack settings (from SecurityOnion)
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.certificate=elasticsearch.crt
+      - xpack.security.http.ssl.key=elasticsearch.key
+      - xpack.security.http.ssl.certificate_authorities=ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.certificate=elasticsearch.crt
+      - xpack.security.transport.ssl.key=elasticsearch.key
+      - xpack.security.transport.ssl.certificate_authorities=ca.crt
+      - xpack.security.transport.ssl.verification_mode=none
+      
+      # Monitoring (from HELK)
+      - xpack.monitoring.collection.enabled=true
+      - xpack.ml.enabled=false
+      
+      # License
+      - xpack.license.self_generated.type=basic
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./config/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ./config/elasticsearch/jvm.options:/usr/share/elasticsearch/config/jvm.options:ro
+      - ./certs/ca.crt:/usr/share/elasticsearch/config/ca.crt:ro
+      - ./certs/elasticsearch.crt:/usr/share/elasticsearch/config/elasticsearch.crt:ro
+      - ./certs/elasticsearch.key:/usr/share/elasticsearch/config/elasticsearch.key:ro
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+      nproc: 4096
+    networks:
+      - helk-so-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s -k -u elastic:changeme || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana - Merged HELK dashboards + SecurityOnion configurations
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.18.8
+    container_name: helk-so-kibana
+    hostname: kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=helk-kibana
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=5601
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=changeme
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=none
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/kibana/config/ca.crt
+      - XPACK_MONITORING_ENABLED=true
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=min-32-byte-long-strong-encryption-key
+    volumes:
+      - ./config/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./resources/dashboards:/usr/share/kibana/dashboards:ro
+      - ./certs/ca.crt:/usr/share/kibana/config/ca.crt:ro
+      - kibana-data:/usr/share/kibana/data
+    ports:
+      - "5601:5601"
+    networks:
+      - helk-so-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Logstash - HELK pipelines with ECS normalization
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.18.8
+    container_name: helk-so-logstash
+    hostname: logstash
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - XPACK_MONITORING_ENABLED=true
+      - XPACK_MONITORING_ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - XPACK_MONITORING_ELASTICSEARCH_USERNAME=logstash_system
+      - XPACK_MONITORING_ELASTICSEARCH_PASSWORD=changeme
+      - XPACK_MONITORING_ELASTICSEARCH_SSL_CERTIFICATEAUTHORITY=/usr/share/logstash/config/ca.crt
+      - LS_JAVA_OPTS=-Xms2g -Xmx2g -XX:-UseConcMarkSweepGC -XX:-UseCMSInitiatingOccupancyOnly -XX:+UseG1GC
+      - LOG_LEVEL=warn
+    volumes:
+      - ./config/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./config/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./resources/pipelines:/usr/share/logstash/pipeline:ro
+      - ./certs/ca.crt:/usr/share/logstash/config/ca.crt:ro
+      - logstash-data:/usr/share/logstash/data
+    ports:
+      # Beats input
+      - "5044:5044"
+      # Syslog inputs
+      - "5514:5514"
+      - "5514:5514/udp"
+      # Additional inputs (from HELK)
+      - "8531:8531"
+      - "3515:3515"
+      - "8515:8515"
+      - "8516:8516"
+      - "8515:8515/udp"
+      - "8516:8516/udp"
+      # Logstash monitoring
+      - "9600:9600"
+    networks:
+      - helk-so-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Jupyter - HELK analytics notebooks
+  jupyter:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: helk-jupyter
+    hostname: jupyter
+    depends_on:
+      - elasticsearch
+      - spark-master
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - GRANT_SUDO=yes
+      - PYSPARK_SUBMIT_ARGS=--packages org.elasticsearch:elasticsearch-spark-30_2.12:8.0.0,graphframes:graphframes:0.8.2-spark3.2-s_2.12 --repositories https://repos.spark-packages.org pyspark-shell
+    volumes:
+      - ./config/jupyter/jupyter_notebook_config.py:/home/jovyan/.jupyter/jupyter_notebook_config.py:ro
+      - ./resources/jupyter:/home/jovyan/notebooks:ro
+      - jupyter-data:/home/jovyan/work
+    ports:
+      - "8888:8888"
+    networks:
+      - helk-so-network
+    user: root
+    command: start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''
+
+  # Apache Spark Master - For distributed analytics
+  spark-master:
+    image: bitnami/spark:3.5.0
+    container_name: helk-spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    networks:
+      - helk-so-network
+    volumes:
+      - spark-master-data:/opt/bitnami/spark/data
+
+  # Apache Spark Worker
+  spark-worker:
+    image: bitnami/spark:3.5.0
+    container_name: helk-spark-worker
+    hostname: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=4g
+      - SPARK_WORKER_CORES=4
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8081:8081"
+    networks:
+      - helk-so-network
+    volumes:
+      - spark-worker-data:/opt/bitnami/spark/data
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  kibana-data:
+    driver: local
+  logstash-data:
+    driver: local
+  jupyter-data:
+    driver: local
+  spark-master-data:
+    driver: local
+  spark-worker-data:
+    driver: local
+
+networks:
+  helk-so-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
