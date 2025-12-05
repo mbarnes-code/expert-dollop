@@ -1,0 +1,33 @@
+# Environment files with sensitive data
+.env
+
+# SSL certificates and keys
+certs/*.key
+certs/*.csr
+certs/*.srl
+
+# Docker volumes (local development)
+esdata/
+kibana-data/
+logstash-data/
+jupyter-data/
+spark-data/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

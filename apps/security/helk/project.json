@@ -1,0 +1,32 @@
+{
+  "name": "security-helk",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/security/helk/src",
+  "projectType": "library",
+  "tags": ["scope:security", "type:lib", "domain:helk"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/security/helk",
+        "main": "apps/security/helk/src/index.ts",
+        "tsConfig": "apps/security/helk/tsconfig.json"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["apps/security/helk/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/security/helk/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}
