@@ -425,7 +425,7 @@ services:
   # ==============================================================================
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.16
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
     container_name: expert-dollop-elasticsearch
     environment:
       - discovery.type=single-node
@@ -455,7 +455,7 @@ services:
       - "com.expert-dollop.description=Search and analytics engine"
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:7.17.16
+    image: docker.elastic.co/kibana/kibana:7.6.2
     container_name: expert-dollop-kibana
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
@@ -477,7 +477,7 @@ services:
       - "com.expert-dollop.description=Data visualization dashboard"
 
   logstash:
-    image: docker.elastic.co/logstash/logstash:7.17.16
+    image: docker.elastic.co/logstash/logstash:7.6.2
     container_name: expert-dollop-logstash
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
