@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm install",
+      "type": "shell",
+      "command": "npm ci",
+      "problemMatcher": [],
+      "group": "build",
+      "detail": "Installs all npm dependencies."
+    },
+    {
+      "label": "generate-readme",
+      "type": "shell",
+      "command": "npm run build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Generates the README.md file using npm build run-script.",
+      "dependsOn": "npm install"
+    },
+    {
+      "label": "validate-collections",
+      "type": "shell",
+      "command": "npm run collection:validate",
+      "problemMatcher": [],
+      "group": "build",
+      "detail": "Validates all collection manifest files.",
+      "dependsOn": "npm install"
+    },
+    {
+      "label": "create-collection",
+      "type": "shell",
+      "command": "npm run collection:create",
+      "args": [
+        "--id",
+        "${input:collectionId}",
+        "--tags",
+        "${input:tags}"
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "detail": "Creates a new collection manifest template.",
+      "dependsOn": "npm install"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "collectionId",
+      "description": "Collection ID (lowercase, hyphen-separated)",
+      "default": "my-collection",
+      "type": "promptString"
+    },
+    {
+      "id": "tags",
+      "description": "Comma separated list of tags",
+      "default": "tag1,tag2",
+      "type": "promptString"
+    }
+  ]
+}
