@@ -1,0 +1,39 @@
+# Logstash Configuration for Security Domain
+
+# HTTP API settings
+http.host: "0.0.0.0"
+http.port: 9600
+
+# Pipeline settings
+pipeline.workers: 4
+pipeline.batch.size: 125
+pipeline.batch.delay: 50
+
+# Monitoring
+monitoring.enabled: true
+monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Logging
+log.level: info
+log.format: json
+path.logs: /usr/share/logstash/logs
+
+# Data path
+path.data: /usr/share/logstash/data
+
+# Queue settings
+queue.type: persisted
+queue.max_bytes: 1gb
+queue.checkpoint.writes: 1024
+
+# Dead letter queue
+dead_letter_queue.enable: true
+dead_letter_queue.max_bytes: 1gb
+
+# X-Pack settings
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Pipeline reload
+config.reload.automatic: true
+config.reload.interval: 30s

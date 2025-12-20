@@ -1,0 +1,64 @@
+## JVM configuration for Elasticsearch in Security Domain
+
+################################################################
+## IMPORTANT: JVM heap size
+################################################################
+##
+## The heap size is automatically configured by Elasticsearch
+## based on the available memory. The default is 50% of total RAM.
+##
+## Manually set heap size for production:
+## -Xms4g
+## -Xmx4g
+##
+## For HELK + Security Onion workload, recommended minimum: 8GB
+## For production, 16GB or more depending on data volume
+##
+-Xms2g
+-Xmx2g
+
+################################################################
+## Expert settings
+################################################################
+
+# G1GC collector (default in Java 14+)
+-XX:+UseG1GC
+
+# DNS cache TTL
+-Des.networkaddress.cache.ttl=60
+-Des.networkaddress.cache.negative.ttl=10
+
+# Pre-touch memory pages
+-XX:+AlwaysPreTouch
+
+# Ensure UTF-8 encoding
+-Dfile.encoding=UTF-8
+
+# Use our provided JNA library
+-Djna.nosys=true
+
+# Turn off a JDK optimization that throws away stack traces for common exceptions
+-XX:-OmitStackTraceInFastThrow
+
+# Flags to configure Netty
+-Dio.netty.noUnsafe=true
+-Dio.netty.noKeySetOptimization=true
+-Dio.netty.recycler.maxCapacityPerThread=0
+-Dio.netty.allocator.numDirectArenas=0
+
+# Log GC to help diagnose issues
+-Xlog:gc*,gc+age=trace,safepoint:file=/usr/share/elasticsearch/logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m
+
+# JVM temporary directory
+-Djava.io.tmpdir=${ES_TMPDIR}
+
+# Heap dumps
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/usr/share/elasticsearch/data
+
+# Exit on OOM
+-XX:+ExitOnOutOfMemoryError
+
+# JDK 9+ GC logging
+-Xlog:disable
+-Xlog:gc*,gc+age=trace,safepoint:file=/usr/share/elasticsearch/logs/gc.log:utctime,pid,tags:filecount=10,filesize=64m

@@ -1,0 +1,116 @@
+# Workflow Automation Domain Services
+# All workflow automation modules and their dependencies
+
+version: '3.8'
+
+services:
+  # ════════════════════════════════════════════════════════════════════════════════
+  # n8n - Workflow Automation Platform
+  # ════════════════════════════════════════════════════════════════════════════════
+  n8n:
+    build:
+      context: ./modules/workflow/n8n
+      dockerfile: Dockerfile
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_HOST=n8n-db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=n8n
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-defaultencryptionkey}
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./modules/workflow/n8n/custom-nodes:/home/node/.n8n/custom
+    depends_on:
+      - n8n-db
+    networks:
+      - workflow-network
+
+  n8n-worker:
+    build:
+      context: ./modules/workflow/n8n
+      dockerfile: Dockerfile.worker
+    container_name: n8n-worker
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_HOST=n8n-db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=n8n
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-defaultencryptionkey}
+      - EXECUTIONS_MODE=queue
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./modules/workflow/n8n/custom-nodes:/home/node/.n8n/custom
+    depends_on:
+      - n8n-db
+      - rabbitmq
+    networks:
+      - workflow-network
+
+  n8n-db:
+    image: postgres:15-alpine
+    container_name: n8n-db
+    environment:
+      - POSTGRES_DB=n8n
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=n8n
+    volumes:
+      - n8n-db-data:/var/lib/postgresql/data
+    networks:
+      - workflow-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # n8n MCP Server
+  # ════════════════════════════════════════════════════════════════════════════════
+  n8n-mcp:
+    build:
+      context: ./modules/workflow/n8n-mcp
+      dockerfile: Dockerfile
+    container_name: n8n-mcp
+    ports:
+      - "3200:3000"
+    environment:
+      - N8N_API_URL=http://n8n:5678
+      - N8N_API_KEY=${N8N_API_KEY}
+    depends_on:
+      - n8n
+    networks:
+      - workflow-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # RabbitMQ - Message Queue for n8n workers
+  # ════════════════════════════════════════════════════════════════════════════════
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=n8n
+      - RABBITMQ_DEFAULT_PASS=n8n
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - workflow-network
+
+volumes:
+  n8n-db-data:
+  n8n-data:
+  rabbitmq-data:
+
+networks:
+  workflow-network:
+    driver: bridge

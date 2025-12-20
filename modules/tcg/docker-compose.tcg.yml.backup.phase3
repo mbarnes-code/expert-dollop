@@ -1,0 +1,87 @@
+# TCG Domain Services
+# All Trading Card Game-focused modules and their dependencies
+
+version: '3.8'
+
+services:
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Commander Spellbook - MTG Combo Database
+  # ════════════════════════════════════════════════════════════════════════════════
+  commander-spellbook-backend:
+    build:
+      context: ./modules/tcg/commander-spellbook
+      dockerfile: Dockerfile
+    container_name: commander-spellbook-backend
+    ports:
+      - "8010:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=spellbook.settings.production
+      - DATABASE_URL=postgresql://spellbook:spellbook@spellbook-db:5432/spellbook
+    volumes:
+      - spellbook-media:/app/media
+      - spellbook-static:/app/static
+    depends_on:
+      - spellbook-db
+    networks:
+      - tcg-network
+
+  commander-spellbook-client:
+    build:
+      context: ./modules/tcg/commander-spellbook/client
+      dockerfile: Dockerfile
+    container_name: commander-spellbook-client
+    ports:
+      - "3010:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://commander-spellbook-backend:8000
+    depends_on:
+      - commander-spellbook-backend
+    networks:
+      - tcg-network
+
+  spellbook-db:
+    image: postgres:15-alpine
+    container_name: spellbook-db
+    environment:
+      - POSTGRES_DB=spellbook
+      - POSTGRES_USER=spellbook
+      - POSTGRES_PASSWORD=spellbook
+    volumes:
+      - spellbook-db-data:/var/lib/postgresql/data
+    networks:
+      - tcg-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Commander Map - MTG Commander Visualization
+  # ════════════════════════════════════════════════════════════════════════════════
+  commander-map:
+    build:
+      context: ./modules/tcg/commander-map
+      dockerfile: Dockerfile
+    container_name: commander-map
+    ports:
+      - "3011:3000"
+    networks:
+      - tcg-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # MTG Scripting Toolkit
+  # ════════════════════════════════════════════════════════════════════════════════
+  mtg-scripting-toolkit:
+    build:
+      context: ./modules/tcg/scripting-toolkit
+      dockerfile: Dockerfile
+    container_name: mtg-scripting-toolkit
+    ports:
+      - "3012:3000"
+    networks:
+      - tcg-network
+
+volumes:
+  spellbook-db-data:
+  spellbook-media:
+  spellbook-static:
+
+networks:
+  tcg-network:
+    driver: bridge

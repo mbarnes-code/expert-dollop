@@ -1,0 +1,149 @@
+# Security Domain Services
+# All security-focused modules and their dependencies
+
+version: '3.8'
+
+services:
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Ghostwriter - Red Team C2 & Reporting
+  # ════════════════════════════════════════════════════════════════════════════════
+  ghostwriter:
+    build:
+      context: ./modules/security/ghostwriter
+      dockerfile: Dockerfile
+    container_name: ghostwriter
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DATABASE_URL=postgresql://ghostwriter:ghostwriter@ghostwriter-db:5432/ghostwriter
+    volumes:
+      - ghostwriter-media:/app/media
+      - ghostwriter-static:/app/static
+    depends_on:
+      - ghostwriter-db
+    networks:
+      - security-network
+
+  ghostwriter-db:
+    image: postgres:15-alpine
+    container_name: ghostwriter-db
+    environment:
+      - POSTGRES_DB=ghostwriter
+      - POSTGRES_USER=ghostwriter
+      - POSTGRES_PASSWORD=ghostwriter
+    volumes:
+      - ghostwriter-db-data:/var/lib/postgresql/data
+    networks:
+      - security-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Nemesis - Offensive Security Platform
+  # ════════════════════════════════════════════════════════════════════════════════
+  nemesis-enrichment:
+    build:
+      context: ./modules/security/nemesis/projects/enrichment
+      dockerfile: Dockerfile
+    container_name: nemesis-enrichment
+    environment:
+      - POSTGRES_CONNECTION_URI=postgresql://nemesis:nemesis@nemesis-db:5432/nemesis
+      - RABBITMQ_CONNECTION_URI=amqp://nemesis:nemesis@rabbitmq:5672
+    depends_on:
+      - nemesis-db
+      - rabbitmq
+    networks:
+      - security-network
+
+  nemesis-web-api:
+    build:
+      context: ./modules/security/nemesis/projects/web_api
+      dockerfile: Dockerfile
+    container_name: nemesis-web-api
+    ports:
+      - "8001:8000"
+    environment:
+      - POSTGRES_CONNECTION_URI=postgresql://nemesis:nemesis@nemesis-db:5432/nemesis
+    depends_on:
+      - nemesis-db
+    networks:
+      - security-network
+
+  nemesis-db:
+    image: postgres:15-alpine
+    container_name: nemesis-db
+    environment:
+      - POSTGRES_DB=nemesis
+      - POSTGRES_USER=nemesis
+      - POSTGRES_PASSWORD=nemesis
+    volumes:
+      - nemesis-db-data:/var/lib/postgresql/data
+    networks:
+      - security-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Dispatch - Incident Management
+  # ════════════════════════════════════════════════════════════════════════════════
+  dispatch:
+    build:
+      context: ./modules/security/dispatch
+      dockerfile: Dockerfile
+    container_name: dispatch
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql://dispatch:dispatch@dispatch-db:5432/dispatch
+    depends_on:
+      - dispatch-db
+    networks:
+      - security-network
+
+  dispatch-db:
+    image: postgres:15-alpine
+    container_name: dispatch-db
+    environment:
+      - POSTGRES_DB=dispatch
+      - POSTGRES_USER=dispatch
+      - POSTGRES_PASSWORD=dispatch
+    volumes:
+      - dispatch-db-data:/var/lib/postgresql/data
+    networks:
+      - security-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # MalwareBazaar MCP Server
+  # ════════════════════════════════════════════════════════════════════════════════
+  malwarebazaar-mcp:
+    build:
+      context: ./modules/security/malwarebazaar-mcp
+      dockerfile: Dockerfile
+    container_name: malwarebazaar-mcp
+    ports:
+      - "3100:3000"
+    networks:
+      - security-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # VirusTotal MCP Server
+  # ════════════════════════════════════════════════════════════════════════════════
+  virustotal-mcp:
+    build:
+      context: ./modules/security/virustotal-mcp
+      dockerfile: Dockerfile
+    container_name: virustotal-mcp
+    ports:
+      - "3101:3000"
+    environment:
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+    networks:
+      - security-network
+
+volumes:
+  ghostwriter-db-data:
+  ghostwriter-media:
+  ghostwriter-static:
+  nemesis-db-data:
+  dispatch-db-data:
+
+networks:
+  security-network:
+    driver: bridge

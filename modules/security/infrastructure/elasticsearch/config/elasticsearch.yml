@@ -1,0 +1,99 @@
+# ======================== Elasticsearch Configuration =========================
+#
+# Unified Elasticsearch cluster for Security Domain
+# Supports both HELK (Windows logs) and Security Onion (network data)
+#
+# ---------------------------------- Cluster -----------------------------------
+
+cluster.name: security-cluster
+node.name: ${HOSTNAME}
+
+# ------------------------------------ Node ------------------------------------
+
+# Master-eligible and data node
+node.roles: [ master, data, ingest ]
+
+# ----------------------------------- Paths ------------------------------------
+
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+
+# ----------------------------------- Memory -----------------------------------
+
+# Lock memory to prevent swapping
+bootstrap.memory_lock: true
+
+# ---------------------------------- Network -----------------------------------
+
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# --------------------------------- Discovery ----------------------------------
+
+# Single-node cluster (for development)
+# For production, configure proper discovery
+discovery.type: single-node
+
+# ---------------------------------- Gateway -----------------------------------
+
+# Prevent cluster from automatically recovering until N nodes have joined
+gateway.recover_after_nodes: 1
+
+# ---------------------------------- Various -----------------------------------
+
+# Allow automatic index creation
+action.auto_create_index: true
+
+# ---------------------------------- Security ----------------------------------
+
+# Disable security for development (ENABLE IN PRODUCTION!)
+xpack.security.enabled: false
+xpack.security.transport.ssl.enabled: false
+xpack.security.http.ssl.enabled: false
+
+# ----------------------------------- Indices ----------------------------------
+
+# Index settings for security data
+indices.query.bool.max_clause_count: 8192
+
+# Optimize for time-series data
+indices.lifecycle.poll_interval: 10m
+
+# ---------------------------------- Monitoring --------------------------------
+
+# Enable monitoring
+xpack.monitoring.enabled: true
+xpack.monitoring.collection.enabled: true
+
+# ---------------------------------- ML ----------------------------------------
+
+# Enable machine learning
+xpack.ml.enabled: true
+
+# ---------------------------------- Alerting ----------------------------------
+
+# Enable alerting
+xpack.watcher.enabled: true
+
+# ---------------------------------- Performance -------------------------------
+
+# Thread pool settings for high-volume security data
+thread_pool.write.queue_size: 1000
+thread_pool.search.queue_size: 1000
+
+# Circuit breaker settings
+indices.breaker.total.limit: 70%
+indices.breaker.fielddata.limit: 40%
+indices.breaker.request.limit: 40%
+
+# ---------------------------------- Custom ------------------------------------
+
+# Index refresh interval (balance between search latency and indexing throughput)
+indices.memory.index_buffer_size: 20%
+
+# Disk-based shard allocation
+cluster.routing.allocation.disk.threshold_enabled: true
+cluster.routing.allocation.disk.watermark.low: 85%
+cluster.routing.allocation.disk.watermark.high: 90%
+cluster.routing.allocation.disk.watermark.flood_stage: 95%

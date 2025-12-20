@@ -1,0 +1,32 @@
+# Logstash Pipeline Configuration
+# Defines multiple pipelines for different data sources
+
+- pipeline.id: helk-windows-events
+  path.config: "/usr/share/logstash/pipelines/helk/windows-events.conf"
+  pipeline.workers: 2
+  queue.type: persisted
+
+- pipeline.id: helk-sysmon
+  path.config: "/usr/share/logstash/pipelines/helk/sysmon.conf"
+  pipeline.workers: 2
+  queue.type: persisted
+
+- pipeline.id: helk-powershell
+  path.config: "/usr/share/logstash/pipelines/helk/powershell.conf"
+  pipeline.workers: 1
+  queue.type: persisted
+
+- pipeline.id: securityonion-zeek
+  path.config: "/usr/share/logstash/pipelines/securityonion/zeek.conf"
+  pipeline.workers: 3
+  queue.type: persisted
+
+- pipeline.id: securityonion-suricata
+  path.config: "/usr/share/logstash/pipelines/securityonion/suricata.conf"
+  pipeline.workers: 2
+  queue.type: persisted
+
+- pipeline.id: securityonion-pcap
+  path.config: "/usr/share/logstash/pipelines/securityonion/pcap.conf"
+  pipeline.workers: 2
+  queue.type: persisted

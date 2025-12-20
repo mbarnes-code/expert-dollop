@@ -1,0 +1,93 @@
+# Productivity Domain Services
+# All productivity-focused modules and their dependencies
+
+version: '3.8'
+
+services:
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Mealie - Recipe & Meal Planning
+  # ════════════════════════════════════════════════════════════════════════════════
+  mealie-backend:
+    build:
+      context: ./modules/productivity/mealie/backend
+      dockerfile: Dockerfile
+    container_name: mealie-backend
+    ports:
+      - "9000:9000"
+    environment:
+      - ALLOW_SIGNUP=true
+      - DB_ENGINE=postgres
+      - POSTGRES_USER=mealie
+      - POSTGRES_PASSWORD=mealie
+      - POSTGRES_SERVER=mealie-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=mealie
+    volumes:
+      - mealie-data:/app/data
+    depends_on:
+      - mealie-db
+    networks:
+      - productivity-network
+
+  mealie-frontend:
+    build:
+      context: ./modules/productivity/mealie/frontend
+      dockerfile: Dockerfile
+    container_name: mealie-frontend
+    ports:
+      - "3020:3000"
+    environment:
+      - API_URL=http://mealie-backend:9000
+    depends_on:
+      - mealie-backend
+    networks:
+      - productivity-network
+
+  mealie-db:
+    image: postgres:15-alpine
+    container_name: mealie-db
+    environment:
+      - POSTGRES_DB=mealie
+      - POSTGRES_USER=mealie
+      - POSTGRES_PASSWORD=mealie
+    volumes:
+      - mealie-db-data:/var/lib/postgresql/data
+    networks:
+      - productivity-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Actual Budget - Personal Finance
+  # ════════════════════════════════════════════════════════════════════════════════
+  actual-budget:
+    build:
+      context: ./modules/productivity/actual
+      dockerfile: Dockerfile
+    container_name: actual-budget
+    ports:
+      - "5006:5006"
+    volumes:
+      - actual-data:/data
+    networks:
+      - productivity-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # IT Tools - Developer Utilities
+  # ════════════════════════════════════════════════════════════════════════════════
+  it-tools:
+    build:
+      context: ./modules/productivity/it-tools
+      dockerfile: Dockerfile
+    container_name: it-tools
+    ports:
+      - "3021:3000"
+    networks:
+      - productivity-network
+
+volumes:
+  mealie-db-data:
+  mealie-data:
+  actual-data:
+
+networks:
+  productivity-network:
+    driver: bridge

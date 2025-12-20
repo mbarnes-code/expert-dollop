@@ -1,0 +1,219 @@
+# AI/ML Domain Services
+# All AI and ML-focused modules and their dependencies
+
+version: '3.8'
+
+services:
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Firecrawl - Web Scraping & Crawling
+  # ════════════════════════════════════════════════════════════════════════════════
+  firecrawl-api:
+    build:
+      context: ./modules/ai/firecrawl/api
+      dockerfile: Dockerfile
+    container_name: firecrawl-api
+    ports:
+      - "3002:3002"
+    environment:
+      - REDIS_URL=redis://firecrawl-redis:6379
+      - NUM_WORKERS_PER_QUEUE=8
+    depends_on:
+      - firecrawl-redis
+    networks:
+      - ai-network
+
+  firecrawl-ui:
+    build:
+      context: ./modules/ai/firecrawl/ui
+      dockerfile: Dockerfile
+    container_name: firecrawl-ui
+    ports:
+      - "3030:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://firecrawl-api:3002
+    depends_on:
+      - firecrawl-api
+    networks:
+      - ai-network
+
+  firecrawl-redis:
+    image: redis:7-alpine
+    container_name: firecrawl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - firecrawl-redis-data:/data
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Firecrawl MCP Server
+  # ════════════════════════════════════════════════════════════════════════════════
+  firecrawl-mcp:
+    build:
+      context: ./modules/ai/firecrawl-mcp
+      dockerfile: Dockerfile
+    container_name: firecrawl-mcp
+    ports:
+      - "3201:3000"
+    environment:
+      - FIRECRAWL_API_URL=http://firecrawl-api:3002
+    depends_on:
+      - firecrawl-api
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Goose - AI Agent
+  # ════════════════════════════════════════════════════════════════════════════════
+  goose:
+    build:
+      context: ./modules/ai/goose
+      dockerfile: Dockerfile
+    container_name: goose
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Chroma MCP - Vector Database
+  # ════════════════════════════════════════════════════════════════════════════════
+  chroma-mcp:
+    build:
+      context: ./modules/ai/chroma-mcp
+      dockerfile: Dockerfile
+    container_name: chroma-mcp
+    ports:
+      - "3202:3000"
+    volumes:
+      - chroma-data:/chroma/data
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # FileScope MCP Server
+  # ════════════════════════════════════════════════════════════════════════════════
+  filescope-mcp:
+    build:
+      context: ./modules/ai/filescope-mcp
+      dockerfile: Dockerfile
+    container_name: filescope-mcp
+    ports:
+      - "3203:3000"
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # MCP Inspector
+  # ════════════════════════════════════════════════════════════════════════════════
+  mcp-inspector:
+    build:
+      context: ./modules/ai/inspector
+      dockerfile: Dockerfile
+    container_name: mcp-inspector
+    ports:
+      - "3031:3000"
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Analytics Service
+  # ════════════════════════════════════════════════════════════════════════════════
+  analytics:
+    build:
+      context: ./modules/ai/analytics
+      dockerfile: Dockerfile
+    container_name: analytics
+    ports:
+      - "8003:8000"
+    environment:
+      - POSTGRES_URL=postgresql://analytics:analytics@analytics-db:5432/analytics
+    depends_on:
+      - analytics-db
+    networks:
+      - ai-network
+
+  analytics-db:
+    image: postgres:15-alpine
+    container_name: analytics-db
+    environment:
+      - POSTGRES_DB=analytics
+      - POSTGRES_USER=analytics
+      - POSTGRES_PASSWORD=analytics
+    volumes:
+      - analytics-db-data:/var/lib/postgresql/data
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # Playwright Service - Browser Automation
+  # ════════════════════════════════════════════════════════════════════════════════
+  playwright:
+    build:
+      context: ./modules/ai/playwright-service
+      dockerfile: Dockerfile
+    container_name: playwright
+    ports:
+      - "8004:8000"
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # HTML to Markdown Service
+  # ════════════════════════════════════════════════════════════════════════════════
+  html-to-md:
+    build:
+      context: ./modules/ai/html-to-md-service
+      dockerfile: Dockerfile
+    container_name: html-to-md
+    ports:
+      - "8005:8080"
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # PostgreSQL for AI (with pgvector)
+  # ════════════════════════════════════════════════════════════════════════════════
+  ai-postgres:
+    build:
+      context: ./modules/ai/nuq-postgres
+      dockerfile: Dockerfile
+    container_name: ai-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=ai
+      - POSTGRES_USER=ai
+      - POSTGRES_PASSWORD=ai
+    volumes:
+      - ai-postgres-data:/var/lib/postgresql/data
+    networks:
+      - ai-network
+
+  # ════════════════════════════════════════════════════════════════════════════════
+  # KasmVNC - Remote Desktop for AI
+  # ════════════════════════════════════════════════════════════════════════════════
+  kasmvnc:
+    build:
+      context: ./modules/ai/kasmvnc
+      dockerfile: Dockerfile
+    container_name: kasmvnc
+    ports:
+      - "6901:6901"
+    environment:
+      - VNC_PW=password
+    networks:
+      - ai-network
+
+volumes:
+  firecrawl-redis-data:
+  chroma-data:
+  analytics-db-data:
+  ai-postgres-data:
+
+networks:
+  ai-network:
+    driver: bridge
