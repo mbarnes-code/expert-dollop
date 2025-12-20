@@ -1,12 +1,12 @@
 ╔══════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                    CONSOLIDATED MULTI-STAGE DDD MODULAR MONOLITHIC APPLICATION                          ║
-║                                    FILE DIRECTORY LAYOUT                                                 ║
-║                         (37 Features - Optimized Database Consolidation)                                ║
+║                    DOMAIN-DRIVEN MODULAR MONOLITH FILE DIRECTORY LAYOUT                                 ║
+║                         (Organized by Bounded Context & Business Domain)                                ║
 ╚══════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 
-This document provides a comprehensive file directory layout for the consolidated multi-stage DDD modular 
-monolithic application architecture. It maps out where each file type, Docker configuration, database schema,
-and service component should reside in the monorepo structure.
+This document provides a comprehensive file directory layout for the domain-driven modular monolith 
+architecture. Following the Nemesis pattern, projects are organized by business domain in modules/, 
+with minimal shared code in libs/, and all infrastructure centralized. Each module maintains its 
+internal structure and is independently deployable.
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
                                     SECTION 1: ROOT LEVEL STRUCTURE
@@ -16,12 +16,12 @@ expert-dollop/                                    # Root monorepo directory
 │
 ├── .github/                                      # GitHub workflows and actions
 │   ├── workflows/                                # CI/CD pipeline definitions
-│   │   ├── ci-build.yml                         # Main CI build for all contexts
-│   │   ├── stage-1-edge.yml                     # Stage 1: Edge/Gateway layer
-│   │   ├── stage-2-services.yml                 # Stage 2: Application services
-│   │   ├── stage-3-infrastructure.yml           # Stage 3: Infrastructure layer
-│   │   ├── stage-4-data.yml                     # Stage 4: Data persistence
-│   │   ├── stage-5-testing.yml                  # Stage 5: Testing & dev tools
+│   │   ├── ci-modules.yml                       # CI for all modules
+│   │   ├── ci-security.yml                      # Security domain CI
+│   │   ├── ci-tcg.yml                           # TCG domain CI
+│   │   ├── ci-productivity.yml                  # Productivity domain CI
+│   │   ├── ci-workflow.yml                      # Workflow domain CI
+│   │   ├── ci-ai.yml                            # AI domain CI
 │   │   ├── deploy-production.yml                # Production deployment
 │   │   ├── security-scan.yml                    # Security scanning
 │   │   └── dependency-updates.yml               # Automated dependency updates
@@ -34,7 +34,9 @@ expert-dollop/                                    # Root monorepo directory
 ├── .devcontainer/                               # VS Code dev container configuration
 │   ├── devcontainer.json                        # Main dev container config
 │   ├── docker-compose.yml                       # Dev environment composition
-│   └── Dockerfile                               # Dev container image
+│   ├── Dockerfile                               # Dev container image
+│   ├── post-create.sh                           # Post-creation setup script
+│   └── README.md                                # Dev container documentation
 │
 ├── .vscode/                                     # VS Code workspace settings
 │   ├── settings.json                            # Editor settings
@@ -42,19 +44,19 @@ expert-dollop/                                    # Root monorepo directory
 │   ├── launch.json                              # Debug configurations
 │   └── tasks.json                               # Task definitions
 │
-├── docker-compose.yml                           # **MAIN** Docker Compose (all stages)
+├── docker-compose.yml                           # Main orchestration (all domains)
 ├── docker-compose.dev.yml                       # Development override
 ├── docker-compose.prod.yml                      # Production override
 ├── docker-compose.test.yml                      # Testing override
 │
-├── docker-compose.stage-1-edge.yml             # Stage 1: Kong, Nginx
-├── docker-compose.stage-2-services.yml         # Stage 2: All bounded contexts
-├── docker-compose.stage-3-infra.yml            # Stage 3: Dapr, Redis, MCP Hub
-├── docker-compose.stage-4-data.yml             # Stage 4: PostgreSQL, Redis, etc.
-├── docker-compose.stage-5-testing.yml          # Stage 5: WireMock, Mailpit, etc.
+├── docker-compose.security.yml                  # Security domain services
+├── docker-compose.tcg.yml                       # TCG domain services
+├── docker-compose.productivity.yml              # Productivity domain services
+├── docker-compose.workflow.yml                  # Workflow domain services
+├── docker-compose.ai.yml                        # AI domain services
 │
 ├── Makefile                                     # Build automation commands
-├── Taskfile.yml                                 # Modern task runner (alternative)
+├── Taskfile.yml                                 # Modern task runner
 │
 ├── package.json                                 # Root workspace package.json (pnpm)
 ├── pnpm-workspace.yaml                          # PNPM workspace configuration
@@ -73,7 +75,6 @@ expert-dollop/                                    # Root monorepo directory
 ├── biome.jsonc                                  # Biome linter/formatter config
 │
 ├── turbo.json                                   # Turborepo build orchestration
-├── lerna.json                                   # Lerna monorepo management (optional)
 │
 ├── .gitignore                                   # Git ignore patterns
 ├── .dockerignore                                # Docker ignore patterns
@@ -84,21 +85,463 @@ expert-dollop/                                    # Root monorepo directory
 ├── CODE_OF_CONDUCT.md                           # Code of conduct
 ├── SECURITY.md                                  # Security policy
 │
-├── apps/                                        # ➜ STAGE 2: Application/Service Layer
-├── backend/                                     # ➜ STAGE 2: Backend Services
-├── infrastructure/                              # ➜ STAGES 1, 3, 4, 5: Infrastructure
-├── libs/                                        # ➜ Shared libraries (all stages)
+├── modules/                                     # ➜ Domain-based modules (bounded contexts)
+├── libs/                                        # ➜ Minimal shared libraries
+├── infrastructure/                              # ➜ Cross-cutting infrastructure
 ├── docs/                                        # ➜ Documentation
 ├── tests/                                       # ➜ Integration & E2E tests
 ├── scripts/                                     # ➜ Build & deployment scripts
-├── features/                                    # ➜ Original feature repos (reference)
 └── omninexus/                                   # ➜ Unified dashboard/admin UI
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                              SECTION 2: BACKEND DIRECTORY - STAGE 2 SERVICES
+                              SECTION 2: MODULES - DOMAIN-BASED BOUNDED CONTEXTS
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-backend/                                         # Backend services (Stage 2)
+modules/                                         # Domain-based modules (bounded contexts)
+│
+├── security/                                    # SECURITY DOMAIN
+│   │
+│   ├── ghostwriter/                             # Ghostwriter - Red Team C2 & Reporting
+│   │   ├── README.md                            # Project documentation
+│   │   ├── docker-compose.yml                   # Ghostwriter compose
+│   │   ├── Dockerfile                           # Django application
+│   │   ├── requirements.txt                     # Python dependencies
+│   │   ├── manage.py                            # Django management
+│   │   ├── pytest.ini                           # Test configuration
+│   │   │
+│   │   ├── config/                              # Django settings
+│   │   │   ├── settings/
+│   │   │   │   ├── base.py
+│   │   │   │   ├── development.py
+│   │   │   │   ├── production.py
+│   │   │   │   └── test.py
+│   │   │   ├── urls.py
+│   │   │   ├── wsgi.py
+│   │   │   └── asgi.py
+│   │   │
+│   │   ├── ghostwriter/                         # Django apps
+│   │   │   ├── api/                             # REST API
+│   │   │   ├── commandcenter/                   # Command center
+│   │   │   ├── home/                            # Home dashboard
+│   │   │   ├── oplog/                           # Operation logs
+│   │   │   ├── reporting/                       # Report generation
+│   │   │   ├── rolodex/                         # Client/contact management
+│   │   │   ├── shepherd/                        # Infrastructure tracking
+│   │   │   └── users/                           # User management
+│   │   │
+│   │   ├── static/                              # Static files
+│   │   ├── media/                               # Uploaded media
+│   │   ├── templates/                           # Django templates
+│   │   │
+│   │   ├── graphql/                             # GraphQL API
+│   │   │   ├── schema.py
+│   │   │   ├── queries.py
+│   │   │   └── mutations.py
+│   │   │
+│   │   └── tests/                               # Test suite
+│   │
+│   ├── nemesis/                                 # Nemesis - Offensive Security Platform
+│   │   ├── README.md
+│   │   ├── docker-compose.yml                   # Multi-service compose
+│   │   ├── Makefile                             # Build automation
+│   │   │
+│   │   ├── libs/                                # Shared libraries
+│   │   │   ├── README.md
+│   │   │   ├── chromium/                        # Chromium parsing
+│   │   │   ├── common/                          # Common utilities
+│   │   │   ├── dpapi/                           # DPAPI operations
+│   │   │   ├── file_enrichment_modules/         # File enrichment
+│   │   │   └── file_linking/                    # File relationship tracking
+│   │   │
+│   │   ├── projects/                            # Nemesis services
+│   │   │   ├── enrichment/                      # Data enrichment service
+│   │   │   │   ├── Dockerfile
+│   │   │   │   ├── requirements.txt
+│   │   │   │   └── enrichment/
+│   │   │   │       ├── tasks/
+│   │   │   │       ├── lib/
+│   │   │   │       └── cli/
+│   │   │   ├── hasura/                          # GraphQL API
+│   │   │   │   ├── Dockerfile
+│   │   │   │   └── metadata/
+│   │   │   ├── jupyter/                         # Analysis notebooks
+│   │   │   ├── kibana/                          # Dashboard
+│   │   │   └── web_api/                         # FastAPI web service
+│   │   │       ├── Dockerfile
+│   │   │       ├── requirements.txt
+│   │   │       └── web_api/
+│   │   │           ├── api/
+│   │   │           ├── models/
+│   │   │           └── schemas/
+│   │   │
+│   │   ├── infra/                               # Infrastructure
+│   │   │   ├── kubernetes/                      # K8s manifests
+│   │   │   ├── terraform/                       # IaC
+│   │   │   └── helm/                            # Helm charts
+│   │   │
+│   │   └── tests/                               # Integration tests
+│   │
+│   ├── misp/                                    # MISP - Threat Intelligence Platform
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile
+│   │   │
+│   │   ├── app/                                 # MISP application
+│   │   │   ├── Controller/
+│   │   │   ├── Model/
+│   │   │   ├── View/
+│   │   │   └── webroot/
+│   │   │
+│   │   ├── PyMISP/                              # Python library
+│   │   │   ├── pymisp/
+│   │   │   └── examples/
+│   │   │
+│   │   └── INSTALL/                             # Installation scripts
+│   │
+│   ├── dispatch/                                # Dispatch - Incident Management
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile
+│   │   ├── pyproject.toml                       # Poetry config
+│   │   │
+│   │   ├── src/
+│   │   │   └── dispatch/
+│   │   │       ├── main.py                      # FastAPI app
+│   │   │       ├── api/                         # API routes
+│   │   │       │   └── v1/
+│   │   │       │       ├── incidents.py
+│   │   │       │       ├── tasks.py
+│   │   │       │       └── teams.py
+│   │   │       ├── models/                      # SQLAlchemy models
+│   │   │       ├── schemas/                     # Pydantic schemas
+│   │   │       ├── plugins/                     # Plugin system
+│   │   │       │   ├── slack/
+│   │   │       │   ├── jira/
+│   │   │       │   └── pagerduty/
+│   │   │       └── database/
+│   │   │
+│   │   └── tests/
+│   │
+│   ├── yara-x/                                  # YARA-X - Malware Pattern Matching
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── Cargo.toml                           # Rust workspace
+│   │   │
+│   │   ├── yara-x/                              # Core library
+│   │   │   ├── Cargo.toml
+│   │   │   └── src/
+│   │   ├── yara-x-cli/                          # CLI tool
+│   │   │   ├── Cargo.toml
+│   │   │   └── src/
+│   │   └── py/                                  # Python bindings
+│   │       ├── Cargo.toml
+│   │       └── src/
+│   │
+│   ├── maltrail/                                # Maltrail - Malicious Traffic Detection
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   ├── maltrail.conf                        # Configuration
+│   │   ├── server.py                            # Web server
+│   │   ├── sensor.py                            # Traffic sensor
+│   │   ├── core/                                # Core logic
+│   │   └── trails/                              # IOC feeds
+│   │
+│   ├── rita/                                    # RITA - Beacon Detection
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── go.mod
+│   │   ├── go.sum
+│   │   ├── main.go
+│   │   ├── pkg/                                 # Go packages
+│   │   │   ├── beacon/
+│   │   │   ├── blacklist/
+│   │   │   └── dns/
+│   │   └── config/
+│   │
+│   ├── helk/                                    # HELK - Hunting ELK Stack
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   ├── elasticsearch/
+│   │   ├── logstash/
+│   │   ├── kibana/
+│   │   └── winlogbeat/
+│   │
+│   ├── cyberchef/                               # CyberChef - Data Analysis
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── core/
+│   │       └── web/
+│   │
+│   ├── malwarebazaar-mcp/                       # MalwareBazaar MCP Server
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.ts
+│   │       └── api.ts
+│   │
+│   ├── virustotal-mcp/                          # VirusTotal MCP Server
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.ts
+│   │       └── api.ts
+│   │
+│   └── docker-compose.security.yml              # Security domain compose
+│
+├── tcg/                                         # TRADING CARD GAME DOMAIN
+│   │
+│   ├── commander-spellbook/                     # Commander Spellbook - MTG Combos
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   │
+│   │   ├── backend/                             # Django backend
+│   │   │   ├── Dockerfile
+│   │   │   ├── requirements.txt
+│   │   │   ├── manage.py
+│   │   │   ├── spellbook/                       # Django apps
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── card.py
+│   │   │   │   │   ├── combo.py
+│   │   │   │   │   └── variant.py
+│   │   │   │   ├── views/
+│   │   │   │   ├── serializers/
+│   │   │   │   └── graphql/
+│   │   │   └── common/                          # Common utilities
+│   │   │
+│   │   ├── client/                              # Next.js frontend
+│   │   │   ├── Dockerfile
+│   │   │   ├── package.json
+│   │   │   ├── next.config.js
+│   │   │   └── src/
+│   │   │       ├── app/
+│   │   │       ├── components/
+│   │   │       └── lib/
+│   │   │
+│   │   └── bots/                                # Discord/Reddit bots
+│   │       ├── discord/
+│   │       │   ├── Dockerfile
+│   │       │   ├── requirements.txt
+│   │       │   └── bot.py
+│   │       └── reddit/
+│   │           ├── Dockerfile
+│   │           └── bot.py
+│   │
+│   ├── commander-map/                           # MTG Commander Map
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │
+│   ├── mtg-scripting-toolkit/                   # MTG Scripting Tools
+│   │   ├── README.md
+│   │   ├── package.json
+│   │   └── src/
+│   │
+│   └── docker-compose.tcg.yml                   # TCG domain compose
+│
+├── productivity/                                # PRODUCTIVITY DOMAIN
+│   │
+│   ├── mealie/                                  # Mealie - Recipe & Meal Planning
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   │
+│   │   ├── backend/                             # FastAPI backend
+│   │   │   ├── Dockerfile
+│   │   │   ├── pyproject.toml
+│   │   │   └── mealie/
+│   │   │       ├── main.py
+│   │   │       ├── api/
+│   │   │       │   └── v1/
+│   │   │       │       ├── recipes.py
+│   │   │       │       ├── meals.py
+│   │   │       │       └── shopping.py
+│   │   │       ├── models/
+│   │   │       ├── schemas/
+│   │   │       ├── crud/
+│   │   │       └── services/
+│   │   │
+│   │   └── frontend/                            # Nuxt.js frontend
+│   │       ├── Dockerfile
+│   │       ├── package.json
+│   │       ├── nuxt.config.ts
+│   │       ├── components/
+│   │       ├── pages/
+│   │       └── store/
+│   │
+│   ├── actual/                                  # Actual Budget - Personal Finance
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.ts
+│   │       ├── sync/
+│   │       └── api/
+│   │
+│   ├── it-tools/                                # IT Tools - Developer Utilities
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── tools/
+│   │       └── components/
+│   │
+│   └── docker-compose.productivity.yml          # Productivity domain compose
+│
+├── workflow/                                    # WORKFLOW AUTOMATION DOMAIN
+│   │
+│   ├── n8n/                                     # n8n - Workflow Automation
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   ├── Dockerfile
+│   │   ├── Dockerfile.worker                    # Worker nodes
+│   │   │
+│   │   ├── packages/                            # n8n packages
+│   │   │   ├── cli/                             # CLI
+│   │   │   ├── core/                            # Core logic
+│   │   │   ├── nodes-base/                      # Base nodes
+│   │   │   ├── workflow/                        # Workflow engine
+│   │   │   └── editor-ui/                       # Web UI
+│   │   │
+│   │   ├── custom-nodes/                        # Custom nodes
+│   │   │   ├── n8n-nodes-goose/                 # Goose AI node
+│   │   │   └── security-nodes/                  # Security integrations
+│   │   │
+│   │   ├── workflows/                           # Workflow templates
+│   │   │   ├── security/                        # Security workflows
+│   │   │   └── productivity/                    # Productivity workflows
+│   │   │
+│   │   └── credentials/                         # Custom credentials
+│   │
+│   ├── n8n-mcp/                                 # n8n MCP Server
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.ts
+│   │       └── workflows.ts
+│   │
+│   └── docker-compose.workflow.yml              # Workflow domain compose
+│
+├── ai/                                          # AI/ML DOMAIN
+│   │
+│   ├── firecrawl/                               # Firecrawl - Web Scraping & Crawling
+│   │   ├── README.md
+│   │   ├── docker-compose.yml
+│   │   │
+│   │   ├── api/                                 # FastAPI service
+│   │   │   ├── Dockerfile
+│   │   │   ├── requirements.txt
+│   │   │   └── firecrawl/
+│   │   │       ├── main.py
+│   │   │       ├── api/
+│   │   │       ├── crawlers/
+│   │   │       ├── scrapers/
+│   │   │       └── processors/
+│   │   │
+│   │   ├── ui/                                  # Next.js UI
+│   │   │   ├── Dockerfile
+│   │   │   ├── package.json
+│   │   │   └── src/
+│   │   │
+│   │   ├── redis/                               # Redis queue
+│   │   │   └── Dockerfile
+│   │   │
+│   │   ├── examples/                            # Example scripts
+│   │   └── sdks/                                # Client SDKs
+│   │       ├── python/
+│   │       ├── javascript/
+│   │       └── go/
+│   │
+│   ├── firecrawl-mcp/                           # Firecrawl MCP Server
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.ts
+│   │       └── scraper.ts
+│   │
+│   ├── goose/                                   # Goose - AI Agent
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── Cargo.toml                           # Rust workspace
+│   │   │
+│   │   ├── crates/                              # Rust crates
+│   │   │   ├── goose/                           # Core agent
+│   │   │   ├── goose-cli/                       # CLI interface
+│   │   │   └── goose-mcp/                       # MCP server
+│   │   │
+│   │   ├── extensions/                          # Agent extensions
+│   │   │   ├── developer/
+│   │   │   └── researcher/
+│   │   │
+│   │   └── ui/                                  # Web UI
+│   │       ├── Dockerfile
+│   │       └── src/
+│   │
+│   ├── chroma-mcp/                              # Chroma Vector DB MCP
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── src/
+│   │       ├── server.py
+│   │       └── embeddings.py
+│   │
+│   ├── filescope-mcp/                           # FileScope MCP Server
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── src/
+│   │       └── server.py
+│   │
+│   ├── inspector/                               # MCP Inspector
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── package.json
+│   │   └── src/
+│   │       └── index.ts
+│   │
+│   ├── analytics/                               # Analytics Service
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── src/
+│   │       ├── main.py
+│   │       ├── models/
+│   │       └── pipelines/
+│   │
+│   ├── playwright-service/                      # Playwright Automation
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── requirements.txt
+│   │   └── src/
+│   │       └── server.py
+│   │
+│   ├── html-to-md-service/                      # HTML to Markdown
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   ├── go.mod
+│   │   └── main.go
+│   │
+│   ├── nuq-postgres/                            # PostgreSQL for AI
+│   │   ├── README.md
+│   │   ├── Dockerfile
+│   │   └── init.sql
+│   │
+│   ├── kasmvnc/                                 # Remote Desktop for AI
+│   │   ├── README.md
+│   │   └── Dockerfile
+│   │
+│   └── docker-compose.ai.yml                    # AI domain compose
+│
+└── shared/                                      # CROSS-DOMAIN UTILITIES (if needed)
+    ├── README.md
+    └── docker-compose.shared.yml
 │
 ├── Dockerfile.base                              # Base image for all backend services
 ├── requirements.base.txt                        # Shared Python requirements
@@ -451,1512 +894,756 @@ backend/                                         # Backend services (Stage 2)
 │   │
 │   └── docker-compose.services.yml              # Additional services compose
 │
-└── docker-compose.backend.yml                   # All backend services compose
+
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                             SECTION 3: APPS DIRECTORY - STAGE 2 FRONTENDS
+                              SECTION 3: LIBS - MINIMAL SHARED LIBRARIES
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-apps/                                            # Frontend applications (Stage 2)
+libs/                                            # Minimal shared libraries (ONLY cross-domain code)
 │
-├── portal/                                      # Main Public-Facing Website (User Entry Point)
-│   ├── Dockerfile                               # Portal container
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── next.config.js                           # Next.js configuration
-│   ├── src/
-│   │   ├── app/                                 # Next.js App Router
-│   │   │   ├── layout.tsx                       # Root layout
-│   │   │   ├── page.tsx                         # Home/landing page
-│   │   │   ├── workflow/                        # Workflow context entry
-│   │   │   │   └── page.tsx                     # Workflow overview + links to n8n
-│   │   │   ├── security/                        # Security context entry
-│   │   │   │   └── page.tsx                     # Security overview + links to apps
-│   │   │   ├── productivity/                    # Productivity context entry
-│   │   │   │   └── page.tsx                     # Productivity overview + links
-│   │   │   ├── tcg/                             # TCG context entry
-│   │   │   │   └── page.tsx                     # TCG overview + links
-│   │   │   ├── ai/                              # AI/ML context entry
-│   │   │   │   └── page.tsx                     # AI overview + links
-│   │   │   └── api/                             # API routes
-│   │   ├── components/                          # Portal-specific components
-│   │   │   ├── Navigation/                      # Main navigation
-│   │   │   ├── DomainCard/                      # Domain overview cards
-│   │   │   ├── ServiceCard/                     # Service status cards
-│   │   │   └── Footer/                          # Portal footer
-│   │   ├── lib/                                 # Utilities
-│   │   └── styles/                              # Portal styles
-│   └── public/                                  # Static assets
+├── README.md                                    # Libs usage guidelines
 │
-├── omninexus/                                   # Unified Admin/Power-User Dashboard
-│   ├── Dockerfile                               # OmniNexus container
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── vite.config.ts
-│   ├── index.html
-│   ├── src/
-│   │   ├── main.tsx                             # App entry
-│   │   ├── App.tsx                              # Root component
-│   │   ├── routes/                              # Dashboard routes (minimal switching)
-│   │   │   ├── index.tsx                        # Main unified view
-│   │   │   ├── overview.tsx                     # System overview (default)
-│   │   │   ├── monitoring.tsx                   # Real-time monitoring
-│   │   │   ├── logs.tsx                         # Centralized log viewer
-│   │   │   └── admin.tsx                        # Admin controls
-│   │   │
-│   │   ├── components/                          # OmniNexus components
-│   │   │   ├── UnifiedDashboard/                # Main dashboard layout
-│   │   │   │   ├── WorkflowPanel.tsx            # Workflow context panel
-│   │   │   │   ├── SecurityPanel.tsx            # Security context panel
-│   │   │   │   ├── ProductivityPanel.tsx        # Productivity panel
-│   │   │   │   ├── TCGPanel.tsx                 # TCG panel
-│   │   │   │   └── AIMLPanel.tsx                # AI/ML panel
-│   │   │   ├── MetricsGrid/                     # Metrics at-a-glance
-│   │   │   ├── ServiceStatus/                   # All service statuses
-│   │   │   ├── LogViewer/                       # Integrated log viewer
-│   │   │   ├── GraphViewer/                     # Embedded Grafana/metrics
-│   │   │   ├── ServiceControl/                  # Start/stop/restart controls
-│   │   │   └── QuickActions/                    # Quick action toolbar
-│   │   │
-│   │   ├── integrations/                        # Embedded app integrations
-│   │   │   ├── n8n-embed.tsx                    # Embedded n8n views
-│   │   │   ├── ghostwriter-embed.tsx            # Embedded Ghostwriter
-│   │   │   ├── kibana-embed.tsx                 # Embedded Kibana
-│   │   │   ├── grafana-embed.tsx                # Embedded Grafana
-│   │   │   └── index.ts                         # Integration registry
-│   │   │
-│   │   ├── services/                            # API clients
-│   │   │   ├── graphql.ts                       # GraphQL client
-│   │   │   ├── rest.ts                          # REST API client
-│   │   │   ├── websocket.ts                     # WebSocket for real-time
-│   │   │   └── mcp.ts                           # MCP client
-│   │   │
-│   │   ├── store/                               # State management
-│   │   │   ├── services.ts                      # All services state
-│   │   │   ├── metrics.ts                       # Real-time metrics
-│   │   │   ├── logs.ts                          # Log streams
-│   │   │   └── user.ts                          # User/auth state
-│   │   │
-│   │   └── styles/                              # OmniNexus styles
-│   │       └── dashboard.css                    # Dashboard-specific styles
-│   │
-│   └── public/                                  # Static assets
-│
-├── shared/                                      # Shared Frontend Components & Utilities
-│   ├── ui-components/                           # Shared UI Component Library
-│   │   ├── package.json                         # Component library package
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts                       # Vite build config
-│   │   ├── src/
-│   │   │   ├── index.ts                         # Main export
-│   │   │   ├── components/                      # React components
-│   │   │   │   ├── Button/
-│   │   │   │   │   ├── Button.tsx
-│   │   │   │   │   ├── Button.test.tsx
-│   │   │   │   │   └── Button.stories.tsx       # Storybook story
-│   │   │   │   ├── Input/
-│   │   │   │   ├── Table/
-│   │   │   │   ├── Modal/
-│   │   │   │   ├── Card/
-│   │   │   │   └── index.ts
-│   │   │   ├── hooks/                           # Shared React hooks
-│   │   │   │   ├── useFetch.ts
-│   │   │   │   ├── useAuth.ts
-│   │   │   │   ├── useWebSocket.ts
-│   │   │   │   └── index.ts
-│   │   │   ├── utils/                           # Utility functions
-│   │   │   └── styles/                          # Shared styles
-│   │   │       ├── theme.ts                     # Theme configuration
-│   │   │       ├── tailwind.config.ts           # Tailwind config
-│   │   │       └── globals.css                  # Global styles
-│   │   └── .storybook/                          # Storybook configuration
-│   │       ├── main.ts
-│   │       └── preview.ts
-│   │
-│   ├── vue-components/                          # Shared Vue Component Library
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
-│   │   ├── src/
-│   │   │   ├── index.ts
-│   │   │   ├── components/                      # Vue components
-│   │   │   │   ├── VButton/
-│   │   │   │   │   ├── VButton.vue
-│   │   │   │   │   ├── VButton.test.ts
-│   │   │   │   │   └── VButton.stories.ts
-│   │   │   │   ├── VInput/
-│   │   │   │   ├── VTable/
-│   │   │   │   └── index.ts
-│   │   │   ├── composables/                     # Vue composables
-│   │   │   │   ├── useFetch.ts
-│   │   │   │   ├── useAuth.ts
-│   │   │   │   └── index.ts
-│   │   │   ├── utils/
-│   │   │   └── styles/
-│   │   └── .storybook/
-│   │
-│   ├── design-system/                           # Design System Documentation
-│   │   ├── Dockerfile                           # Storybook container
-│   │   ├── package.json
-│   │   ├── .storybook/                          # Main Storybook config
-│   │   │   ├── main.ts                          # Storybook main config
-│   │   │   ├── preview.ts                       # Preview configuration
-│   │   │   └── manager.ts                       # Manager config
-│   │   ├── stories/                             # Documentation stories
-│   │   │   ├── Introduction.mdx                 # Getting started
-│   │   │   ├── Colors.mdx                       # Color system
-│   │   │   ├── Typography.mdx                   # Typography guide
-│   │   │   └── Components.mdx                   # Component overview
-│   │   └── public/                              # Static assets
-│   │
-│   └── types/                                   # Shared TypeScript types
-│       ├── package.json
-│       └── src/
-│           ├── index.ts
-│           ├── user.ts                          # User types
-│           ├── api.ts                           # API types
-│           └── domain/                          # Domain types
-│               ├── workflow.ts
-│               ├── security.ts
-│               ├── productivity.ts
-│               └── tcg.ts
-│
-├── security/                                    # Security Context Frontends
-│   ├── ghostwriter-ui/                          # Ghostwriter Frontend
-│   │   ├── Dockerfile                           # React app container
-│   │   ├── Dockerfile.dev                       # Development container
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
-│   │   ├── index.html
-│   │   ├── src/
-│   │   │   ├── main.tsx                         # App entry point
-│   │   │   ├── App.tsx                          # Root component
-│   │   │   ├── routes/                          # React Router routes
-│   │   │   │   ├── index.tsx
-│   │   │   │   ├── clients.tsx                  # Client management
-│   │   │   │   ├── projects.tsx                 # Project tracking
-│   │   │   │   ├── findings.tsx                 # Findings management
-│   │   │   │   └── reports.tsx                  # Report generation
-│   │   │   ├── components/                      # Ghostwriter components
-│   │   │   │   ├── ClientList/
-│   │   │   │   ├── ProjectCard/
-│   │   │   │   ├── FindingEditor/
-│   │   │   │   └── ReportBuilder/
-│   │   │   ├── graphql/                         # GraphQL queries/mutations
-│   │   │   │   ├── queries/
-│   │   │   │   │   ├── clients.ts
-│   │   │   │   │   ├── projects.ts
-│   │   │   │   │   └── findings.ts
-│   │   │   │   └── mutations/
-│   │   │   │       ├── createClient.ts
-│   │   │   │       └── updateFinding.ts
-│   │   │   ├── hooks/                           # Custom hooks
-│   │   │   ├── store/                           # State management (Zustand/Redux)
-│   │   │   ├── utils/
-│   │   │   └── styles/
-│   │   ├── public/
-│   │   └── tests/
-│   │
-│   └── hexstrike-ui/                            # Hexstrike AI Testing UI
-│       ├── Dockerfile
-│       ├── package.json
-│       ├── tsconfig.json
-│       ├── vite.config.ts
-│       └── src/
-│           ├── main.tsx
-│           └── components/
-│
-├── workflow/                                    # Workflow Context Frontends
-│   ├── n8n-frontend/                            # n8n Workflow Editor
-│   │   ├── Dockerfile                           # n8n UI container
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
-│   │   ├── src/
-│   │   │   ├── main.ts                          # Vue app entry
-│   │   │   ├── App.vue                          # Root component
-│   │   │   ├── views/                           # Vue views
-│   │   │   │   ├── WorkflowEditor.vue           # Main editor
-│   │   │   │   ├── ExecutionList.vue            # Execution history
-│   │   │   │   └── CredentialsList.vue          # Credentials management
-│   │   │   ├── components/                      # n8n components
-│   │   │   │   ├── NodePanel/                   # Node selection panel
-│   │   │   │   ├── Canvas/                      # Workflow canvas
-│   │   │   │   ├── NodeSettings/                # Node configuration
-│   │   │   │   └── ExecutionViewer/             # Execution results
-│   │   │   ├── composables/                     # Vue composables
-│   │   │   ├── store/                           # Pinia stores
-│   │   │   │   ├── workflows.ts
-│   │   │   │   ├── nodes.ts
-│   │   │   │   └── credentials.ts
-│   │   │   └── styles/
-│   │   └── public/
-│   │
-│   └── benchmark-ui/                            # n8n Benchmark UI
-│       ├── package.json
-│       └── src/
-│
-├── productivity/                                # Productivity Context Frontends
-│   ├── mealie-ui/                               # Mealie Recipe Manager UI
-│   │   ├── Dockerfile                           # Vue app container
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
-│   │   ├── src/
-│   │   │   ├── main.ts
-│   │   │   ├── App.vue
-│   │   │   ├── views/                           # Vue views
-│   │   │   │   ├── RecipeList.vue
-│   │   │   │   ├── RecipeDetail.vue
-│   │   │   │   ├── MealPlanner.vue
-│   │   │   │   └── ShoppingList.vue
-│   │   │   ├── components/
-│   │   │   ├── composables/
-│   │   │   └── store/
-│   │   └── public/
-│   │
-│   ├── dispatch-ui/                             # Dispatch Incident Management UI
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
-│   │   └── src/
-│   │       ├── main.tsx
-│   │       ├── App.tsx
-│   │       ├── routes/
-│   │       │   ├── incidents.tsx
-│   │       │   ├── tasks.tsx
-│   │       │   └── notifications.tsx
-│   │       ├── components/
-│   │       └── store/
-│   │
-│   ├── actual-ui/                               # Actual Budget UI
-│   │   ├── Dockerfile
+├── typescript/                                  # TypeScript shared libraries
+│   ├── common/                                  # Common utilities
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── src/
-│   │       ├── main.tsx
-│   │       ├── App.tsx
-│   │       └── components/
+│   │       ├── types/                           # Shared types
+│   │       ├── utils/                           # Utility functions
+│   │       └── constants/                       # Constants
 │   │
-│   └── it-tools-ui/                             # IT Tools Collection UI
-│       ├── Dockerfile
-│       ├── package.json
-│       ├── tsconfig.json
-│       ├── vite.config.ts
-│       └── src/
-│           ├── main.ts
-│           ├── App.vue
-│           ├── views/                           # Tool views
-│           │   ├── JsonFormatter.vue
-│           │   ├── Base64Encoder.vue
-│           │   ├── UuidGenerator.vue
-│           │   └── index.ts
-│           └── components/
-│
-├── tcg/                                         # TCG Context Frontends
-│   ├── spellbook-ui/                            # Commander Spellbook Site
-│   │   ├── Dockerfile                           # Next.js app container
+│   ├── ui-components/                           # Shared UI components
 │   │   ├── package.json
 │   │   ├── tsconfig.json
-│   │   ├── next.config.js                       # Next.js configuration
-│   │   ├── src/
-│   │   │   ├── app/                             # Next.js App Router
-│   │   │   │   ├── layout.tsx                   # Root layout
-│   │   │   │   ├── page.tsx                     # Home page
-│   │   │   │   ├── search/                      # Search page
-│   │   │   │   │   └── page.tsx
-│   │   │   │   ├── combo/                       # Combo details
-│   │   │   │   │   └── [id]/
-│   │   │   │   │       └── page.tsx
-│   │   │   │   └── api/                         # API routes
-│   │   │   │       └── combos/
-│   │   │   ├── components/                      # React components
-│   │   │   │   ├── ComboCard/
-│   │   │   │   ├── CardSearch/
-│   │   │   │   └── ComboList/
-│   │   │   ├── lib/                             # Utilities
-│   │   │   └── styles/
-│   │   └── public/
+│   │   └── src/
+│   │       ├── Button/
+│   │       ├── Card/
+│   │       ├── Form/
+│   │       └── Layout/
 │   │
-│   └── mtg-map-ui/                              # MTG Commander Map UI
-│       ├── Dockerfile
+│   └── api-client/                              # Shared API client
 │       ├── package.json
 │       ├── tsconfig.json
 │       └── src/
-│           ├── main.tsx
-│           ├── App.tsx
-│           └── components/
+│           ├── client.ts
+│           ├── auth.ts
+│           └── types.ts
 │
-├── ai/                                          # AI/ML Context Frontends
-│   ├── firecrawl-ui/                            # Firecrawl Web Interface
-│   │   ├── Dockerfile                           # React app container
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
-│   │   ├── src/
-│   │   │   ├── main.tsx
-│   │   │   ├── App.tsx
-│   │   │   ├── routes/
-│   │   │   │   ├── crawl.tsx                    # Crawl management
-│   │   │   │   ├── scrape.tsx                   # Scraping interface
-│   │   │   │   └── jobs.tsx                     # Job monitoring
-│   │   │   ├── components/
-│   │   │   │   ├── CrawlConfig/
-│   │   │   │   ├── JobList/
-│   │   │   │   └── ResultViewer/
-│   │   │   └── store/
-│   │   └── public/
-│   │
-│   ├── inspector/                               # MCP Inspector UI
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── vite.config.ts
+├── python/                                      # Python shared libraries
+│   ├── common/                                  # Common utilities
+│   │   ├── pyproject.toml
+│   │   ├── setup.py
 │   │   └── src/
-│   │       ├── main.tsx
-│   │       ├── App.tsx
-│   │       ├── components/
-│   │       │   ├── ServerList/                  # MCP server list
-│   │       │   ├── ToolInspector/               # Tool testing
-│   │       │   └── RequestLogger/               # Request logs
-│   │       └── mcp/                             # MCP client
+│   │       └── common/
+│   │           ├── __init__.py
+│   │           ├── config.py                    # Configuration utilities
+│   │           ├── logging.py                   # Logging utilities
+│   │           └── exceptions.py                # Custom exceptions
 │   │
-│   ├── analytics/                               # Analytics Dashboard
-│   │   ├── Dockerfile
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   └── src/
-│   │       ├── main.tsx
-│   │       ├── App.tsx
-│   │       ├── routes/
-│   │       │   ├── dashboard.tsx                # Main dashboard
-│   │       │   ├── reports.tsx                  # Report viewer
-│   │       │   └── metrics.tsx                  # Metrics explorer
-│   │       └── components/
-│   │           ├── Charts/                      # Chart components
-│   │           ├── MetricCard/
-│   │           └── DataTable/
-│   │
-│   └── goose-ui/                                # Goose AI Interface (optional)
-│       ├── Dockerfile
-│       ├── package.json
+│   └── database/                                # Database utilities
+│       ├── pyproject.toml
 │       └── src/
+│           └── database/
+│               ├── __init__.py
+│               ├── session.py                   # Database session
+│               └── migrations.py                # Migration helpers
 │
-└── docker-compose.apps.yml                      # All frontend apps compose
+├── rust/                                        # Rust shared libraries
+│   └── common/                                  # Common utilities
+│       ├── Cargo.toml
+│       └── src/
+│           ├── lib.rs
+│           └── utils/
+│
+└── go/                                          # Go shared libraries
+    └── common/                                  # Common utilities
+        ├── go.mod
+        └── pkg/
+            └── utils/
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                        SECTION 4: INFRASTRUCTURE DIRECTORY - STAGES 1, 3, 4, 5
+                              SECTION 4: INFRASTRUCTURE - CROSS-CUTTING CONCERNS
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-infrastructure/                                  # Infrastructure components (Stages 1, 3, 4, 5)
+infrastructure/                                  # Cross-cutting infrastructure
 │
 ├── README.md                                    # Infrastructure documentation
 │
-├── stage-1-edge/                                # STAGE 1: Edge/Gateway Layer
-│   ├── kong/                                    # Kong API Gateway
-│   │   ├── Dockerfile                           # Kong custom build
-│   │   ├── docker-compose.yml                   # Kong standalone
-│   │   ├── kong.yml                             # Declarative configuration
-│   │   ├── plugins/                             # Custom plugins
-│   │   │   └── (see backend/api/kong/plugins)
-│   │   └── migrations/                          # Database migrations
-│   │
-│   └── nginx/                                   # Nginx Reverse Proxy
-│       ├── Dockerfile                           # Nginx custom build
-│       ├── docker-compose.yml                   # Nginx standalone
-│       ├── nginx.conf                           # Main config
-│       ├── conf.d/                              # Site configurations
-│       │   ├── default.conf                     # Default site
-│       │   ├── ghostwriter.conf                 # Ghostwriter routing
-│       │   ├── n8n.conf                         # n8n routing
-│       │   ├── firecrawl.conf                   # Firecrawl routing
-│       │   ├── kibana.conf                      # Kibana routing
-│       │   └── grafana.conf                     # Grafana routing
-│       ├── ssl/                                 # SSL certificates
-│       │   ├── certs/                           # Certificate files
-│       │   └── dhparam.pem                      # DH parameters
-│       └── static/                              # Static assets
+├── kong/                                        # Kong API Gateway
+│   ├── Dockerfile                               # Kong custom image
+│   ├── kong.yml                                 # Kong declarative config
+│   ├── docker-compose.yml                       # Kong compose
+│   ├── plugins/                                 # Custom Kong plugins
+│   │   ├── auth/                                # Custom auth plugin
+│   │   ├── rate-limit/                          # Custom rate limiting
+│   │   └── logging/                             # Custom logging plugin
+│   └── migrations/                              # Kong database migrations
 │
-├── stage-3-infrastructure/                      # STAGE 3: Infrastructure/Sidecar Layer
-│   ├── dapr/                                    # Dapr Service Mesh
-│   │   ├── Dockerfile.placement                 # Placement service
-│   │   ├── Dockerfile.sidecar                   # Sidecar injector
-│   │   ├── docker-compose.yml                   # Dapr components
-│   │   ├── components/                          # Dapr components config
-│   │   │   ├── pubsub-redis.yaml                # Redis pub/sub
-│   │   │   ├── statestore-redis.yaml            # Redis state store
-│   │   │   ├── secretstore.yaml                 # Secret store
-│   │   │   └── bindings.yaml                    # Output bindings
-│   │   ├── config/                              # Dapr configuration
-│   │   │   ├── config.yaml                      # Main config
-│   │   │   └── tracing.yaml                     # Tracing config
-│   │   └── subscriptions/                       # Pub/sub subscriptions
-│   │
-│   ├── bullmq/                                  # BullMQ Job Queue
-│   │   ├── Dockerfile.worker                    # Worker container
-│   │   ├── docker-compose.yml                   # BullMQ setup
-│   │   ├── workers/                             # Worker implementations
-│   │   │   ├── email-worker.ts                  # Email processing
-│   │   │   ├── report-worker.ts                 # Report generation
-│   │   │   └── crawl-worker.ts                  # Web crawling
-│   │   └── queues/                              # Queue configurations
-│   │       ├── email.queue.ts
-│   │       ├── report.queue.ts
-│   │       └── crawl.queue.ts
-│   │
-│   ├── monitoring/                              # Monitoring & Metrics
-│   │   ├── prometheus/                          # Prometheus
-│   │   │   ├── Dockerfile                       # Custom Prometheus
-│   │   │   ├── docker-compose.yml
-│   │   │   ├── prometheus.yml                   # Main configuration
-│   │   │   ├── alerts/                          # Alert rules
-│   │   │   │   ├── containers.yml               # Container alerts
-│   │   │   │   ├── services.yml                 # Service alerts
-│   │   │   │   └── databases.yml                # Database alerts
-│   │   │   └── targets/                         # Scrape targets
-│   │   │
-│   │   └── grafana/                             # Grafana
-│   │       ├── Dockerfile                       # Custom Grafana
-│   │       ├── docker-compose.yml
-│   │       ├── grafana.ini                      # Main configuration
-│   │       ├── dashboards/                      # Dashboard definitions
-│   │       │   ├── system-overview.json         # System dashboard
-│   │       │   ├── security-metrics.json        # Security metrics
-│   │       │   ├── workflow-metrics.json        # Workflow metrics
-│   │       │   └── database-metrics.json        # Database metrics
-│   │       ├── provisioning/                    # Auto-provisioning
-│   │       │   ├── datasources/                 # Data sources
-│   │       │   │   ├── prometheus.yml
-│   │       │   │   ├── elasticsearch.yml
-│   │       │   │   └── postgres.yml
-│   │       │   └── dashboards/                  # Dashboard config
-│   │       └── plugins/                         # Custom plugins
-│   │
-│   ├── logging/                                 # Logging & Tracing
-│   │   ├── syslog-ng/                           # Syslog-NG
-│   │   │   ├── Dockerfile
-│   │   │   ├── docker-compose.yml
-│   │   │   └── syslog-ng.conf                   # Configuration
-│   │   │
-│   │   ├── zipkin/                              # Zipkin Tracing
-│   │   │   ├── Dockerfile
-│   │   │   ├── docker-compose.yml
-│   │   │   └── zipkin.yml                       # Configuration
-│   │   │
-│   │   └── opentelemetry/                       # OpenTelemetry Collector
-│   │       ├── Dockerfile
-│   │       ├── docker-compose.yml
-│   │       └── otel-collector-config.yml        # Collector config
-│   │
-│   └── service-mesh/                            # Service Discovery
-│       └── nginx-load-balancer/                 # Nginx as LB
-│           ├── Dockerfile
-│           ├── nginx.conf                       # LB configuration
-│           └── upstream.conf.template           # Upstream template
+├── graphql-gateway/                             # GraphQL Federation Gateway
+│   ├── Dockerfile                               # Apollo/Hasura gateway
+│   ├── package.json                             # Node.js dependencies
+│   ├── docker-compose.yml                       # Gateway compose
+│   ├── src/                                 
+│   │   ├── index.ts                             # Main gateway entry
+│   │   ├── schema-stitching.ts                  # Schema federation
+│   │   ├── subgraphs/                           # Subgraph configurations
+│   │   │   ├── ghostwriter.graphql              # Ghostwriter schema
+│   │   │   ├── nemesis.graphql                  # Nemesis schema
+│   │   │   ├── spellbook.graphql                # Spellbook schema
+│   │   │   ├── security.graphql                 # Security domain schema
+│   │   │   ├── tcg.graphql                      # TCG domain schema
+│   │   │   ├── productivity.graphql             # Productivity domain schema
+│   │   │   ├── workflow.graphql                 # Workflow domain schema
+│   │   │   └── ai.graphql                       # AI domain schema
+│   │   ├── resolvers/                           # Custom resolvers
+│   │   └── middleware/                          # Auth, logging, etc.
+│   └── config/                                  # Gateway configuration
 │
-├── stage-4-data/                                # STAGE 4: Data Persistence Layer
-│   ├── postgres/                                # PostgreSQL Database
-│   │   ├── Dockerfile                           # Custom PostgreSQL image
-│   │   ├── docker-compose.yml                   # PostgreSQL standalone
-│   │   ├── postgresql.conf                      # Main configuration
-│   │   ├── pg_hba.conf                          # Access control
-│   │   ├── init/                                # Initialization scripts
-│   │   │   ├── 00-extensions.sql                # Enable extensions
-│   │   │   ├── 01-create-databases.sql          # Create databases
-│   │   │   ├── 02-create-schemas.sql            # Create schemas
-│   │   │   └── 03-create-users.sql              # Create users/roles
-│   │   │
-│   │   ├── schemas/                             # Schema Definitions (by context)
-│   │   │   ├── workflow/                        # Workflow Context Schema
-│   │   │   │   ├── 00-schema.sql                # Create workflow_schema
-│   │   │   │   ├── 01-tables.sql                # Core tables
-│   │   │   │   │   # Tables: n8n_main, n8n_executions, n8n_credentials,
-│   │   │   │   │   #         n8n_workflows, benchmark_data
-│   │   │   │   ├── 02-indexes.sql               # Indexes
-│   │   │   │   ├── 03-constraints.sql           # Constraints
-│   │   │   │   └── 04-functions.sql             # Stored functions
-│   │   │   │
-│   │   │   ├── security/                        # Security Context Schema
-│   │   │   │   ├── 00-schema.sql                # Create security_schema
-│   │   │   │   ├── 01-tables.sql                # Core tables
-│   │   │   │   │   # Tables: ghostwriter_*, helk_metadata, maltrail_events,
-│   │   │   │   │   #         nemesis_*, misp_*, kong_config
-│   │   │   │   ├── 02-indexes.sql
-│   │   │   │   ├── 03-constraints.sql
-│   │   │   │   └── 04-functions.sql
-│   │   │   │
-│   │   │   ├── productivity/                    # Productivity Context Schema
-│   │   │   │   ├── 00-schema.sql                # Create productivity_schema
-│   │   │   │   ├── 01-tables.sql                # Core tables
-│   │   │   │   │   # Tables: dispatch_*, mealie_*, actual_budget,
-│   │   │   │   │   #         it_tools_data
-│   │   │   │   ├── 02-indexes.sql
-│   │   │   │   ├── 03-constraints.sql
-│   │   │   │   └── 04-functions.sql
-│   │   │   │
-│   │   │   ├── tcg/                             # TCG Context Schema
-│   │   │   │   ├── 00-schema.sql                # Create tcg_schema
-│   │   │   │   ├── 01-tables.sql                # Core tables
-│   │   │   │   │   # Tables: spellbook_*, mtg_cards, combo_index,
-│   │   │   │   │   #         bot_state
-│   │   │   │   ├── 02-indexes.sql
-│   │   │   │   ├── 03-constraints.sql
-│   │   │   │   └── 04-functions.sql
-│   │   │   │
-│   │   │   ├── ai_ml/                           # AI/ML Context Schema
-│   │   │   │   ├── 00-schema.sql                # Create ai_ml_schema
-│   │   │   │   ├── 01-tables.sql                # Core tables
-│   │   │   │   │   # Tables: firecrawl_*, goose_sessions, analytics_meta,
-│   │   │   │   │   #         playwright_jobs, chroma_metadata
-│   │   │   │   ├── 02-indexes.sql
-│   │   │   │   ├── 03-constraints.sql
-│   │   │   │   └── 04-functions.sql
-│   │   │   │
-│   │   │   ├── testing/                         # Testing Schema
-│   │   │   │   ├── 00-schema.sql                # Create testing_schema
-│   │   │   │   ├── 01-tables.sql                # Test tables
-│   │   │   │   │   # Tables: integration_tests, e2e_fixtures
-│   │   │   │   └── 02-indexes.sql
-│   │   │   │
-│   │   │   └── shared/                          # Shared Schema
-│   │   │       ├── 00-schema.sql                # Create shared_schema
-│   │   │       ├── 01-tables.sql                # Shared tables
-│   │   │       │   # Tables: users, auth_tokens, audit_log,
-│   │   │       │   #         feature_flags, organizations
-│   │   │       ├── 02-indexes.sql
-│   │   │       ├── 03-constraints.sql
-│   │   │       └── 04-functions.sql
-│   │   │
-│   │   ├── migrations/                          # Database Migrations (by context)
-│   │   │   ├── workflow/                        # Workflow migrations
-│   │   │   │   ├── 001_initial.sql
-│   │   │   │   ├── 002_add_benchmark.sql
-│   │   │   │   └── ...
-│   │   │   ├── security/                        # Security migrations
-│   │   │   ├── productivity/                    # Productivity migrations
-│   │   │   ├── tcg/                             # TCG migrations
-│   │   │   ├── ai_ml/                           # AI/ML migrations
-│   │   │   ├── testing/                         # Testing migrations
-│   │   │   └── shared/                          # Shared migrations
-│   │   │
-│   │   ├── backups/                             # Backup scripts
-│   │   │   ├── backup.sh                        # Full backup
-│   │   │   ├── restore.sh                       # Restore script
-│   │   │   └── cron-backup.sh                   # Scheduled backup
-│   │   │
-│   │   └── scripts/                             # Utility scripts
-│   │       ├── vacuum.sh                        # Vacuum database
-│   │       ├── analyze.sh                       # Analyze tables
-│   │       └── reindex.sh                       # Reindex tables
-│   │
-│   ├── redis/                                   # Redis Cache & Queue
-│   │   ├── Dockerfile                           # Custom Redis image
-│   │   ├── docker-compose.yml                   # Redis standalone
-│   │   ├── redis.conf                           # Main configuration
-│   │   ├── sentinel.conf                        # Sentinel configuration (HA)
-│   │   ├── databases/                           # Database configurations
-│   │   │   ├── README.md                        # Database allocation guide
-│   │   │   │   # DB 0: n8n_queue
-│   │   │   │   # DB 1: workflow_cache
-│   │   │   │   # DB 2: security_cache
-│   │   │   │   # DB 3: session_store
-│   │   │   │   # DB 4: bullmq_jobs
-│   │   │   │   # DB 5: kong_cache
-│   │   │   │   # DB 6: api_rate_limit
-│   │   │   │   # DB 7: temp_storage
-│   │   │   │   # DB 8: firecrawl_jobs
-│   │   │   │   # DB 9-15: (reserved)
-│   │   │   └── init.redis                       # Initialization commands
-│   │   │
-│   │   ├── scripts/                             # Utility scripts
-│   │   │   ├── flush-db.sh                      # Flush specific database
-│   │   │   ├── monitor.sh                       # Monitor Redis
-│   │   │   └── backup.sh                        # Backup RDB
-│   │   │
-│   │   └── cluster/                             # Redis Cluster config (optional)
-│   │       ├── docker-compose.cluster.yml       # Cluster setup
-│   │       └── redis-cluster.conf               # Cluster config
-│   │
-│   ├── elasticsearch/                           # Elasticsearch (Consolidated)
-│   │   ├── Dockerfile                           # Custom Elasticsearch
-│   │   ├── docker-compose.yml                   # Elasticsearch cluster
-│   │   ├── elasticsearch.yml                    # Main configuration
-│   │   ├── jvm.options                          # JVM settings
-│   │   ├── log4j2.properties                    # Logging config
-│   │   │
-│   │   ├── indices/                             # Index templates & mappings
-│   │   │   ├── helk/                            # HELK indices
-│   │   │   │   ├── helk-template.json           # Index template
-│   │   │   │   ├── helk-winlogbeat-mapping.json # Winlogbeat mapping
-│   │   │   │   └── helk-sysmon-mapping.json     # Sysmon mapping
-│   │   │   ├── securityonion/                   # Security Onion indices
-│   │   │   │   ├── so-template.json             # Index template
-│   │   │   │   ├── so-ids-mapping.json          # IDS alerts mapping
-│   │   │   │   └── so-zeek-mapping.json         # Zeek logs mapping
-│   │   │   └── logs/                            # General logs
-│   │   │       └── logs-template.json           # General log template
-│   │   │
-│   │   ├── ilm/                                 # Index Lifecycle Management
-│   │   │   ├── hot-warm-cold-delete.json        # ILM policy
-│   │   │   └── retention-policy.json            # Retention policy
-│   │   │
-│   │   └── scripts/                             # Utility scripts
-│   │       ├── create-indices.sh                # Create all indices
-│   │       ├── snapshot.sh                      # Snapshot creation
-│   │       └── restore.sh                       # Snapshot restore
-│   │
-│   ├── logstash/                                # Logstash (Shared)
-│   │   ├── Dockerfile                           # Custom Logstash
-│   │   ├── docker-compose.yml                   # Logstash standalone
-│   │   ├── logstash.yml                         # Main configuration
-│   │   ├── pipelines.yml                        # Pipeline routing
-│   │   ├── pipeline/                            # Pipeline configurations
-│   │   │   ├── helk.conf                        # HELK pipeline
-│   │   │   ├── securityonion.conf               # Security Onion pipeline
-│   │   │   └── general.conf                     # General logs pipeline
-│   │   │
-│   │   └── patterns/                            # Grok patterns
-│   │       ├── windows.grok                     # Windows patterns
-│   │       ├── linux.grok                       # Linux patterns
-│   │       └── custom.grok                      # Custom patterns
-│   │
-│   ├── kibana/                                  # Kibana (Unified)
-│   │   ├── Dockerfile                           # Custom Kibana
-│   │   ├── docker-compose.yml                   # Kibana standalone
-│   │   ├── kibana.yml                           # Main configuration
-│   │   ├── spaces/                              # Kibana spaces
-│   │   │   ├── helk-space.ndjson                # HELK workspace
-│   │   │   ├── securityonion-space.ndjson       # Security Onion workspace
-│   │   │   └── shared-space.ndjson              # Shared workspace
-│   │   │
-│   │   ├── dashboards/                          # Dashboard exports
-│   │   │   ├── helk/                            # HELK dashboards
-│   │   │   │   ├── hunting-overview.ndjson
-│   │   │   │   └── threat-detection.ndjson
-│   │   │   ├── securityonion/                   # Security Onion dashboards
-│   │   │   │   ├── network-overview.ndjson
-│   │   │   │   └── ids-alerts.ndjson
-│   │   │   └── shared/                          # Shared dashboards
-│   │   │       └── security-overview.ndjson
-│   │   │
-│   │   └── saved-objects/                       # Saved searches, visualizations
-│   │
-│   ├── clickhouse/                              # ClickHouse Analytics
-│   │   ├── Dockerfile                           # Custom ClickHouse
-│   │   ├── docker-compose.yml                   # ClickHouse standalone
-│   │   ├── config.xml                           # Main configuration
-│   │   ├── users.xml                            # User configuration
-│   │   ├── databases/                           # Database schemas
-│   │   │   ├── rita.sql                         # RITA database
-│   │   │   └── helk_analytics.sql               # HELK analytics
-│   │   │
-│   │   └── tables/                              # Table definitions
-│   │       ├── rita_beacons.sql                 # Beacon detection
-│   │       ├── rita_dns.sql                     # DNS analysis
-│   │       └── helk_events.sql                  # Event aggregation
-│   │
-│   ├── minio/                                   # MinIO Object Storage
-│   │   ├── Dockerfile                           # Custom MinIO
-│   │   ├── docker-compose.yml                   # MinIO standalone
-│   │   ├── config/                              # MinIO configuration
-│   │   │   └── config.env                       # Environment config
-│   │   │
-│   │   ├── buckets/                             # Bucket policies
-│   │   │   ├── nemesis-files.json               # Nemesis bucket
-│   │   │   ├── firecrawl-cache.json             # Firecrawl bucket
-│   │   │   ├── backup-storage.json              # Backup bucket
-│   │   │   ├── static-assets.json               # Static assets
-│   │   │   └── debug-dumps.json                 # Debug dumps
-│   │   │
-│   │   └── lifecycle/                           # Lifecycle policies
-│   │       ├── auto-delete-temp.json            # Auto-delete temp files
-│   │       └── archive-old.json                 # Archive old files
-│   │
-│   ├── kafka/                                   # Apache Kafka (HELK)
-│   │   ├── Dockerfile.broker                    # Kafka broker
-│   │   ├── Dockerfile.zookeeper                 # Zookeeper
-│   │   ├── docker-compose.yml                   # Kafka cluster
-│   │   ├── server.properties                    # Broker config
-│   │   └── topics/                              # Topic configurations
-│   │       ├── winlogbeat.json                  # Winlogbeat topic
-│   │       └── sysmon.json                      # Sysmon topic
-│   │
-│   └── spark/                                   # Apache Spark (HELK)
-│       ├── Dockerfile.master                    # Spark master
-│       ├── Dockerfile.worker                    # Spark worker
-│       ├── docker-compose.yml                   # Spark cluster
-│       ├── spark-defaults.conf                  # Spark config
-│       └── notebooks/                           # Jupyter notebooks
-│           ├── threat-hunting.ipynb             # Hunting notebook
-│           └── data-analysis.ipynb              # Analysis notebook
+├── mcp-hub/                                     # MCP Protocol Hub & Router
+│   ├── Dockerfile                               # MCP router image
+│   ├── package.json                             # TypeScript MCP router
+│   ├── docker-compose.yml                       # MCP hub compose
+│   ├── src/
+│   │   ├── index.ts                             # Main router entry
+│   │   ├── router.ts                            # Protocol routing logic
+│   │   ├── discovery.ts                         # Service discovery
+│   │   ├── health.ts                            # Health checks
+│   │   └── servers/                             # MCP server configs
+│   │       ├── chroma.config.ts                 # Chroma MCP
+│   │       ├── malwarebazaar.config.ts          # MalwareBazaar MCP
+│   │       ├── virustotal.config.ts             # VirusTotal MCP
+│   │       ├── n8n.config.ts                    # n8n MCP
+│   │       ├── firecrawl.config.ts              # Firecrawl MCP
+│   │       └── filescope.config.ts              # Filescope MCP
+│   └── config/                                  # Router configuration
 │
-├── stage-5-testing/                             # STAGE 5: Testing & Development
-│   ├── wiremock/                                # WireMock API Mocking
-│   │   ├── Dockerfile
-│   │   ├── docker-compose.yml
-│   │   └── mappings/                            # API mock definitions
-│   │       ├── ghostwriter-api.json
-│   │       ├── n8n-api.json
-│   │       └── firecrawl-api.json
-│   │
-│   ├── mailpit/                                 # Mailpit Email Testing
-│   │   ├── Dockerfile
-│   │   └── docker-compose.yml
-│   │
-│   ├── oidc-mock/                               # OIDC Mock Server
-│   │   ├── Dockerfile
-│   │   ├── docker-compose.yml
-│   │   └── config/
-│   │       └── clients.json                     # OAuth clients config
-│   │
-│   ├── grpcbin/                                 # gRPC Testing
-│   │   ├── Dockerfile
-│   │   └── docker-compose.yml
-│   │
-│   ├── pgadmin/                                 # PgAdmin4
-│   │   ├── Dockerfile
-│   │   ├── docker-compose.yml
-│   │   └── servers.json                         # Server definitions
-│   │
-│   └── ldap-mock/                               # LDAP Mock
+├── auth/                                        # Unified Authentication Service
+│   ├── Dockerfile                               # Auth service image
+│   ├── package.json                             # Node.js/TypeScript
+│   ├── docker-compose.yml                       # Auth compose
+│   ├── src/
+│   │   ├── index.ts                             # Main auth entry
+│   │   ├── strategies/                          # Auth strategies
+│   │   │   ├── jwt.ts                           # JWT authentication
+│   │   │   ├── oauth2.ts                        # OAuth2 provider
+│   │   │   ├── saml.ts                          # SAML SSO
+│   │   │   └── ldap.ts                          # LDAP integration
+│   │   ├── providers/                           # External auth providers
+│   │   │   ├── github.ts                        # GitHub OAuth
+│   │   │   ├── google.ts                        # Google OAuth
+│   │   │   └── azure-ad.ts                      # Azure AD
+│   │   ├── middleware/                          # Auth middleware
+│   │   └── models/                              # User/session models
+│   └── migrations/                              # Database migrations
+│
+├── postgres/                                    # PostgreSQL Database
+│   ├── Dockerfile                               # Custom PostgreSQL image
+│   ├── docker-compose.yml                       # PostgreSQL compose
+│   ├── init/                                    # Initialization scripts
+│   │   ├── 00-extensions.sql                    # PostgreSQL extensions
+│   │   ├── 01-databases.sql                     # Create databases
+│   │   └── 02-schemas.sql                       # Create schemas
+│   ├── backup/                                  # Backup scripts
+│   │   ├── backup.sh                            # Backup script
+│   │   └── restore.sh                           # Restore script
+│   └── config/                                  # PostgreSQL configuration
+│       └── postgresql.conf                      # Custom config
+│
+├── redis/                                       # Redis Cache & Queue
+│   ├── Dockerfile                               # Custom Redis image
+│   ├── docker-compose.yml                       # Redis compose
+│   ├── redis.conf                               # Redis configuration
+│   └── sentinel/                                # Redis Sentinel (HA)
 │       ├── Dockerfile
-│       ├── docker-compose.yml
-│       └── ldif/                                # LDAP data
-│           └── users.ldif
+│       └── sentinel.conf
+│
+├── bullmq/                                      # BullMQ Job Queue
+│   ├── Dockerfile                               # BullMQ dashboard
+│   ├── docker-compose.yml                       # BullMQ compose
+│   ├── package.json
+│   └── src/
+│       └── dashboard.ts                         # BullMQ UI
+│
+├── dapr/                                        # Dapr Service Mesh
+│   ├── docker-compose.yml                       # Dapr compose
+│   ├── components/                              # Dapr components
+│   │   ├── pubsub.yaml                          # Pub/sub configuration
+│   │   ├── statestore.yaml                      # State store
+│   │   ├── bindings.yaml                        # Bindings
+│   │   └── secrets.yaml                         # Secret management
+│   ├── config/                                  # Dapr configuration
+│   │   └── config.yaml                          # Dapr config
+│   └── middleware/                              # Dapr middleware
+│       ├── ratelimit.yaml
+│       └── tracing.yaml
+│
+├── monitoring/                                  # Monitoring & Observability
+│   ├── prometheus/                              # Prometheus metrics
+│   │   ├── Dockerfile
+│   │   ├── prometheus.yml
+│   │   └── alerts/
+│   ├── grafana/                                 # Grafana dashboards
+│   │   ├── Dockerfile
+│   │   ├── dashboards/
+│   │   └── datasources/
+│   ├── jaeger/                                  # Jaeger tracing
+│   │   └── docker-compose.yml
+│   └── loki/                                    # Loki logging
+│       └── docker-compose.yml
+│
+├── elasticsearch/                               # Elasticsearch (HELK, Security)
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── elasticsearch.yml
+│   └── indices/                                 # Index templates
+│
+├── rabbitmq/                                    # RabbitMQ Message Broker
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── rabbitmq.conf
+│   └── definitions.json                         # Queue/exchange definitions
+│
+├── nginx/                                       # Nginx Reverse Proxy
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── nginx.conf                               # Main nginx config
+│   ├── conf.d/                                  # Server configurations
+│   │   ├── security.conf                        # Security domain
+│   │   ├── tcg.conf                             # TCG domain
+│   │   ├── productivity.conf                    # Productivity domain
+│   │   ├── workflow.conf                        # Workflow domain
+│   │   └── ai.conf                              # AI domain
+│   └── ssl/                                     # SSL certificates
 │
 ├── kubernetes/                                  # Kubernetes Manifests
-│   ├── README.md                                # K8s deployment guide
 │   ├── namespaces/                              # Namespace definitions
-│   │   ├── workflow.yaml                        # Workflow namespace
-│   │   ├── security.yaml                        # Security namespace
-│   │   ├── productivity.yaml                    # Productivity namespace
-│   │   ├── tcg.yaml                             # TCG namespace
-│   │   ├── ai-ml.yaml                           # AI/ML namespace
-│   │   ├── infrastructure.yaml                  # Infrastructure namespace
-│   │   └── data.yaml                            # Data namespace
-│   │
-│   ├── stage-1-edge/                            # Stage 1 manifests
-│   │   ├── kong/
-│   │   │   ├── deployment.yaml
-│   │   │   ├── service.yaml
-│   │   │   ├── configmap.yaml
-│   │   │   └── ingress.yaml
-│   │   └── nginx/
-│   │       ├── deployment.yaml
-│   │       ├── service.yaml
-│   │       └── configmap.yaml
-│   │
-│   ├── stage-2-services/                        # Stage 2 manifests
-│   │   ├── workflow/                            # Workflow services
-│   │   │   └── n8n/
-│   │   │       ├── deployment.yaml
-│   │   │       ├── service.yaml
-│   │   │       ├── configmap.yaml
-│   │   │       └── pvc.yaml
-│   │   ├── security/                            # Security services
-│   │   │   ├── ghostwriter/
-│   │   │   └── nemesis/
-│   │   ├── productivity/                        # Productivity services
-│   │   ├── tcg/                                 # TCG services
-│   │   └── ai-ml/                               # AI/ML services
-│   │
-│   ├── stage-3-infrastructure/                  # Stage 3 manifests
-│   │   ├── dapr/
-│   │   ├── prometheus/
-│   │   ├── grafana/
-│   │   └── zipkin/
-│   │
-│   ├── stage-4-data/                            # Stage 4 manifests
-│   │   ├── postgres/
-│   │   │   ├── statefulset.yaml
-│   │   │   ├── service.yaml
-│   │   │   ├── configmap.yaml
-│   │   │   └── pvc.yaml
-│   │   ├── redis/
-│   │   ├── elasticsearch/
-│   │   └── minio/
-│   │
-│   ├── helm/                                    # Helm Charts
-│   │   ├── expert-dollop/                       # Main chart
-│   │   │   ├── Chart.yaml
-│   │   │   ├── values.yaml
-│   │   │   ├── values.dev.yaml
-│   │   │   ├── values.prod.yaml
-│   │   │   └── templates/
-│   │   └── charts/                              # Subcharts
-│   │       ├── workflow/
-│   │       ├── security/
-│   │       └── data/
-│   │
-│   └── kustomize/                               # Kustomize Overlays
-│       ├── base/                                # Base configurations
-│       ├── overlays/
-│       │   ├── development/                     # Dev overlay
-│       │   ├── staging/                         # Staging overlay
-│       │   └── production/                      # Production overlay
-│       └── components/                          # Reusable components
+│   │   ├── security.yaml
+│   │   ├── tcg.yaml
+│   │   ├── productivity.yaml
+│   │   ├── workflow.yaml
+│   │   └── ai.yaml
+│   ├── deployments/                             # Deployment manifests
+│   ├── services/                                # Service definitions
+│   ├── ingress/                                 # Ingress rules
+│   ├── configmaps/                              # ConfigMaps
+│   ├── secrets/                                 # Secrets
+│   └── helm/                                    # Helm charts
+│       ├── security/
+│       ├── tcg/
+│       ├── productivity/
+│       ├── workflow/
+│       └── ai/
 │
-└── docker/                                      # Docker Build Configurations
-    ├── base/                                    # Base images
-    │   ├── python.Dockerfile                    # Base Python image
-    │   ├── node.Dockerfile                      # Base Node.js image
-    │   ├── go.Dockerfile                        # Base Go image
-    │   └── rust.Dockerfile                      # Base Rust image
-    │
-    ├── multi-stage/                             # Multi-stage builds
-    │   ├── django.Dockerfile                    # Django multi-stage
-    │   ├── fastapi.Dockerfile                   # FastAPI multi-stage
-    │   └── nodejs.Dockerfile                    # Node.js multi-stage
-    │
-    └── scripts/                                 # Docker helper scripts
-        ├── build-all.sh                         # Build all images
-        ├── push-all.sh                          # Push to registry
-        └── health-check.sh                      # Container health checks
+├── terraform/                                   # Infrastructure as Code
+│   ├── main.tf                                  # Main Terraform config
+│   ├── variables.tf                             # Variable definitions
+│   ├── outputs.tf                               # Output values
+│   ├── modules/                                 # Terraform modules
+│   │   ├── network/
+│   │   ├── compute/
+│   │   ├── database/
+│   │   └── security/
+│   └── environments/                            # Environment configs
+│       ├── dev/
+│       ├── staging/
+│       └── production/
+│
+└── docker/                                      # Shared Docker Resources
+    ├── base-images/                             # Base images
+    │   ├── python/
+    │   │   ├── Dockerfile.3.12
+    │   │   └── Dockerfile.3.11
+    │   ├── node/
+    │   │   ├── Dockerfile.22
+    │   │   └── Dockerfile.20
+    │   ├── rust/
+    │   │   └── Dockerfile.latest
+    │   └── go/
+    │       └── Dockerfile.1.21
+    └── scripts/                                 # Build scripts
+        ├── build.sh
+        ├── push.sh
+        └── clean.sh
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                         SECTION 5: LIBS DIRECTORY - SHARED LIBRARIES BY CONTEXT
+                              SECTION 5: OMNINEXUS - UNIFIED DASHBOARD
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-libs/                                            # Shared libraries (all stages)
+omninexus/                                       # Unified Dashboard & Admin Portal
 │
-├── shared/                                      # Cross-context shared libraries
-│   ├── typescript/                              # Shared TypeScript libraries
-│   │   ├── utils/                               # Common utilities
-│   │   │   ├── package.json
-│   │   │   ├── tsconfig.json
-│   │   │   └── src/
-│   │   │       ├── index.ts
-│   │   │       ├── date.ts                      # Date utilities
-│   │   │       ├── string.ts                    # String utilities
-│   │   │       ├── validation.ts                # Validation helpers
-│   │   │       └── crypto.ts                    # Crypto helpers
-│   │   │
-│   │   ├── types/                               # Shared types (already in apps/shared/types)
-│   │   ├── constants/                           # Shared constants
-│   │   │   ├── package.json
-│   │   │   └── src/
-│   │   │       ├── index.ts
-│   │   │       ├── http-status.ts               # HTTP status codes
-│   │   │       ├── error-codes.ts               # Error codes
-│   │   │       └── regex.ts                     # Common regex patterns
-│   │   │
-│   │   └── config/                              # Configuration management
-│   │       ├── package.json
-│   │       └── src/
-│   │           ├── index.ts
-│   │           ├── env.ts                       # Environment config
-│   │           └── logger.ts                    # Logger configuration
-│   │
-│   ├── python/                                  # Shared Python libraries
-│   │   ├── utils/                               # Common utilities
-│   │   │   ├── setup.py
-│   │   │   ├── pyproject.toml
-│   │   │   └── shared_utils/
-│   │   │       ├── __init__.py
-│   │   │       ├── date.py
-│   │   │       ├── string.py
-│   │   │       ├── validation.py
-│   │   │       └── crypto.py
-│   │   │
-│   │   ├── database/                            # Database utilities
-│   │   │   ├── setup.py
-│   │   │   └── shared_db/
-│   │   │       ├── __init__.py
-│   │   │       ├── session.py                   # SQLAlchemy session
-│   │   │       ├── base.py                      # Base model classes
-│   │   │       └── migrations.py                # Migration helpers
-│   │   │
-│   │   └── auth/                                # Authentication utilities
-│   │       ├── setup.py
-│   │       └── shared_auth/
-│   │           ├── __init__.py
-│   │           ├── jwt.py                       # JWT handling
-│   │           ├── oauth.py                     # OAuth helpers
-│   │           └── permissions.py               # Permission checks
-│   │
-│   ├── go/                                      # Shared Go libraries
-│   │   ├── utils/                               # Common utilities
-│   │   │   ├── go.mod
-│   │   │   ├── go.sum
-│   │   │   └── utils.go
-│   │   │
-│   │   └── database/                            # Database utilities
-│   │       ├── go.mod
-│   │       └── db.go
-│   │
-│   └── rust/                                    # Shared Rust libraries
-│       ├── utils/                               # Common utilities
-│       │   ├── Cargo.toml
-│       │   └── src/
-│       │       └── lib.rs
-│       │
-│       └── ffi/                                 # FFI bindings
-│           ├── Cargo.toml
-│           └── src/
-│               ├── lib.rs
-│               ├── python.rs                    # Python bindings
-│               └── go.rs                        # Go bindings
+├── README.md                                    # OmniNexus documentation
+├── Dockerfile                                   # Dashboard container
+├── docker-compose.yml                           # OmniNexus compose
+├── package.json                                 # Node.js dependencies
+├── tsconfig.json                                # TypeScript config
+├── vite.config.ts                               # Vite configuration
+├── index.html                                   # HTML entry
+├── index.tsx                                    # React entry
+├── App.tsx                                      # Main App component
+├── metadata.json                                # App metadata
+├── types.ts                                     # TypeScript types
 │
-├── workflow/                                    # Workflow Context Libraries
-│   ├── n8n/                                     # n8n specific libraries
-│   │   ├── custom-nodes/                        # Custom node library
-│   │   │   ├── package.json
-│   │   │   └── nodes/
-│   │   │       ├── GhostwriterNode/             # Ghostwriter integration
-│   │   │       ├── NemesisNode/                 # Nemesis integration
-│   │   │       └── FirecrawlNode/               # Firecrawl integration
-│   │   │
-│   │   ├── credentials/                         # Custom credentials
-│   │   │   ├── package.json
-│   │   │   └── credentials/
-│   │   │       ├── GhostwriterApi.credentials.ts
-│   │   │       └── NemesisApi.credentials.ts
-│   │   │
-│   │   └── workflow-templates/                  # Workflow templates
-│   │       ├── package.json
-│   │       └── templates/
-│   │           ├── security-scan.json           # Security scanning workflow
-│   │           ├── report-generation.json       # Report generation
-│   │           └── data-enrichment.json         # Data enrichment
+├── components/                                  # React components
+│   ├── Navigation/                              # Navigation components
+│   │   ├── Sidebar.tsx
+│   │   ├── TopBar.tsx
+│   │   └── DomainSwitcher.tsx
 │   │
-│   └── bullmq/                                  # BullMQ queue libraries
-│       ├── package.json
-│       └── src/
-│           ├── queue-factory.ts                 # Queue creation
-│           ├── job-types.ts                     # Job type definitions
-│           └── processors/                      # Job processors
+│   ├── Dashboard/                               # Dashboard components
+│   │   ├── Overview.tsx                         # System overview
+│   │   ├── DomainCard.tsx                       # Domain status card
+│   │   ├── ServiceCard.tsx                      # Service status card
+│   │   └── MetricsPanel.tsx                     # Metrics display
+│   │
+│   ├── Security/                                # Security domain components
+│   │   ├── GhostwriterPanel.tsx
+│   │   ├── NemesisPanel.tsx
+│   │   ├── MISPPanel.tsx
+│   │   └── SecurityDashboard.tsx
+│   │
+│   ├── TCG/                                     # TCG domain components
+│   │   ├── SpellbookPanel.tsx
+│   │   └── TCGDashboard.tsx
+│   │
+│   ├── Productivity/                            # Productivity domain components
+│   │   ├── MealiePanel.tsx
+│   │   ├── ActualPanel.tsx
+│   │   ├── DispatchPanel.tsx
+│   │   └── ProductivityDashboard.tsx
+│   │
+│   ├── Workflow/                                # Workflow domain components
+│   │   ├── N8NPanel.tsx
+│   │   └── WorkflowDashboard.tsx
+│   │
+│   ├── AI/                                      # AI domain components
+│   │   ├── FirecrawlPanel.tsx
+│   │   ├── GoosePanel.tsx
+│   │   ├── MCPPanel.tsx
+│   │   └── AIDashboard.tsx
+│   │
+│   └── Common/                                  # Common UI components
+│       ├── Card.tsx
+│       ├── Button.tsx
+│       ├── Input.tsx
+│       ├── Table.tsx
+│       └── Modal.tsx
 │
-├── security/                                    # Security Context Libraries
-│   ├── ghostwriter/                             # Ghostwriter libraries
-│   │   ├── reporting/                           # Report generation library
-│   │   │   ├── setup.py
-│   │   │   └── ghostwriter_reporting/
-│   │   │       ├── __init__.py
-│   │   │       ├── docx_generator.py            # DOCX reports
-│   │   │       ├── pdf_generator.py             # PDF reports
-│   │   │       └── templates/                   # Report templates
-│   │   │
-│   │   └── findings/                            # Findings library
-│   │       ├── setup.py
-│   │       └── ghostwriter_findings/
-│   │           ├── __init__.py
-│   │           ├── severity.py                  # Severity scoring
-│   │           └── cvss.py                      # CVSS calculations
-│   │
-│   ├── nemesis/                                 # Nemesis libraries
-│   │   ├── enrichment/                          # Data enrichment
-│   │   │   ├── setup.py
-│   │   │   └── nemesis_enrichment/
-│   │   │       ├── __init__.py
-│   │   │       ├── file_analysis.py
-│   │   │       └── metadata_extraction.py
-│   │   │
-│   │   └── dapr-client/                         # Dapr client library
-│   │       ├── setup.py
-│   │       └── nemesis_dapr/
-│   │           ├── __init__.py
-│   │           ├── pubsub.py
-│   │           └── state.py
-│   │
-│   ├── threat-intel/                            # Threat intelligence library
-│   │   ├── setup.py
-│   │   └── threat_intel/
-│   │       ├── __init__.py
-│   │       ├── misp.py                          # MISP integration
-│   │       ├── ioc.py                           # IOC handling
-│   │       └── enrichment.py                    # Threat enrichment
-│   │
-│   └── yara/                                    # YARA library
-│       ├── Cargo.toml                           # Rust library
-│       └── src/
-│           ├── lib.rs
-│           └── rules/                           # YARA rules
-│
-├── productivity/                                # Productivity Context Libraries
-│   ├── mealie/                                  # Mealie libraries
-│   │   ├── recipe-parser/                       # Recipe parsing
-│   │   │   ├── setup.py
-│   │   │   └── recipe_parser/
-│   │   │       ├── __init__.py
-│   │   │       ├── web_scraper.py               # Web recipe scraping
-│   │   │       └── schema_org.py                # Schema.org parsing
-│   │   │
-│   │   └── meal-planning/                       # Meal planning algorithms
-│   │       ├── setup.py
-│   │       └── meal_planning/
-│   │           ├── __init__.py
-│   │           └── optimizer.py                 # Meal plan optimization
-│   │
-│   ├── dispatch/                                # Dispatch libraries
-│   │   ├── incident/                            # Incident management
-│   │   │   ├── setup.py
-│   │   │   └── dispatch_incident/
-│   │   │       ├── __init__.py
-│   │   │       ├── severity.py                  # Severity calculation
-│   │   │       └── workflow.py                  # Incident workflows
-│   │   │
-│   │   └── plugins/                             # Dispatch plugin SDK
-│   │       ├── setup.py
-│   │       └── dispatch_plugins/
-│   │           ├── __init__.py
-│   │           ├── base.py                      # Base plugin
-│   │           └── slack.py                     # Slack integration
-│   │
-│   └── budget/                                  # Budget management library
-│       ├── package.json
-│       └── src/
-│           ├── index.ts
-│           ├── sync.ts                          # Sync algorithm
-│           └── reconcile.ts                     # Reconciliation
-│
-├── tcg/                                         # TCG Context Libraries
-│   ├── spellbook/                               # Commander Spellbook libraries
-│   │   ├── combo-finder/                        # Combo finding algorithm
-│   │   │   ├── setup.py
-│   │   │   └── combo_finder/
-│   │   │       ├── __init__.py
-│   │   │       ├── algorithm.py                 # Combo detection
-│   │   │       └── graph.py                     # Graph analysis
-│   │   │
-│   │   └── card-parser/                         # MTG card parsing
-│   │       ├── setup.py
-│   │       └── card_parser/
-│   │           ├── __init__.py
-│   │           ├── scryfall.py                  # Scryfall API
-│   │           └── rules.py                     # Rules parsing
-│   │
-│   └── mtg-data/                                # MTG data library
-│       ├── setup.py
-│       └── mtg_data/
-│           ├── __init__.py
-│           ├── cards.py                         # Card database
-│           └── sets.py                          # Set information
-│
-└── ai/                                          # AI/ML Context Libraries
-    ├── firecrawl/                               # Firecrawl libraries
-    │   ├── crawlers/                            # Crawler library
-    │   │   ├── package.json
-    │   │   └── src/
-    │   │       ├── index.ts
-    │   │       ├── playwright-crawler.ts        # Playwright crawler
-    │   │       └── puppeteer-crawler.ts         # Puppeteer crawler
-    │   │
-    │   └── scrapers/                            # Scraper library
-    │       ├── package.json
-    │       └── src/
-    │           ├── index.ts
-    │           ├── html-parser.ts               # HTML parsing
-    │           └── markdown-converter.ts        # Markdown conversion
-    │
-    ├── goose/                                   # Goose AI libraries
-    │   ├── mcp-sdk/                             # MCP SDK
-    │   │   ├── Cargo.toml
-    │   │   └── src/
-    │   │       ├── lib.rs
-    │   │       ├── server.rs                    # MCP server
-    │   │       └── client.rs                    # MCP client
-    │   │
-    │   └── ai-toolkit/                          # AI toolkit
-    │       ├── Cargo.toml
-    │       └── src/
-    │           ├── lib.rs
-    │           └── llm.rs                       # LLM integration
-    │
-    ├── analytics/                               # Analytics libraries
-    │   ├── ml-models/                           # ML models library
-    │   │   ├── setup.py
-    │   │   └── ml_models/
-    │   │       ├── __init__.py
-    │   │       ├── classifier.py                # Classification models
-    │   │       └── anomaly.py                   # Anomaly detection
-    │   │
-    │   └── data-processing/                     # Data processing
-    │       ├── setup.py
-    │       └── data_processing/
-    │           ├── __init__.py
-    │           ├── etl.py                       # ETL pipelines
-    │           └── transform.py                 # Data transformations
-    │
-    ├── mcp/                                     # MCP libraries
-    │   ├── protocol/                            # MCP protocol library
-    │   │   ├── package.json
-    │   │   └── src/
-    │   │       ├── index.ts
-    │   │       ├── jsonrpc.ts                   # JSON-RPC 2.0
-    │   │       ├── types.ts                     # MCP types
-    │   │       └── client.ts                    # MCP client
-    │   │
-    │   └── servers/                             # MCP server libraries
-    │       ├── chroma/                          # Chroma MCP
-    │       │   ├── package.json
-    │       │   └── src/
-    │       ├── malware/                         # MalwareBazaar MCP
-    │       │   ├── setup.py
-    │       │   └── malware_mcp/
-    │       └── virustotal/                      # VirusTotal MCP
-    │           ├── setup.py
-    │           └── virustotal_mcp/
-    │
-    └── playwright/                              # Playwright library
-        ├── setup.py
-        └── playwright_lib/
-            ├── __init__.py
-            ├── browser.py                       # Browser automation
-            └── screenshot.py                    # Screenshot utilities
+└── services/                                    # Service integrations
+    ├── api.ts                                   # API client
+    ├── auth.ts                                  # Authentication service
+    ├── websocket.ts                             # WebSocket client
+    └── domains/                                 # Domain-specific services
+        ├── security.ts
+        ├── tcg.ts
+        ├── productivity.ts
+        ├── workflow.ts
+        └── ai.ts
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                           SECTION 6: ADDITIONAL DIRECTORIES & FINAL STRUCTURE
+                              SECTION 6: DOCS - DOCUMENTATION
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 docs/                                            # Documentation
+│
 ├── README.md                                    # Documentation index
+│
 ├── architecture/                                # Architecture documentation
-│   ├── overview.md                              # System overview
-│   ├── stage-1-edge.md                          # Edge layer docs
-│   ├── stage-2-services.md                      # Service layer docs
-│   ├── stage-3-infrastructure.md                # Infrastructure docs
-│   ├── stage-4-data.md                          # Data layer docs
-│   ├── stage-5-testing.md                       # Testing layer docs
-│   └── diagrams/                                # Architecture diagrams
-│       ├── system-overview.png
-│       ├── data-flow.png
-│       └── deployment.png
+│   ├── domain-model.md                          # Domain model overview
+│   ├── bounded-contexts.md                      # Bounded context definitions
+│   ├── module-structure.md                      # Module organization
+│   ├── data-flow.md                             # Data flow diagrams
+│   └── deployment.md                            # Deployment architecture
 │
-├── api/                                         # API documentation
-│   ├── graphql/                                 # GraphQL documentation
-│   │   ├── schema.graphql                       # Combined schema
-│   │   └── README.md                            # GraphQL guide
-│   ├── rest/                                    # REST API docs
-│   │   ├── openapi.yaml                         # OpenAPI spec
-│   │   └── README.md                            # REST API guide
-│   └── mcp/                                     # MCP protocol docs
-│       ├── protocol.md                          # Protocol spec
-│       └── servers.md                           # Server list
+├── modules/                                     # Module-specific docs
+│   ├── security/                                # Security domain
+│   │   ├── README.md
+│   │   ├── ghostwriter.md
+│   │   ├── nemesis.md
+│   │   ├── misp.md
+│   │   └── dispatch.md
+│   ├── tcg/                                     # TCG domain
+│   │   ├── README.md
+│   │   └── commander-spellbook.md
+│   ├── productivity/                            # Productivity domain
+│   │   ├── README.md
+│   │   ├── mealie.md
+│   │   └── actual.md
+│   ├── workflow/                                # Workflow domain
+│   │   ├── README.md
+│   │   └── n8n.md
+│   └── ai/                                      # AI domain
+│       ├── README.md
+│       ├── firecrawl.md
+│       ├── goose.md
+│       └── mcp-servers.md
 │
-├── deployment/                                  # Deployment guides
-│   ├── docker-compose.md                        # Docker Compose guide
-│   ├── kubernetes.md                            # Kubernetes guide
-│   ├── production.md                            # Production deployment
-│   └── troubleshooting.md                       # Troubleshooting guide
+├── infrastructure/                              # Infrastructure docs
+│   ├── kong.md                                  # Kong API Gateway
+│   ├── graphql-gateway.md                       # GraphQL federation
+│   ├── mcp-hub.md                               # MCP protocol hub
+│   ├── auth.md                                  # Authentication
+│   ├── postgres.md                              # PostgreSQL
+│   ├── redis.md                                 # Redis
+│   ├── dapr.md                                  # Dapr
+│   └── kubernetes.md                            # Kubernetes
 │
 ├── development/                                 # Development guides
 │   ├── getting-started.md                       # Getting started
-│   ├── contributing.md                          # Contribution guide
+│   ├── local-setup.md                           # Local development
+│   ├── testing.md                               # Testing guidelines
 │   ├── coding-standards.md                      # Coding standards
-│   └── testing.md                               # Testing guide
+│   └── contributing.md                          # Contribution guide
 │
-├── enumeration/                                 # System enumeration docs
-│   ├── theoretical-architecture.md              # Theoretical architecture
-│   ├── file-directory-layout.md                 # This document!
-│   └── technology-stack.md                      # Technology details
+├── api/                                         # API documentation
+│   ├── graphql/                                 # GraphQL schemas
+│   │   ├── security.graphql
+│   │   ├── tcg.graphql
+│   │   ├── productivity.graphql
+│   │   ├── workflow.graphql
+│   │   └── ai.graphql
+│   └── rest/                                    # REST API docs
+│       └── openapi.yaml                         # OpenAPI specification
 │
-└── runbooks/                                    # Operational runbooks
+└── operations/                                  # Operations docs
+    ├── deployment.md                            # Deployment procedures
+    ├── monitoring.md                            # Monitoring setup
     ├── backup-restore.md                        # Backup procedures
-    ├── monitoring.md                            # Monitoring guide
-    └── incident-response.md                     # Incident response
+    ├── troubleshooting.md                       # Troubleshooting guide
+    └── runbooks/                                # Operational runbooks
+        ├── incident-response.md
+        ├── scaling.md
+        └── maintenance.md
 
-tests/                                           # Integration & E2E Tests
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+                              SECTION 7: TESTS - INTEGRATION & E2E TESTS
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+tests/                                           # Integration & E2E tests
+│
+├── README.md                                    # Testing documentation
+├── pytest.ini                                   # Pytest configuration
+├── jest.config.js                               # Jest configuration
+├── vitest.config.ts                             # Vitest configuration
+│
 ├── integration/                                 # Integration tests
-│   ├── workflow/                                # Workflow context tests
-│   │   └── test_n8n_integration.ts
-│   ├── security/                                # Security context tests
+│   ├── security/                                # Security domain tests
 │   │   ├── test_ghostwriter_api.py
-│   │   └── test_nemesis_enrichment.py
-│   ├── productivity/                            # Productivity context tests
-│   ├── tcg/                                     # TCG context tests
-│   └── ai/                                      # AI/ML context tests
+│   │   ├── test_nemesis_api.py
+│   │   └── test_misp_integration.py
+│   ├── tcg/                                     # TCG domain tests
+│   │   └── test_spellbook_api.py
+│   ├── productivity/                            # Productivity tests
+│   │   ├── test_mealie_api.py
+│   │   └── test_actual_sync.py
+│   ├── workflow/                                # Workflow tests
+│   │   └── test_n8n_workflows.py
+│   └── ai/                                      # AI tests
+│       ├── test_firecrawl_api.py
+│       ├── test_goose_agent.py
+│       └── test_mcp_servers.py
 │
 ├── e2e/                                         # End-to-end tests
-│   ├── playwright/                              # Playwright E2E tests
-│   │   ├── ghostwriter.spec.ts                  # Ghostwriter E2E
-│   │   ├── n8n.spec.ts                          # n8n E2E
-│   │   └── spellbook.spec.ts                    # Spellbook E2E
-│   └── cypress/                                 # Cypress E2E tests
+│   ├── security/                                # Security E2E tests
+│   │   ├── ghostwriter_flow.spec.ts
+│   │   └── nemesis_flow.spec.ts
+│   ├── tcg/                                     # TCG E2E tests
+│   │   └── spellbook_flow.spec.ts
+│   ├── productivity/                            # Productivity E2E tests
+│   │   └── mealie_flow.spec.ts
+│   ├── workflow/                                # Workflow E2E tests
+│   │   └── n8n_flow.spec.ts
+│   └── ai/                                      # AI E2E tests
+│       └── firecrawl_flow.spec.ts
 │
-├── performance/                                 # Performance tests
-│   ├── k6/                                      # k6 load tests
-│   │   ├── api-load.js                          # API load test
-│   │   └── workflow-load.js                     # Workflow load test
-│   └── artillery/                               # Artillery tests
+├── contract/                                    # Contract tests
+│   ├── security/                                # Security contracts
+│   ├── tcg/                                     # TCG contracts
+│   ├── productivity/                            # Productivity contracts
+│   ├── workflow/                                # Workflow contracts
+│   └── ai/                                      # AI contracts
 │
-└── security/                                    # Security tests
-    ├── zap/                                     # OWASP ZAP tests
-    └── snyk/                                    # Snyk scans
+├── fixtures/                                    # Test fixtures
+│   ├── security/                                # Security test data
+│   ├── tcg/                                     # TCG test data
+│   ├── productivity/                            # Productivity test data
+│   ├── workflow/                                # Workflow test data
+│   └── ai/                                      # AI test data
+│
+├── mocks/                                       # Mock services
+│   ├── auth/                                    # Auth mocks
+│   ├── database/                                # Database mocks
+│   └── external/                                # External API mocks
+│
+└── utils/                                       # Test utilities
+    ├── helpers.py                               # Python helpers
+    ├── helpers.ts                               # TypeScript helpers
+    └── factories/                               # Data factories
+        ├── user.py
+        ├── project.py
+        └── workflow.py
 
-scripts/                                         # Build & Deployment Scripts
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+                              SECTION 8: SCRIPTS - BUILD & DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+scripts/                                         # Build & deployment scripts
+│
+├── README.md                                    # Scripts documentation
+│
+├── setup/                                       # Setup scripts
+│   ├── install-dependencies.sh                  # Install all dependencies
+│   ├── init-databases.sh                        # Initialize databases
+│   ├── generate-certs.sh                        # Generate SSL certificates
+│   └── setup-local.sh                           # Full local setup
+│
 ├── build/                                       # Build scripts
-│   ├── build-all.sh                             # Build all services
-│   ├── build-stage.sh                           # Build specific stage
-│   └── clean.sh                                 # Clean build artifacts
+│   ├── build-all.sh                             # Build all modules
+│   ├── build-security.sh                        # Build security domain
+│   ├── build-tcg.sh                             # Build TCG domain
+│   ├── build-productivity.sh                    # Build productivity domain
+│   ├── build-workflow.sh                        # Build workflow domain
+│   ├── build-ai.sh                              # Build AI domain
+│   └── docker/                                  # Docker build scripts
+│       ├── build-images.sh                      # Build Docker images
+│       ├── push-images.sh                       # Push to registry
+│       └── clean-images.sh                      # Clean unused images
 │
 ├── deploy/                                      # Deployment scripts
 │   ├── deploy-dev.sh                            # Deploy to dev
 │   ├── deploy-staging.sh                        # Deploy to staging
 │   ├── deploy-prod.sh                           # Deploy to production
-│   └── rollback.sh                              # Rollback deployment
+│   ├── rollback.sh                              # Rollback deployment
+│   └── kubernetes/                              # K8s deployment scripts
+│       ├── apply-manifests.sh                   # Apply K8s manifests
+│       └── update-secrets.sh                    # Update secrets
 │
 ├── database/                                    # Database scripts
-│   ├── init-all-schemas.sh                      # Initialize all schemas
-│   ├── migrate-all.sh                           # Run all migrations
-│   ├── seed-dev-data.sh                         # Seed development data
-│   └── backup-all.sh                            # Backup all databases
+│   ├── migrate.sh                               # Run migrations
+│   ├── seed.sh                                  # Seed databases
+│   ├── backup.sh                                # Backup databases
+│   └── restore.sh                               # Restore from backup
+│
+├── testing/                                     # Testing scripts
+│   ├── run-tests.sh                             # Run all tests
+│   ├── run-unit-tests.sh                        # Run unit tests
+│   ├── run-integration-tests.sh                 # Run integration tests
+│   ├── run-e2e-tests.sh                         # Run E2E tests
+│   └── coverage.sh                              # Generate coverage reports
 │
 ├── monitoring/                                  # Monitoring scripts
-│   ├── health-check-all.sh                      # Check all services
-│   └── metrics-export.sh                        # Export metrics
+│   ├── health-check.sh                          # Health check all services
+│   ├── logs.sh                                  # View aggregated logs
+│   └── metrics.sh                               # Collect metrics
 │
-└── ci/                                          # CI/CD scripts
-    ├── pr-check.sh                              # PR validation
-    ├── integration-test.sh                      # Run integration tests
-    └── security-scan.sh                         # Security scanning
-
-features/                                        # Original Feature Repositories (Reference)
-├── README.md                                    # Migration guide
-└── [38 original project directories]           # Keep for reference during migration
-    # These will eventually be deprecated after full migration
-
-# Note: omninexus/ and portal/ are now in apps/ directory above
+└── utils/                                       # Utility scripts
+    ├── format-code.sh                           # Format all code
+    ├── lint-code.sh                             # Lint all code
+    ├── generate-docs.sh                         # Generate documentation
+    └── cleanup.sh                               # Clean build artifacts
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                                SECTION 7: DOCKER COMPOSE FILE MAPPINGS
+                              SECTION 9: MIGRATION STRATEGY
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-DOCKER COMPOSE FILE HIERARCHY:
-==============================
+## Migration from Current Structure to Domain-Based Modules
 
-Root Level (Orchestration):
----------------------------
-docker-compose.yml                               # MAIN: All stages together
-  ├── includes:
-  │   ├── docker-compose.stage-1-edge.yml
-  │   ├── docker-compose.stage-2-services.yml
-  │   ├── docker-compose.stage-3-infra.yml
-  │   ├── docker-compose.stage-4-data.yml
-  │   └── docker-compose.stage-5-testing.yml
-  │
-  └── overrides:
-      ├── docker-compose.dev.yml                 # Development overrides
-      ├── docker-compose.prod.yml                # Production overrides
-      └── docker-compose.test.yml                # Testing overrides
+### Phase 1: Create Domain Structure (Week 1)
+```bash
+# 1. Create modules directory
+mkdir -p modules/{security,tcg,productivity,workflow,ai}
 
-Stage-Specific Compose Files:
-------------------------------
-docker-compose.stage-1-edge.yml                  # Stage 1: Kong, Nginx
-docker-compose.stage-2-services.yml              # Stage 2: All bounded contexts
-  ├── includes:
-  │   ├── backend/docker-compose.backend.yml
-  │   ├── apps/docker-compose.apps.yml
-  │   ├── backend/django/docker-compose.django.yml
-  │   ├── backend/fastapi/docker-compose.fastapi.yml
-  │   └── backend/nodejs/docker-compose.nodejs.yml
-  │
-docker-compose.stage-3-infra.yml                 # Stage 3: Dapr, monitoring, logging
-docker-compose.stage-4-data.yml                  # Stage 4: All databases
-docker-compose.stage-5-testing.yml               # Stage 5: Testing services
+# 2. Create libs directory with minimal shared code
+mkdir -p libs/{typescript,python,rust,go}
 
-Infrastructure Compose Files:
-------------------------------
-infrastructure/stage-1-edge/kong/docker-compose.yml
-infrastructure/stage-1-edge/nginx/docker-compose.yml
-infrastructure/stage-3-infrastructure/dapr/docker-compose.yml
-infrastructure/stage-4-data/postgres/docker-compose.yml
-infrastructure/stage-4-data/redis/docker-compose.yml
-infrastructure/stage-4-data/elasticsearch/docker-compose.yml
-infrastructure/stage-4-data/minio/docker-compose.yml
+# 3. Keep infrastructure directory as-is
+# infrastructure/ already exists
+```
 
-═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                              SECTION 8: DOCKERFILE LOCATION MAPPING
-═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+### Phase 2: Move Security Domain (Week 2)
+```bash
+# Move from features/security/ to modules/security/
+mv features/security/Ghostwriter modules/security/ghostwriter
+mv features/security/Nemesis modules/security/nemesis
+mv features/security/MISP modules/security/misp
+mv features/security/dispatch modules/security/dispatch
+mv features/security/yara-x modules/security/yara-x
+mv features/security/maltrail modules/security/maltrail
+mv features/security/rita modules/security/rita
+mv features/security/HELK modules/security/helk
+mv features/security/CyberChef modules/security/cyberchef
+mv features/security/MalwareBazaar_MCP modules/security/malwarebazaar-mcp
+mv features/security/mcp-virustotal modules/security/virustotal-mcp
 
-DOCKERFILE HIERARCHY:
-=====================
+# Update docker-compose references
+cp docker-compose.yml docker-compose.yml.backup
+# Edit docker-compose.security.yml to point to modules/security/
+```
 
-Base Images (infrastructure/docker/base/):
-------------------------------------------
-infrastructure/docker/base/python.Dockerfile     # Base Python image
-infrastructure/docker/base/node.Dockerfile       # Base Node.js image
-infrastructure/docker/base/go.Dockerfile         # Base Go image
-infrastructure/docker/base/rust.Dockerfile       # Base Rust image
+### Phase 3: Move TCG Domain (Week 3)
+```bash
+# Move from features/ to modules/tcg/
+mv features/commander-spellbook-backend modules/tcg/commander-spellbook
+mv features/mtg-commander-map modules/tcg/commander-map
+mv features/mtg-scripting-toolkit modules/tcg/scripting-toolkit
 
-Multi-Stage Builds (infrastructure/docker/multi-stage/):
---------------------------------------------------------
-infrastructure/docker/multi-stage/django.Dockerfile
-infrastructure/docker/multi-stage/fastapi.Dockerfile
-infrastructure/docker/multi-stage/nodejs.Dockerfile
+# Update docker-compose.tcg.yml
+```
 
-Backend Service Dockerfiles:
-----------------------------
-backend/api/kong/Dockerfile                      # Kong API Gateway
-backend/api/graphql-gateway/Dockerfile           # GraphQL Gateway
-backend/api/mcp-hub/Dockerfile                   # MCP Hub
-backend/auth/Dockerfile                          # Auth Service
-backend/django/Dockerfile                        # Django base
-backend/django/Dockerfile.dev                    # Django dev
-backend/fastapi/Dockerfile                       # FastAPI base
-backend/fastapi/Dockerfile.dev                   # FastAPI dev
-backend/nodejs/n8n/Dockerfile                    # n8n main
-backend/nodejs/n8n/Dockerfile.worker             # n8n worker
-backend/nodejs/firecrawl/Dockerfile              # Firecrawl
-backend/nodejs/actual/Dockerfile                 # Actual Budget
-backend/services/python/maltrail/Dockerfile      # Maltrail
-backend/services/go/rita/Dockerfile              # RITA
-backend/services/go/html-to-md/Dockerfile        # HTML-to-MD
-backend/services/rust/goose/Dockerfile           # Goose AI
-backend/services/dotnet/nemesis/Dockerfile       # Nemesis
+### Phase 4: Move Productivity Domain (Week 3)
+```bash
+# Move from features/ to modules/productivity/
+mv features/mealie modules/productivity/mealie
+mv features/actual modules/productivity/actual
+mv features/it-tools modules/productivity/it-tools
 
-Frontend App Dockerfiles:
--------------------------
-apps/portal/Dockerfile                           # Main public-facing website
-apps/omninexus/Dockerfile                        # Admin/power-user unified dashboard
-apps/shared/design-system/Dockerfile             # Storybook
-apps/security/ghostwriter-ui/Dockerfile          # Ghostwriter UI
-apps/workflow/n8n-frontend/Dockerfile            # n8n UI
-apps/productivity/mealie-ui/Dockerfile           # Mealie UI
-apps/productivity/dispatch-ui/Dockerfile         # Dispatch UI
-apps/tcg/spellbook-ui/Dockerfile                 # Spellbook UI
-apps/ai/firecrawl-ui/Dockerfile                  # Firecrawl UI
-apps/ai/inspector/Dockerfile                     # MCP Inspector
+# Update docker-compose.productivity.yml
+```
 
-Infrastructure Dockerfiles:
----------------------------
-infrastructure/stage-1-edge/kong/Dockerfile
-infrastructure/stage-1-edge/nginx/Dockerfile
-infrastructure/stage-3-infrastructure/dapr/Dockerfile.placement
-infrastructure/stage-3-infrastructure/dapr/Dockerfile.sidecar
-infrastructure/stage-3-infrastructure/bullmq/Dockerfile.worker
-infrastructure/stage-3-infrastructure/monitoring/prometheus/Dockerfile
-infrastructure/stage-3-infrastructure/monitoring/grafana/Dockerfile
-infrastructure/stage-4-data/postgres/Dockerfile
-infrastructure/stage-4-data/redis/Dockerfile
-infrastructure/stage-4-data/elasticsearch/Dockerfile
-infrastructure/stage-4-data/clickhouse/Dockerfile
-infrastructure/stage-4-data/minio/Dockerfile
-infrastructure/stage-4-data/kafka/Dockerfile.broker
-infrastructure/stage-4-data/kafka/Dockerfile.zookeeper
-infrastructure/stage-4-data/spark/Dockerfile.master
-infrastructure/stage-4-data/spark/Dockerfile.worker
+### Phase 5: Move Workflow Domain (Week 4)
+```bash
+# Move from features/AI\ core/n8n to modules/workflow/
+mv features/AI\ core/n8n modules/workflow/n8n
+mv features/AI\ core/n8n-mcp-server modules/workflow/n8n-mcp
 
-Testing Dockerfiles:
---------------------
-infrastructure/stage-5-testing/wiremock/Dockerfile
-infrastructure/stage-5-testing/mailpit/Dockerfile
-infrastructure/stage-5-testing/oidc-mock/Dockerfile
-infrastructure/stage-5-testing/grpcbin/Dockerfile
-infrastructure/stage-5-testing/pgadmin/Dockerfile
+# Update docker-compose.workflow.yml
+```
 
-═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                                   SECTION 9: MIGRATION SUMMARY
-═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+### Phase 6: Move AI Domain (Week 4-5)
+```bash
+# Move from features/AI\ core/ and apps/ai/ to modules/ai/
+mv features/AI\ core/firecrawl modules/ai/firecrawl
+mv features/AI\ core/firecrawl-mcp-server modules/ai/firecrawl-mcp
+mv features/AI\ core/goose modules/ai/goose
+mv features/chroma-mcp modules/ai/chroma-mcp
+mv features/FileScopeMCP modules/ai/filescope-mcp
+mv features/AI\ core/inspector modules/ai/inspector
+mv apps/ai/analytics modules/ai/analytics
+mv apps/ai/playwright-service modules/ai/playwright-service
+mv apps/ai/go-html-to-md-service modules/ai/html-to-md-service
+mv apps/ai/nuq-postgres modules/ai/nuq-postgres
+mv features/AI\ core/KasmVNC modules/ai/kasmvnc
 
-PROJECT TO NEW LOCATION MAPPING:
-=================================
+# Update docker-compose.ai.yml
+```
 
-FRONTEND INFRASTRUCTURE:
-------------------------
-omninexus/ (existing)            → apps/omninexus/                    # Admin/power-user unified dashboard
-NEW: Portal Website              → apps/portal/                       # Public-facing main website
-apps/shared/design-system/       → Shared component library for all UIs
+### Phase 7: Extract Shared Libraries (Week 5-6)
+```bash
+# Analyze code for truly shared utilities
+# Extract ONLY cross-domain code to libs/
 
-WORKFLOW CONTEXT:
------------------
-features/n8n/                    → backend/nodejs/n8n/ + apps/workflow/n8n-frontend/
-features/n8n/packages/@n8n/benchmark/ → backend/nodejs/n8n/ + apps/workflow/benchmark-ui/
+# Example: Extract TypeScript common utilities
+mkdir -p libs/typescript/common/src
+# Move genuinely shared TypeScript code
 
-SECURITY CONTEXT:
------------------
-features/Ghostwriter/            → backend/django/ghostwriter/ + apps/security/ghostwriter-ui/
-features/Nemesis/                → backend/services/dotnet/nemesis/ + backend/fastapi/nemesis-api/
-features/goose/                  → backend/services/rust/goose/ + libs/ai/goose/
-features/HELK/                   → infrastructure/stage-4-data/elasticsearch/ + kafka/ + spark/
-features/securityonion/          → infrastructure/stage-4-data/elasticsearch/ (consolidated)
-features/maltrail/               → backend/services/python/maltrail/
-features/rita/                   → backend/services/go/rita/ + infrastructure/stage-4-data/clickhouse/
-features/MISP/                   → backend/django/misp/
-features/hexstrike-ai/           → apps/security/hexstrike-ui/ (GraphQL testing)
-features/apiscout/               → tools/ (utility)
-features/yara-x/                 → backend/services/rust/yara-x/ + libs/security/yara/
+# Example: Extract Python common utilities
+mkdir -p libs/python/common/src
+# Move genuinely shared Python code
+```
 
-PRODUCTIVITY CONTEXT:
----------------------
-features/dispatch/               → backend/fastapi/dispatch/ + apps/productivity/dispatch-ui/
-features/mealie/                 → backend/fastapi/mealie/ + apps/productivity/mealie-ui/
-features/actual/                 → backend/nodejs/actual/ + apps/productivity/actual-ui/
-features/it-tools/               → apps/productivity/it-tools-ui/
-features/CyberChef/              → apps/productivity/ (static site)
+### Phase 8: Update Infrastructure References (Week 6)
+```bash
+# Update infrastructure/ to reference modules/ instead of backend/ or apps/
+# Update kong/kong.yml to point to new module paths
+# Update graphql-gateway/src/subgraphs/ to reference modules/
+# Update mcp-hub/src/servers/ to reference modules/
+```
 
-TCG CONTEXT:
-------------
-features/commander-spellbook-backend/ → backend/django/spellbook/
-features/commander-spellbook-site/    → apps/tcg/spellbook-ui/
-features/mtg-commander-map/           → apps/tcg/mtg-map-ui/ + libs/tcg/mtg-data/
-features/mtg-scripting-toolkit/       → libs/tcg/spellbook/
+### Phase 9: Update CI/CD Pipelines (Week 7)
+```bash
+# Update .github/workflows/ to build domain-specific pipelines
+# ci-security.yml -> builds modules/security/*
+# ci-tcg.yml -> builds modules/tcg/*
+# ci-productivity.yml -> builds modules/productivity/*
+# ci-workflow.yml -> builds modules/workflow/*
+# ci-ai.yml -> builds modules/ai/*
+```
 
-AI/ML CONTEXT:
---------------
-features/firecrawl/              → backend/nodejs/firecrawl/ + apps/ai/firecrawl-ui/
-features/inspector/              → apps/ai/inspector/
-features/chroma-mcp/             → libs/ai/mcp/servers/chroma/
-features/MalwareBazaar_MCP/      → libs/ai/mcp/servers/malware/
-features/mcp-virustotal/         → libs/ai/mcp/servers/virustotal/
-features/n8n-mcp-server/         → backend/api/mcp-hub/ (integrated)
-features/firecrawl-mcp-server/   → backend/api/mcp-hub/ (integrated)
-features/FileScopeMCP/           → libs/ai/mcp/servers/filescope/
+### Phase 10: Remove Old Directories (Week 8)
+```bash
+# After verifying everything works:
+rm -rf features/
+rm -rf apps/ (if empty after extracting to modules/)
+rm -rf backend/ (if empty after extracting to modules/)
 
-INFRASTRUCTURE:
----------------
-features/kong/                   → backend/api/kong/ + infrastructure/stage-1-edge/kong/
-
-TOOLS & UTILITIES:
-------------------
-features/blackarch/              → scripts/ or tools/ (scripts)
-features/lscript/                → scripts/ (scripts)
-features/onex/                   → scripts/ (scripts)
-features/Brute-Ratel-C4-Community-Kit/ → tools/ (optional)
-features/meterpreter/            → tools/ (optional)
-features/KasmVNC/                → infrastructure/ (if used for remote access)
-features/software-forensic-kit/  → tools/ (Java tools)
+# Keep only:
+# - modules/
+# - libs/
+# - infrastructure/
+# - omninexus/
+# - docs/
+# - tests/
+# - scripts/
+```
 
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
-                                      END OF FILE DIRECTORY LAYOUT
+                              SECTION 10: DEPENDENCY RULES
 ═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-NOTES:
-======
-1. All PostgreSQL schemas are defined in: infrastructure/stage-4-data/postgres/schemas/
-2. All migrations are in: infrastructure/stage-4-data/postgres/migrations/
-3. Redis database allocation is documented in: infrastructure/stage-4-data/redis/databases/README.md
-4. Docker Compose files follow a hierarchical inclusion pattern
-5. Dockerfiles are co-located with their respective services for easy maintenance
-6. Shared libraries are organized by bounded context in libs/
-7. Frontend apps use shared component libraries from apps/shared/
-8. All infrastructure components have standalone docker-compose.yml for independent testing
+## Module Dependency Principles
 
-MULTI-STAGE BUILD PROCESS:
-===========================
-Stage 1: Build edge layer (Kong, Nginx)
-Stage 2: Build all application services (Django, FastAPI, Node.js, etc.)
-Stage 3: Build infrastructure services (Dapr, monitoring, logging)
-Stage 4: Initialize data layer (PostgreSQL schemas, Redis, Elasticsearch)
-Stage 5: Build testing services (WireMock, Mailpit, etc.)
+### 1. Modules are Independent
+- ✅ modules/security/ghostwriter/ can use libs/python/common
+- ✅ modules/tcg/commander-spellbook/ can use libs/typescript/ui-components
+- ❌ modules/security/ghostwriter/ CANNOT import from modules/tcg/
+- ❌ modules/productivity/mealie/ CANNOT import from modules/security/
 
-Each stage can be built and tested independently using:
-  docker-compose -f docker-compose.stage-<N>-<name>.yml up --build
+### 2. Libs are Minimal
+- Only extract to libs/ when code is used by 3+ modules across different domains
+- Prefer duplication over premature abstraction
+- Each lib should have a clear, single purpose
 
-Full system build:
-  docker-compose up --build
+### 3. Infrastructure is Shared
+- infrastructure/ components can be used by all modules
+- Kong routes traffic to any module
+- GraphQL gateway federates schemas from any module
+- MCP hub routes requests to any MCP server in any module
 
-FRONTEND ACCESS PATTERNS:
-=========================
-Regular Users:
-  → Access via apps/portal/ (main website)
-  → Portal provides navigation to all domain-specific apps
-  → Each domain app runs independently (n8n, Ghostwriter, Mealie, etc.)
+### 4. Communication Between Modules
+- Use events (via Dapr pub/sub or RabbitMQ)
+- Use API calls through Kong API Gateway
+- Use GraphQL federation through GraphQL Gateway
+- NEVER direct code imports between modules
 
-Admin/Power Users:
-  → Access via apps/omninexus/ (unified dashboard)
-  → Single view of all services, metrics, logs, and controls
-  → Embedded views from other apps (minimal page switching)
-  → Real-time monitoring and management
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+                              SECTION 11: BENEFITS OF THIS STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
+### 1. Clear Bounded Contexts
+- Each domain (security, tcg, productivity, workflow, ai) is a clear bounded context
+- Each module within a domain is independently deployable
+- Business domains are explicit in the directory structure
+
+### 2. Independent Development
+- Teams can work on different domains without conflicts
+- Each module maintains its internal structure (Django apps, FastAPI routes, Rust crates)
+- No forced framework unification
+
+### 3. Scalable Architecture
+- Scale modules independently based on load
+- Deploy only changed modules
+- Roll back individual modules without affecting others
+
+### 4. Technology Freedom
+- Security domain can use Django (Ghostwriter), FastAPI (Dispatch), .NET (Nemesis), Rust (YARA-X)
+- TCG domain can use Django (Spellbook) + Next.js (frontend)
+- Productivity domain can use FastAPI (Mealie) + Nuxt.js (frontend)
+- No tech-stack lock-in
+
+### 5. Easy Navigation
+- Developers immediately understand domain organization
+- New team members can find relevant code quickly
+- Clear ownership and responsibility
+
+### 6. Minimal Shared Code
+- Libs contain only truly cross-domain utilities
+- Reduces coupling between modules
+- Makes refactoring easier
+
+### 7. Infrastructure Flexibility
+- Centralized infrastructure/ makes cross-cutting concerns easy
+- API Gateway, auth, databases, monitoring all in one place
+- Easy to swap infrastructure components without touching modules
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════
+                              END OF FILE DIRECTORY LAYOUT

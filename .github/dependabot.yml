@@ -1,6 +1,38 @@
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: pip
+    labels:
+      - dependencies
+    directories:
+      - /apps/
+      - /backend/
+      - /libs/
+      - /tests/
+      - /vscode/
     schedule:
-      interval: "weekly"
+      interval: weekly
+  - package-ecosystem: docker
+    labels:
+      - dependencies
+    directories:
+      - /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    labels:
+      - CI/CD
+      - dependencies
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    labels:
+      - dependencies
+    directories:
+      - /apps/
+      - /libs/
+      - /omninexus/
+      - /tests/
+      - /vscode/
+    schedule:
+      interval: weekly

@@ -34,7 +34,7 @@ jobs:
         with:
           src: docs/
           dst: ./gh-pages
-          title: Commander Spellbook Backend
+          title: omniNEXUS Developer Documentation
           icon: all-inclusive
           primary-color: purple
           secondary-color: blue
