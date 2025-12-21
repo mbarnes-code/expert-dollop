@@ -1,0 +1,23 @@
+# HELK Kibana Configuration
+
+server:
+  host: 0.0.0.0
+  port: 5601
+  name: helk-kibana
+  basePath: /kibana
+
+elasticsearch:
+  hosts:
+    - https://elasticsearch:9200
+  ssl:
+    verificationMode: none
+    certificateAuthorities:
+      - /usr/share/kibana/config/ca.crt
+
+logging:
+  quiet: false
+  verbose: false
+
+xpack:
+  monitoring:
+    enabled: true

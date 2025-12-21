@@ -1,0 +1,84 @@
+# HELK Elasticsearch Configuration
+# Merged configuration from HELK and SecurityOnion
+
+cluster:
+  name: helk-security-platform
+  routing:
+    allocation:
+      disk:
+        threshold_enabled: true
+        watermark:
+          flood_stage: 90%
+          high: 85%
+          low: 80%
+
+node:
+  name: helk-node-1
+
+network:
+  host: 0.0.0.0
+  port: 9200
+
+path:
+  data: /var/lib/elasticsearch
+  logs: /var/log/elasticsearch
+
+bootstrap:
+  memory_lock: true
+
+discovery:
+  type: single-node
+  zen:
+    minimum_master_nodes: 1
+
+indices:
+  query:
+    bool:
+      max_clause_count: 4096
+  id_field_data:
+    enabled: false
+
+action:
+  destructive_requires_name: true
+
+script:
+  max_compilations_rate: 20000/1m
+
+transport:
+  bind_host: 0.0.0.0
+  publish_port: 9300
+
+logger:
+  org:
+    elasticsearch:
+      deprecation: ERROR
+
+xpack:
+  monitoring:
+    collection:
+      enabled: true
+  ml:
+    enabled: false
+  security:
+    enabled: true
+    http:
+      ssl:
+        enabled: true
+        certificate: /usr/share/elasticsearch/config/elasticsearch.crt
+        key: /usr/share/elasticsearch/config/elasticsearch.key
+        certificate_authorities:
+          - /usr/share/elasticsearch/config/ca.crt
+        client_authentication: none
+    transport:
+      ssl:
+        enabled: true
+        certificate: /usr/share/elasticsearch/config/elasticsearch.crt
+        key: /usr/share/elasticsearch/config/elasticsearch.key
+        certificate_authorities:
+          - /usr/share/elasticsearch/config/ca.crt
+        verification_mode: none
+    authc:
+      anonymous:
+        username: _anonymous
+        roles: []
+        authz_exception: true
