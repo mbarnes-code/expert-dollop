@@ -1,0 +1,137 @@
+# syntax=docker/dockerfile:1
+# Multi-stage Dockerfile for Expert Dollop Frontend Applications
+# Supports Next.js, React, and other Node.js-based applications in the apps directory
+
+ARG NODE_VERSION=22
+
+# ==============================================================================
+# Base Stage - Common setup for all frontend applications
+# ==============================================================================
+FROM node:${NODE_VERSION}-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    libc6-compat \
+    build-base \
+    g++ \
+    cairo \
+    librsvg-dev \
+    pango-dev \
+    imagemagick \
+    fontconfig \
+    font-noto \
+    git \
+    python3 \
+    make
+
+WORKDIR /app
+
+# ==============================================================================
+# Dependencies Stage - Install all dependencies
+# ==============================================================================
+FROM base AS deps
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY nx.json tsconfig.base.json jest.preset.js ./
+
+# Install pnpm
+RUN npm install -g pnpm@latest
+
+# Copy all package.json files for proper dependency resolution
+COPY apps/*/package.json ./apps/
+COPY apps/*/*/package.json ./apps/
+COPY libs/*/package.json ./libs/
+COPY libs/*/*/package.json ./libs/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# ==============================================================================
+# Builder Stage - Build all frontend applications
+# ==============================================================================
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Install pnpm
+RUN npm install -g pnpm@latest
+
+# Copy source code
+COPY . .
+
+# Build arguments for configuration
+ARG BUILD_ENV=production
+ARG NX_CLOUD_AUTH_TOKEN
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build all frontend applications using Nx
+RUN pnpm nx run-many --target=build --all --prod --skip-nx-cache
+
+# ==============================================================================
+# Production Stage - Minimal runtime image for frontend apps
+# ==============================================================================
+FROM node:${NODE_VERSION}-alpine AS production
+
+# Install runtime dependencies for Node apps
+RUN apk add --no-cache \
+    cairo \
+    pango \
+    librsvg \
+    fontconfig \
+    font-noto \
+    tini
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+WORKDIR /app
+
+# Copy built applications from builder
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+
+# Install pnpm for running scripts
+RUN npm install -g pnpm@latest
+
+USER nextjs
+
+EXPOSE 3000
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Default command (can be overridden)
+CMD ["node", "dist/apps/main/server.js"]
+
+# ==============================================================================
+# Development Stage - Hot-reload enabled for development
+# ==============================================================================
+FROM base AS development
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@latest
+
+# Copy workspace configuration
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY nx.json tsconfig.base.json jest.preset.js ./
+
+# Install dependencies
+RUN pnpm install
+
+# Copy source code
+COPY . .
+
+EXPOSE 3000 4200
+
+# Development server with hot reload
+CMD ["pnpm", "nx", "serve"]

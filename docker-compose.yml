@@ -1,0 +1,530 @@
+# Expert Dollop - Root Docker Compose Configuration
+# This file orchestrates frontend and backend services for the entire application
+#
+# Infrastructure Overview:
+# - PostgreSQL: 11 schemas (dispatch, firecrawl, ghostwriter, goose, hexstrike, integration, main, mealie, nemesis, nemsis, tcg)
+# - Redis: 9 databases (0=sessions, 1=cache, 2=rate_limit, 3=BullMQ queues, 4=pubsub, 5=security, 6=tcg_state, 7=ai_cache, 8=analytics)
+# - RabbitMQ: DAPR pub/sub messaging
+# - DAPR: 11 state stores (one per PostgreSQL schema) + pub/sub components
+# - BullMQ: Centralized job queue system using Redis DB 3
+
+networks:
+  expert-dollop:
+    driver: bridge
+    name: expert-dollop-network
+
+volumes:
+  postgres_data:
+    name: expert-dollop-postgres-data
+  redis_data:
+    name: expert-dollop-redis-data
+  rabbitmq_data:
+    name: expert-dollop-rabbitmq-data
+  static_files:
+    name: expert-dollop-static-files
+  media_files:
+    name: expert-dollop-media-files
+  elasticsearch_data:
+    name: expert-dollop-elasticsearch-data
+
+# Common environment variables
+x-common-env: &common-env
+  # Database Configuration (11 schemas available)
+  DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-expert_dollop}
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_NAME: ${DB_NAME:-expert_dollop}
+  DB_USER: ${DB_USER:-postgres}
+  DB_PASSWORD: ${DB_PASSWORD:-postgres}
+  
+  # Redis Configuration (9 databases: 0-8)
+  REDIS_URL: redis://redis:6379/0
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  # BullMQ uses Redis DB 3
+  BULLMQ_REDIS_URL: redis://redis:6379/3
+  
+  # RabbitMQ Configuration (DAPR Pub/Sub)
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-rabbitmq}@rabbitmq:5672/
+  
+  # DAPR Configuration
+  DAPR_HTTP_PORT: ${DAPR_HTTP_PORT:-3500}
+  DAPR_GRPC_PORT: ${DAPR_GRPC_PORT:-50001}
+  
+  # Application Security
+  SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+  DEBUG: ${DEBUG:-false}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+
+services:
+  # ==============================================================================
+  # Infrastructure Services
+  # ==============================================================================
+  
+  postgres:
+    image: postgres:16-alpine
+    container_name: expert-dollop-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-expert_dollop}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Initialize all 11 schemas on first run
+      - ./infrastructure/postgres/schemas:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-expert_dollop}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    labels:
+      - "com.expert-dollop.description=PostgreSQL with 11 schemas: dispatch, firecrawl, ghostwriter, goose, hexstrike, integration, main, mealie, nemesis, nemsis, tcg"
+
+  redis:
+    image: redis:7-alpine
+    container_name: expert-dollop-redis
+    command: redis-server --appendonly yes --bind 0.0.0.0 --databases 16
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    labels:
+      - "com.expert-dollop.description=Redis with 9 active databases: 0=sessions, 1=cache, 2=rate_limit, 3=BullMQ_queues, 4=pubsub, 5=security, 6=tcg_state, 7=ai_cache, 8=analytics"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: expert-dollop-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-rabbitmq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    labels:
+      - "com.expert-dollop.description=RabbitMQ message broker for DAPR pub/sub messaging"
+
+  # ==============================================================================
+  # DAPR Service Mesh
+  # ==============================================================================
+
+  dapr-placement:
+    image: daprio/dapr:1.12.0
+    container_name: expert-dollop-dapr-placement
+    command: ["./placement", "-port", "50006"]
+    ports:
+      - "${DAPR_PLACEMENT_PORT:-50006}:50006"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - dapr
+      - all
+    labels:
+      - "com.expert-dollop.description=DAPR placement service for actor support"
+      - "com.expert-dollop.dapr-components=11 state stores (dispatch, firecrawl, ghostwriter, goose, hexstrike, integration, main, mealie, nemesis, nemsis, tcg)"
+
+  # ==============================================================================
+  # Backend Services - Django
+  # ==============================================================================
+
+  django-spellbook:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: django-production
+    container_name: expert-dollop-django-spellbook
+    environment:
+      <<: *common-env
+      DJANGO_SETTINGS_MODULE: spellbook.settings
+      SERVICE_NAME: spellbook
+      # Uses TCG schema from PostgreSQL
+      POSTGRES_SCHEMA: tcg
+    ports:
+      - "${SPELLBOOK_PORT:-8001}:8000"
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+      - ./backend/django/spellbook:/app/backend/django/spellbook
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - django
+      - all
+    labels:
+      - "com.expert-dollop.service=spellbook-backend"
+      - "com.expert-dollop.schema=tcg"
+
+  # DAPR sidecar for django-spellbook
+  django-spellbook-dapr:
+    image: daprio/daprd:1.12.0
+    container_name: expert-dollop-django-spellbook-dapr
+    command:
+      - "./daprd"
+      - "-app-id"
+      - "django-spellbook"
+      - "-app-port"
+      - "8000"
+      - "-dapr-http-port"
+      - "3501"
+      - "-dapr-grpc-port"
+      - "50002"
+      - "-placement-host-address"
+      - "dapr-placement:50006"
+      - "-components-path"
+      - "/components"
+      - "-config"
+      - "/config/config.yaml"
+    volumes:
+      - ./infrastructure/dapr/components:/components:ro
+      - ./infrastructure/dapr/config:/config:ro
+    depends_on:
+      - django-spellbook
+      - dapr-placement
+      - rabbitmq
+    network_mode: "service:django-spellbook"
+    profiles:
+      - dapr
+      - all
+    labels:
+      - "com.expert-dollop.dapr-app-id=django-spellbook"
+      - "com.expert-dollop.dapr-statestore=statestore-tcg"
+
+  django-security:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: django-production
+    container_name: expert-dollop-django-security
+    environment:
+      <<: *common-env
+      DJANGO_SETTINGS_MODULE: security.settings
+      SERVICE_NAME: security
+      REDIS_URL: redis://redis:6379/5
+      # Uses main schema from PostgreSQL
+      POSTGRES_SCHEMA: main
+    ports:
+      - "${SECURITY_PORT:-8002}:8000"
+    volumes:
+      - ./backend/django/security:/app/backend/django/security
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - django
+      - all
+    labels:
+      - "com.expert-dollop.service=security-backend"
+      - "com.expert-dollop.schema=main"
+
+  django-mtg:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: django-production
+    container_name: expert-dollop-django-mtg
+    environment:
+      <<: *common-env
+      DJANGO_SETTINGS_MODULE: mtg.settings
+      SERVICE_NAME: mtg
+      REDIS_URL: redis://redis:6379/6
+      # Uses TCG schema from PostgreSQL  
+      POSTGRES_SCHEMA: tcg
+    ports:
+      - "${MTG_PORT:-8003}:8000"
+    volumes:
+      - ./backend/django/mtg:/app/backend/django/mtg
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - django
+      - all
+    labels:
+      - "com.expert-dollop.service=mtg-backend"
+      - "com.expert-dollop.schema=tcg"
+
+  # ==============================================================================
+  # Backend Services - FastAPI
+  # ==============================================================================
+
+  fastapi-core:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: fastapi-production
+    container_name: expert-dollop-fastapi-core
+    environment:
+      <<: *common-env
+      SERVICE_NAME: fastapi-core
+      REDIS_URL: redis://redis:6379/3
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"
+    volumes:
+      - ./backend/api/fastapi:/app/backend/api/fastapi
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - backend
+      - fastapi
+      - all
+
+  # ==============================================================================
+  # Worker Services
+  # ==============================================================================
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: celery-worker
+    container_name: expert-dollop-celery-worker
+    environment:
+      <<: *common-env
+      CELERY_BROKER_URL: ${RABBITMQ_URL:-amqp://rabbitmq:rabbitmq@rabbitmq:5672/}
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - workers
+      - all
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: celery-beat
+    container_name: expert-dollop-celery-beat
+    environment:
+      <<: *common-env
+      CELERY_BROKER_URL: ${RABBITMQ_URL:-amqp://rabbitmq:rabbitmq@rabbitmq:5672/}
+      CELERY_RESULT_BACKEND: redis://redis:6379/4
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - workers
+      - all
+
+  # ==============================================================================
+  # Frontend Services
+  # ==============================================================================
+
+  frontend-main:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      target: production
+    container_name: expert-dollop-frontend-main
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./apps:/app/apps:ro
+    depends_on:
+      - fastapi-core
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - frontend
+      - all
+
+  # N8N Frontend
+  n8n-frontend:
+    build:
+      context: ./apps/n8n-frontend
+      dockerfile: ../../features/n8n/docker/images/n8n/Dockerfile
+    container_name: expert-dollop-n8n-frontend
+    environment:
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-http://localhost:5678}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+    ports:
+      - "${N8N_FRONTEND_PORT:-5678}:5678"
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - frontend
+      - n8n
+      - all
+
+  # ==============================================================================
+  # Optional Analytics Stack - Elasticsearch, Logstash, Kibana (HELK)
+  # ==============================================================================
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+    container_name: expert-dollop-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - cluster.name=expert-dollop-cluster
+      - node.name=expert-dollop-es-1
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - elk
+      - analytics
+      - all
+    labels:
+      - "com.expert-dollop.service=elasticsearch"
+      - "com.expert-dollop.description=Search and analytics engine"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.6.2
+    container_name: expert-dollop-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - elk
+      - analytics
+      - all
+    labels:
+      - "com.expert-dollop.service=kibana"
+      - "com.expert-dollop.description=Data visualization dashboard"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.6.2
+    container_name: expert-dollop-logstash
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      XPACK_MONITORING_ENABLED: "true"
+      XPACK_MONITORING_ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "${LOGSTASH_PORT:-5044}:5044"
+      - "9600:9600"
+    volumes:
+      - ./infrastructure/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./infrastructure/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - elk
+      - analytics
+      - all
+    labels:
+      - "com.expert-dollop.service=logstash"
+      - "com.expert-dollop.description=Data processing pipeline"
+
+  # ==============================================================================
+  # Reverse Proxy / API Gateway (Optional)
+  # ==============================================================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: expert-dollop-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_files:/var/www/static:ro
+      - media_files:/var/www/media:ro
+    depends_on:
+      - fastapi-core
+    networks:
+      - expert-dollop
+    restart: unless-stopped
+    profiles:
+      - proxy
+      - all
+
+# Note: elasticsearch_data volume defined in main volumes section

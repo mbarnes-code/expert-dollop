@@ -1,0 +1,196 @@
+# syntax=docker/dockerfile:1
+# Multi-stage Dockerfile for Expert Dollop Backend Services
+# Supports Django, FastAPI, and other Python-based backend services
+
+ARG PYTHON_VERSION=3.12
+
+# ==============================================================================
+# Base Stage - Common Python setup
+# ==============================================================================
+FROM python:${PYTHON_VERSION}-slim AS base
+
+# Prevent Python from writing pyc files and buffer stdout/stderr
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    libpq-dev \
+    libffi-dev \
+    libssl-dev \
+    postgresql-client \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# ==============================================================================
+# Django Backend Builder
+# ==============================================================================
+FROM base AS django-builder
+
+# Install Python build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-dev \
+    musl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Django requirements files
+COPY backend/django/*/requirements.txt /tmp/django-requirements/
+
+# Install all Django backend dependencies
+RUN for req_file in /tmp/django-requirements/*.txt; do \
+        pip install --no-cache-dir -r "$req_file"; \
+    done
+
+# Install common Django production dependencies
+RUN pip install --no-cache-dir \
+    gunicorn \
+    uvicorn[standard] \
+    psycopg[binary] \
+    redis \
+    celery[redis] \
+    whitenoise
+
+# ==============================================================================
+# FastAPI Backend Builder
+# ==============================================================================
+FROM base AS fastapi-builder
+
+# Copy FastAPI requirements
+COPY backend/api/fastapi/requirements.txt /tmp/
+
+# Install FastAPI and dependencies
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && \
+    pip install --no-cache-dir \
+    uvicorn[standard] \
+    gunicorn \
+    psycopg[binary] \
+    redis \
+    celery[redis]
+
+# ==============================================================================
+# Production Django Image
+# ==============================================================================
+FROM base AS django-production
+
+# Create app user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Copy installed packages from builder
+COPY --from=django-builder /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
+COPY --from=django-builder /usr/local/bin /usr/local/bin
+
+# Copy Django backend code
+COPY --chown=appuser:appuser backend/django /app/backend/django
+COPY --chown=appuser:appuser backend/services /app/backend/services
+
+# Create directories for static files and media
+RUN mkdir -p /app/staticfiles /app/media && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Default command (can be overridden for specific Django apps)
+CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]
+
+# ==============================================================================
+# Production FastAPI Image
+# ==============================================================================
+FROM base AS fastapi-production
+
+# Create app user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Copy installed packages from builder
+COPY --from=fastapi-builder /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
+COPY --from=fastapi-builder /usr/local/bin /usr/local/bin
+
+# Copy FastAPI backend code
+COPY --chown=appuser:appuser backend/api /app/backend/api
+COPY --chown=appuser:appuser backend/auth /app/backend/auth
+COPY --chown=appuser:appuser backend/services /app/backend/services
+
+USER appuser
+
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Default command
+CMD ["uvicorn", "backend.api.fastapi.src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+# ==============================================================================
+# Development Image - Django and FastAPI combined
+# ==============================================================================
+FROM base AS development
+
+# Install development tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    vim \
+    less \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy all requirements
+COPY backend/django/*/requirements.txt /tmp/django-requirements/
+COPY backend/api/fastapi/requirements.txt /tmp/fastapi-requirements.txt
+
+# Install all dependencies including dev tools
+RUN for req_file in /tmp/django-requirements/*.txt; do \
+        pip install --no-cache-dir -r "$req_file"; \
+    done && \
+    pip install --no-cache-dir -r /tmp/fastapi-requirements.txt && \
+    pip install --no-cache-dir \
+    gunicorn \
+    uvicorn[standard] \
+    psycopg[binary] \
+    redis \
+    celery[redis] \
+    ipython \
+    django-debug-toolbar \
+    pytest \
+    pytest-django \
+    pytest-cov \
+    black \
+    flake8 \
+    mypy
+
+# Copy backend code
+COPY backend /app/backend
+
+EXPOSE 8000
+
+# Development server with auto-reload
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+# ==============================================================================
+# Celery Worker Image
+# ==============================================================================
+FROM django-production AS celery-worker
+
+# Override command for Celery worker
+CMD ["celery", "-A", "backend", "worker", "--loglevel=info"]
+
+# ==============================================================================
+# Celery Beat Image
+# ==============================================================================
+FROM django-production AS celery-beat
+
+# Override command for Celery beat
+CMD ["celery", "-A", "backend", "beat", "--loglevel=info"]
