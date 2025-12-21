@@ -48,6 +48,15 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Nx cache
+.nx/cache/
+
+# Video files in modules (documentation assets)
+modules/**/*.mp4
+modules/**/*.avi
+modules/**/*.mov
+modules/**/*.mkv
+
 # NX
 .nx/cache
 .nx/workspace-data
