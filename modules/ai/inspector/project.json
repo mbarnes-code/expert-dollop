@@ -1,0 +1,44 @@
+{
+  "name": "ai-inspector",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/ai/inspector",
+  "projectType": "application",
+  "tags": ["scope:ai", "type:tool", "tech:typescript"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm install",
+        "cwd": "modules/ai/inspector"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "modules/ai/inspector"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm start",
+        "cwd": "modules/ai/inspector"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "modules/ai/inspector"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t mcp-inspector .",
+        "cwd": "modules/ai/inspector"
+      }
+    }
+  }
+}

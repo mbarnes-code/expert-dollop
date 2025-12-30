@@ -1,0 +1,30 @@
+{
+  "name": "workflow-n8n-mcp",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/workflow/n8n-mcp",
+  "projectType": "application",
+  "tags": ["scope:workflow", "type:mcp-server", "tech:typescript"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm install",
+        "cwd": "modules/workflow/n8n-mcp"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "modules/workflow/n8n-mcp"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm start",
+        "cwd": "modules/workflow/n8n-mcp"
+      }
+    }
+  }
+}

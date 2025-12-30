@@ -1,85 +1,44 @@
 {
-  "name": "unified-frontend",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/unified-frontend",
+  "name": "omninexus",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "omninexus",
   "projectType": "application",
   "tags": ["type:app", "scope:frontend"],
   "targets": {
     "dev": {
-      "executor": "@nx/next:server",
-      "defaultConfiguration": "development",
+      "executor": "nx:run-commands",
       "options": {
-        "buildTarget": "unified-frontend:build",
-        "dev": true,
-        "port": 3000
-      },
-      "configurations": {
-        "development": {
-          "buildTarget": "unified-frontend:build:development"
-        },
-        "production": {
-          "buildTarget": "unified-frontend:build:production",
-          "dev": false
-        }
+        "command": "vite",
+        "cwd": "omninexus"
       }
     },
     "build": {
-      "executor": "@nx/next:build",
-      "outputs": ["{options.outputPath}"],
-      "defaultConfiguration": "production",
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/omninexus"],
       "options": {
-        "outputPath": "dist/apps/unified-frontend"
-      },
-      "configurations": {
-        "development": {
-          "outputPath": "apps/unified-frontend"
-        },
-        "production": {
-          "outputPath": "dist/apps/unified-frontend"
-        }
+        "command": "vite build",
+        "cwd": "omninexus"
       }
     },
-    "start": {
-      "executor": "@nx/next:server",
-      "defaultConfiguration": "production",
+    "preview": {
+      "executor": "nx:run-commands",
       "options": {
-        "buildTarget": "unified-frontend:build",
-        "dev": false,
-        "port": 3000
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "unified-frontend:build:production",
-          "dev": false
-        }
+        "command": "vite preview",
+        "cwd": "omninexus"
       }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["apps/unified-frontend/**/*.{ts,tsx,js,jsx}"]
-      }
-    },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
-      "options": {
-        "jestConfig": "apps/unified-frontend/jest.config.ts",
-        "passWithNoTests": true
-      },
-      "configurations": {
-        "ci": {
-          "ci": true,
-          "codeCoverage": true
-        }
+        "lintFilePatterns": ["omninexus/**/*.{ts,tsx,js,jsx}"]
       }
     },
     "type-check": {
       "executor": "nx:run-commands",
       "options": {
         "command": "tsc --noEmit",
-        "cwd": "apps/unified-frontend"
+        "cwd": "omninexus"
       }
     }
   }

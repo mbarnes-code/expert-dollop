@@ -1,0 +1,23 @@
+{
+  "name": "tcg-commander-spellbook",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/tcg/commander-spellbook",
+  "projectType": "application",
+  "tags": ["scope:tcg", "type:app", "tech:python"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/tcg/commander-spellbook"
+      }
+    },
+    "docker-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/tcg/commander-spellbook"
+      }
+    }
+  }
+}

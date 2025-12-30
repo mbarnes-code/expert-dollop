@@ -1,0 +1,44 @@
+{
+  "name": "ai-firecrawl-mcp",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/ai/firecrawl-mcp",
+  "projectType": "application",
+  "tags": ["scope:ai", "type:mcp-server", "tech:typescript"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm install",
+        "cwd": "modules/ai/firecrawl-mcp"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm build",
+        "cwd": "modules/ai/firecrawl-mcp"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm start",
+        "cwd": "modules/ai/firecrawl-mcp"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm test",
+        "cwd": "modules/ai/firecrawl-mcp"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t firecrawl-mcp .",
+        "cwd": "modules/ai/firecrawl-mcp"
+      }
+    }
+  }
+}

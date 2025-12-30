@@ -1,0 +1,23 @@
+{
+  "name": "security-nemesis",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/nemesis",
+  "projectType": "application",
+  "tags": ["scope:security", "type:app", "tech:python"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/security/nemesis"
+      }
+    },
+    "docker-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/security/nemesis"
+      }
+    }
+  }
+}

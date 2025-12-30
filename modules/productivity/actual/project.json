@@ -1,0 +1,44 @@
+{
+  "name": "productivity-actual",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/productivity/actual",
+  "projectType": "application",
+  "tags": ["scope:productivity", "type:app", "tech:typescript"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "yarn install",
+        "cwd": "modules/productivity/actual"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "yarn build",
+        "cwd": "modules/productivity/actual"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "yarn start",
+        "cwd": "modules/productivity/actual"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "yarn test",
+        "cwd": "modules/productivity/actual"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/productivity/actual"
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ai-nuq-postgres",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/ai/nuq-postgres",
+  "projectType": "application",
+  "tags": ["scope:ai", "type:database", "tech:postgres"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t nuq-postgres .",
+        "cwd": "modules/ai/nuq-postgres"
+      }
+    },
+    "init-db": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "psql -f nuq.sql",
+        "cwd": "modules/ai/nuq-postgres"
+      }
+    }
+  }
+}

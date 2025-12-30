@@ -50,6 +50,8 @@
     "appsDir": "apps",
     "libsDir": "libs"
   },
+  "nxCloudAccessToken": "",
+  "defaultProject": "omninexus",
   "plugins": [
     {
       "plugin": "@nx/next/plugin",
@@ -57,7 +59,8 @@
         "buildTargetName": "build",
         "devTargetName": "dev",
         "startTargetName": "start"
-      }
+      },
+      "exclude": ["omninexus/**"]
     }
   ]
 }

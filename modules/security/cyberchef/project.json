@@ -1,0 +1,16 @@
+{
+  "name": "security-cyberchef",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/cyberchef",
+  "projectType": "application",
+  "tags": ["scope:security", "type:tool", "tech:javascript"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t cyberchef .",
+        "cwd": "modules/security/cyberchef"
+      }
+    }
+  }
+}

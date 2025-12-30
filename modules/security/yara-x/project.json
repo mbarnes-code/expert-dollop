@@ -1,0 +1,23 @@
+{
+  "name": "security-yara-x",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/yara-x",
+  "projectType": "application",
+  "tags": ["scope:security", "type:tool", "tech:rust"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo build --release",
+        "cwd": "modules/security/yara-x"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "cargo test",
+        "cwd": "modules/security/yara-x"
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ai-kasmvnc",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/ai/kasmvnc",
+  "projectType": "application",
+  "tags": ["scope:ai", "type:service", "tech:docker"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t kasmvnc .",
+        "cwd": "modules/ai/kasmvnc"
+      }
+    },
+    "docker-run": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/ai/kasmvnc"
+      }
+    }
+  }
+}

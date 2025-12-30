@@ -1,0 +1,37 @@
+{
+  "name": "productivity-mealie",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/productivity/mealie",
+  "projectType": "application",
+  "tags": ["scope:productivity", "type:app", "tech:python"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv sync",
+        "cwd": "modules/productivity/mealie"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "task dev",
+        "cwd": "modules/productivity/mealie"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "task test",
+        "cwd": "modules/productivity/mealie"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/productivity/mealie"
+      }
+    }
+  }
+}

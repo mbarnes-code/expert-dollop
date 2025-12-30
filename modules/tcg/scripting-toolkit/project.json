@@ -1,0 +1,23 @@
+{
+  "name": "tcg-scripting-toolkit",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/tcg/scripting-toolkit",
+  "projectType": "library",
+  "tags": ["scope:tcg", "type:lib", "tech:python"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pip install -e .",
+        "cwd": "modules/tcg/scripting-toolkit"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pytest",
+        "cwd": "modules/tcg/scripting-toolkit"
+      }
+    }
+  }
+}

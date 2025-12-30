@@ -1,0 +1,30 @@
+{
+  "name": "security-ghostwriter",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/ghostwriter",
+  "projectType": "application",
+  "tags": ["scope:security", "type:app", "tech:django"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/security/ghostwriter"
+      }
+    },
+    "docker-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/security/ghostwriter"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose exec django python manage.py test",
+        "cwd": "modules/security/ghostwriter"
+      }
+    }
+  }
+}

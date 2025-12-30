@@ -1,0 +1,30 @@
+{
+  "name": "security-dispatch",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/dispatch",
+  "projectType": "application",
+  "tags": ["scope:security", "type:app", "tech:python"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/security/dispatch"
+      }
+    },
+    "docker-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/security/dispatch"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pytest",
+        "cwd": "modules/security/dispatch"
+      }
+    }
+  }
+}

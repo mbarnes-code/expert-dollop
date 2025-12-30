@@ -1,0 +1,23 @@
+{
+  "name": "security-misp",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/misp",
+  "projectType": "application",
+  "tags": ["scope:security", "type:platform", "tech:php"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/security/misp"
+      }
+    },
+    "docker-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/security/misp"
+      }
+    }
+  }
+}

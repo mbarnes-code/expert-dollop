@@ -1,0 +1,30 @@
+{
+  "name": "tcg-commander-map",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/tcg/commander-map",
+  "projectType": "application",
+  "tags": ["scope:tcg", "type:app", "tech:typescript"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm install",
+        "cwd": "modules/tcg/commander-map"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "modules/tcg/commander-map"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run dev",
+        "cwd": "modules/tcg/commander-map"
+      }
+    }
+  }
+}

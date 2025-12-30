@@ -1,0 +1,23 @@
+{
+  "name": "security-helk",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/helk",
+  "projectType": "application",
+  "tags": ["scope:security", "type:platform", "tech:docker"],
+  "targets": {
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose build",
+        "cwd": "modules/security/helk"
+      }
+    },
+    "docker-up": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker-compose up -d",
+        "cwd": "modules/security/helk"
+      }
+    }
+  }
+}

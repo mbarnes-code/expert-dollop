@@ -1,0 +1,2 @@
+# Ignore the legacy next.config.js in omninexus (it's a Vite app)
+omninexus/next.config.js

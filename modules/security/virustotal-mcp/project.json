@@ -1,0 +1,30 @@
+{
+  "name": "security-virustotal-mcp",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/security/virustotal-mcp",
+  "projectType": "application",
+  "tags": ["scope:security", "type:mcp-server", "tech:typescript"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm install",
+        "cwd": "modules/security/virustotal-mcp"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "modules/security/virustotal-mcp"
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm start",
+        "cwd": "modules/security/virustotal-mcp"
+      }
+    }
+  }
+}

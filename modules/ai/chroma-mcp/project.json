@@ -1,0 +1,37 @@
+{
+  "name": "ai-chroma-mcp",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "modules/ai/chroma-mcp",
+  "projectType": "application",
+  "tags": ["scope:ai", "type:mcp-server", "tech:python"],
+  "targets": {
+    "install": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv sync",
+        "cwd": "modules/ai/chroma-mcp"
+      }
+    },
+    "run": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run chroma-mcp",
+        "cwd": "modules/ai/chroma-mcp"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "uv run pytest",
+        "cwd": "modules/ai/chroma-mcp"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t chroma-mcp .",
+        "cwd": "modules/ai/chroma-mcp"
+      }
+    }
+  }
+}
