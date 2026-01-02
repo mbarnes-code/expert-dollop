@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # --- COMMON CONFIGURATION FOR vLLM NODES ---
+  # Note: vLLM requires a high-performance GPU. Ensure NVIDIA Container Toolkit is installed.
+  
+  # --- HEAD AGENT (Overlord) ---
+  vllm-overlord:
+    image: vllm/vllm-openai:latest
+    container_name: nexus-swarm-overlord
+    command: >
+      --model ${OVERLORD_MODEL:-facebook/opt-125m}
+      --port 11434
+      --max-model-len 2048
+    ports:
+      - "11434:11434"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - nexus-network
+
+  # --- LOCAL SWARM AGENTS (vLLM Nodes) ---
+  agent-cyber:
+    image: vllm/vllm-openai:latest
+    container_name: nexus-agent-cyber
+    command: >
+      --model ${CYBER_MODEL:-facebook/opt-125m}
+      --port 11434
+      --max-model-len 1024
+    ports:
+      - "8001:11434"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - nexus-network
+
+  agent-gaming:
+    image: vllm/vllm-openai:latest
+    container_name: nexus-agent-gaming
+    command: >
+      --model ${GAMING_MODEL:-facebook/opt-125m}
+      --port 11434
+      --max-model-len 1024
+    ports:
+      - "8002:11434"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - nexus-network
+
+  agent-prod:
+    image: vllm/vllm-openai:latest
+    container_name: nexus-agent-prod
+    command: >
+      --model ${PROD_MODEL:-facebook/opt-125m}
+      --port 11434
+      --max-model-len 1024
+    ports:
+      - "8003:11434"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - nexus-network
+
+  agent-infra:
+    image: vllm/vllm-openai:latest
+    container_name: nexus-agent-infra
+    command: >
+      --model ${INFRA_MODEL:-facebook/opt-125m}
+      --port 11434
+      --max-model-len 1024
+    ports:
+      - "8004:11434"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    external: true
+    name: nexus-network
+
+volumes:
+  hf_cache:

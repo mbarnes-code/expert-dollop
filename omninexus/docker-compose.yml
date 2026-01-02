@@ -1,0 +1,198 @@
+version: '3.8'
+
+services:
+  # --- REVERSE PROXY & INGRESS ---
+  traefik:
+    image: traefik:v3.6.1
+    container_name: nexus-traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "7443:443"
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./infrastructure/traefik/config:/etc/traefik/config"
+    networks:
+      - nexus-network
+
+  # --- PRIMARY DATA LAYER ---
+  postgres:
+    image: ankane/pgvector:v0.5.1-pg16
+    container_name: nexus-db
+    environment:
+      POSTGRES_DB: nexus_core
+      POSTGRES_USER: nexus_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nexus_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - nexus-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: nexus-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - nexus-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: nexus-mq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: nexus_admin
+      RABBITMQ_DEFAULT_PASS: ${DB_PASSWORD:-nexus_pass}
+    volumes:
+      - ./infrastructure/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+    networks:
+      - nexus-network
+
+  # --- MODEL & DATA STORAGE ---
+  minio:
+    image: minio/minio:latest
+    container_name: nexus-s3
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: nexus_admin
+      MINIO_ROOT_PASSWORD: ${DB_PASSWORD:-nexus_pass}
+    command: server /data --console-address ":9001"
+    volumes:
+      - s3data:/data
+    networks:
+      - nexus-network
+
+  # --- CYBER OPS / BIG DATA (ELK STACK) ---
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: nexus-elastic
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - nexus-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: nexus-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - nexus-network
+
+  # --- NEURAL GATEWAY (LiteLLM) ---
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: nexus-litellm
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./infrastructure/litellm/config.yaml:/app/config.yaml
+    environment:
+      - DATABASE_URL=postgresql://nexus_admin:${DB_PASSWORD:-nexus_pass}@postgres:5432/nexus_core
+      - LITELLM_MASTER_KEY=sk-${LITELLM_ADMIN_PASSWORD:-admin123}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - nexus-network
+
+  # --- LOCAL SWARM AGENTS (vLLM) ---
+  vllm-overlord:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-overlord
+    command: >
+      --model ${OVERLORD_MODEL:-facebook/opt-125m}
+      --port 11434
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - nexus-network
+
+  agent-cyber:
+    image: vllm/vllm-openai:latest
+    container_name: agent-cyber
+    command: >
+      --model ${CYBER_MODEL:-facebook/opt-125m}
+      --port 11434
+    networks:
+      - nexus-network
+
+  agent-gaming:
+    image: vllm/vllm-openai:latest
+    container_name: agent-gaming
+    command: >
+      --model ${GAMING_MODEL:-facebook/opt-125m}
+      --port 11434
+    networks:
+      - nexus-network
+
+  # --- AI OBSERVABILITY & TRACING ---
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: nexus-phoenix
+    ports:
+      - "6006:6006"
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=postgresql://nexus_admin:${DB_PASSWORD:-nexus_pass}@postgres:5432/nexus_core
+    networks:
+      - nexus-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: nexus-jaeger
+    ports:
+      - "16686:16686"
+    networks:
+      - nexus-network
+
+  # --- METRICS & DASHBOARDS (Grafana) ---
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nexus-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${DB_PASSWORD:-nexus_pass}
+    volumes:
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  esdata:
+  s3data:
+  hf_cache:
